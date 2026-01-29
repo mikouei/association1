@@ -186,12 +186,12 @@ export default function Admin() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        ListEmptyComponent=(
+        ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Ionicons name="shield-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>Aucun administrateur</Text>
           </View>
-        )
+        )}
       />
 
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>

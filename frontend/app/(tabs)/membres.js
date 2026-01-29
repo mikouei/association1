@@ -133,12 +133,12 @@ export default function Membres() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        ListEmptyComponent=(
+        ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>Aucun membre trouvé</Text>
           </View>
-        )
+        )}
       />
 
       {isAdmin && (

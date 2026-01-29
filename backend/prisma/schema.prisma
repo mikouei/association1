@@ -9,19 +9,14 @@ datasource db {
   url      = "file:./assocmanager.db"
 }
 
-// Rôles utilisateurs
-enum Role {
-  ADMIN
-  MEMBER
-}
-
 // Utilisateurs (ADMIN et MEMBER)
+// Note: SQLite ne supporte pas les enums, on utilise String avec contrainte
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
   phone        String?
   passwordHash String
-  role         Role     @default(MEMBER)
+  role         String   @default("MEMBER") // "ADMIN" ou "MEMBER"
   token        String?  @unique // Token d'accès pour les membres
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())

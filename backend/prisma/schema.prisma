@@ -1,0 +1,54 @@
+// Prisma schema pour AssocManager
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./assocmanager.db"
+}
+
+// Rôles utilisateurs
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+// Utilisateurs (ADMIN et MEMBER)
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         Role     @default(MEMBER)
+  token        String?  @unique // Token d'accès pour les membres
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  member       Member?  // Relation 1-1 avec Member
+}
+
+// Informations membres (données métier)
+model Member {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  name              String
+  customFieldValue  String   // Villa, Groupe, Section, etc.
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Configuration de l'association
+model AssociationConfig {
+  id               String   @id @default(uuid())
+  name             String   // Nom de l'association
+  type             String?  // Type (optionnel)
+  memberFieldLabel String   @default("Villa") // Libellé du champ personnalisé
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

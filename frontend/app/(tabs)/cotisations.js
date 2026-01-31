@@ -237,7 +237,8 @@ export default function Cotisations() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <View>
+        {/* Table des cotisations */}
+        <View style={styles.tableContainer}>
           {/* Header row */}
           <View style={styles.tableHeader}>
             <View style={[styles.cell, styles.nameCell, styles.headerCell]}>
@@ -249,50 +250,55 @@ export default function Cotisations() {
               </View>
             ))}
             <View style={[styles.cell, styles.totalCell, styles.headerCell]}>
-              <Text style={styles.headerText}>Total</Text>
+              <Text style={styles.headerText}>Tot</Text>
             </View>
           </View>
 
           {/* Member rows */}
-          <ScrollView style={styles.tableBody}>
-            {membersData.map((member) => (
-              <View key={member.id} style={styles.row}>
-                <View style={[styles.cell, styles.nameCell]}>
-                  <Text style={styles.memberName} numberOfLines={1}>
-                    {member.name}
-                  </Text>
-                  <Text style={styles.memberField} numberOfLines={1}>
-                    {member.customFieldValue}
-                  </Text>
-                </View>
-
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => {
-                  const monthData = member.paymentsByMonth[month];
-                  return (
-                    <TouchableOpacity
-                      key={month}
-                      style={[
-                        styles.cell,
-                        styles.monthCell,
-                        { backgroundColor: getCellColor(monthData, selectedYear.monthlyAmount) }
-                      ]}
-                      onPress={() => handleCellPress(member, month)}
-                      disabled={!isAdmin}
-                    >
-                      <Text style={styles.cellText}>
-                        {monthData.amountPaid > 0 ? Math.round(monthData.amountPaid) : '-'}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-
-                <View style={[styles.cell, styles.totalCell, styles.totalCellBg]}>
-                  <Text style={styles.totalText}>{Math.round(member.totalPaid)}</Text>
-                  <Text style={styles.percentageText}>{member.percentage}%</Text>
-                </View>
+          {filteredMembers.map((member) => (
+            <View key={member.id} style={styles.row}>
+              <View style={[styles.cell, styles.nameCell]}>
+                <Text style={styles.memberName} numberOfLines={1}>
+                  {member.name}
+                </Text>
+                <Text style={styles.memberField} numberOfLines={1}>
+                  {member.customFieldValue}
+                </Text>
               </View>
-            ))}
-          </ScrollView>
+
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => {
+                const monthData = member.paymentsByMonth[month];
+                return (
+                  <TouchableOpacity
+                    key={month}
+                    style={[
+                      styles.cell,
+                      styles.monthCell,
+                      { backgroundColor: getCellColor(monthData, selectedYear.monthlyAmount) }
+                    ]}
+                    onPress={() => handleCellPress(member, month)}
+                    disabled={!isAdmin}
+                  >
+                    <Text style={styles.cellText}>
+                      {monthData.amountPaid > 0 ? Math.round(monthData.amountPaid / 1000) + 'k' : '-'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <View style={[styles.cell, styles.totalCell]}>
+                <Text style={styles.totalText}>{Math.round(member.totalPaid / 1000)}k</Text>
+              </View>
+            </View>
+          ))}
+
+          {filteredMembers.length === 0 && (
+            <View style={styles.noResults}>
+              <Text style={styles.noResultsText}>
+                {searchQuery ? 'Aucun résultat trouvé' : 'Aucun membre'}
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 

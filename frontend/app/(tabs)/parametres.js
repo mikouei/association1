@@ -53,9 +53,7 @@ export default function Parametres() {
 
   useEffect(() => {
     loadConfig();
-    if (isAdmin) {
-      loadYears();
-    }
+    loadYears();
   }, []);
 
   const loadConfig = async () => {

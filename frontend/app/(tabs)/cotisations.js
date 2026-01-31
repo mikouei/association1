@@ -234,7 +234,7 @@ export default function Cotisations() {
                       style={[
                         styles.cell,
                         styles.monthCell,
-                        { backgroundColor: getCellColor(monthData, activeYear.monthlyAmount) }
+                        { backgroundColor: getCellColor(monthData, selectedYear.monthlyAmount) }
                       ]}
                       onPress={() => handleCellPress(member, month)}
                       disabled={!isAdmin}

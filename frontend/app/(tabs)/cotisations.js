@@ -337,7 +337,7 @@ export default function Cotisations() {
             {selectedCell && (
               <>
                 <Text style={styles.modalInfo}>
-                  {selectedCell.member.name} - {MONTHS[selectedCell.month - 1]}
+                  {selectedCell.member.name} - {MONTHS_FULL[selectedCell.month - 1]}
                 </Text>
 
                 <View style={styles.inputContainer}>

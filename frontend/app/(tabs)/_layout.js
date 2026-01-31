@@ -31,6 +31,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="cotisations"
+        options={{
+          title: 'Cotisations',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cash" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="membres"
         options={{
           title: 'Membres',
@@ -44,7 +53,7 @@ export default function TabsLayout() {
           name="admin"
           options={{
             title: 'Admin',
-            tabBarIcon: ({ color, size }) => (
+            tabBarIcon: ({ color, size}) => (
               <Ionicons name="shield" size={size} color={color} />
             ),
           }}

@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
   },
   cell: {
-    padding: 8,
+    padding: 4,
     justifyContent: 'center',
     alignItems: 'center',
     borderRightWidth: 1,
@@ -548,16 +548,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#1976D2',
   },
   nameCell: {
-    width: 140,
+    width: 80,
     alignItems: 'flex-start',
     backgroundColor: '#fff',
+    paddingHorizontal: 6,
   },
   monthCell: {
-    width: 60,
-    minHeight: 50,
+    width: 24,
+    minHeight: 40,
   },
   totalCell: {
-    width: 80,
+    width: 36,
   },
   totalCellBg: {
     backgroundColor: '#E3F2FD',

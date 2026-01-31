@@ -20,8 +20,332 @@ import api from '../../utils/api';
 
 export default function Membres() {
   const { user } = useAuth();
-  const router = useRouter();
   const isAdmin = user?.role === 'ADMIN';
+  
+  const [members, setMembers] = useState([]);
+  const [filteredMembers, setFilteredMembers] = useState([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [config, setConfig] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    customFieldValue: '',
+    email: '',
+    phone: '',
+    password: ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    loadMembers();
+    loadConfig();
+  }, []);
+
+  useEffect(() => {
+    filterMembers();
+  }, [search, members]);
+
+  const loadConfig = async () => {
+    try {
+      const response = await api.get('/config');
+      setConfig(response.data);
+    } catch (error) {
+      console.error('Erreur chargement config:', error);
+    }
+  };
+
+  const loadMembers = async () => {
+    try {
+      const response = await api.get('/members');
+      setMembers(response.data);
+      setFilteredMembers(response.data);
+    } catch (error) {
+      console.error('Erreur chargement membres:', error);
+      Alert.alert('Erreur', 'Impossible de charger les membres');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const filterMembers = () => {
+    if (!search.trim()) {
+      setFilteredMembers(members);
+      return;
+    }
+
+    const filtered = members.filter(
+      (member) =>
+        member.name?.toLowerCase().includes(search.toLowerCase()) ||
+        member.customFieldValue?.toLowerCase().includes(search.toLowerCase())
+    );
+    setFilteredMembers(filtered);
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadMembers();
+  };
+
+  const handleAddMember = () => {
+    setEditingMember(null);
+    setFormData({
+      name: '',
+      customFieldValue: '',
+      email: '',
+      phone: '',
+      password: ''
+    });
+    setModalVisible(true);
+  };
+
+  const handleEditMember = (member) => {
+    setEditingMember(member);
+    setFormData({
+      name: member.name,
+      customFieldValue: member.customFieldValue,
+      email: member.email || '',
+      phone: member.phone || '',
+      password: ''
+    });
+    setModalVisible(true);
+  };
+
+  const handleSaveMember = async () => {
+    if (!formData.name || !formData.customFieldValue) {
+      Alert.alert('Erreur', 'Nom et champ personnalisé requis');
+      return;
+    }
+
+    if (!editingMember && !formData.email && !formData.phone) {
+      Alert.alert('Erreur', 'Email ou téléphone requis');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (editingMember) {
+        // Modification
+        await api.put(`/members/${editingMember.id}`, {
+          name: formData.name,
+          customFieldValue: formData.customFieldValue,
+          email: formData.email,
+          phone: formData.phone
+        });
+        Alert.alert('Succès', 'Membre modifié avec succès');
+      } else {
+        // Création
+        const response = await api.post('/members', formData);
+        Alert.alert(
+          'Membre créé!',
+          `Nom: ${response.data.name}\nEmail: ${response.data.email}\nMot de passe: ${response.data.password}\nToken: ${response.data.token}`,
+          [{ text: 'OK' }]
+        );
+      }
+      setModalVisible(false);
+      loadMembers();
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleActive = (member) => {
+    const action = member.active ? 'désactiver' : 'réactiver';
+    Alert.alert(
+      'Confirmation',
+      `Voulez-vous ${action} ce membre ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Confirmer',
+          onPress: async () => {
+            try {
+              const endpoint = member.active ? 'deactivate' : 'activate';
+              await api.put(`/members/${member.id}/${endpoint}`);
+              loadMembers();
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de modifier le statut');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const renderMember = ({ item }) => (
+    <TouchableOpacity
+      style={styles.memberCard}
+      onPress={() => isAdmin && handleEditMember(item)}
+      onLongPress={() => isAdmin && handleToggleActive(item)}
+    >
+      <View style={styles.memberHeader}>
+        <View style={styles.memberIcon}>
+          <Ionicons name="person" size={24} color="#2196F3" />
+        </View>
+        <View style={styles.memberInfo}>
+          <Text style={styles.memberName}>{item.name}</Text>
+          <Text style={styles.memberField}>
+            {config?.memberFieldLabel || 'Villa'}: {item.customFieldValue}
+          </Text>
+          {item.phone && <Text style={styles.memberPhone}>{item.phone}</Text>}
+        </View>
+        <View style={styles.memberStatus}>
+          <Ionicons
+            name={item.active ? 'checkmark-circle' : 'close-circle'}
+            size={24}
+            color={item.active ? '#4CAF50' : '#FF5252'}
+          />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2196F3" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher un membre..."
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
+      <FlatList
+        data={filteredMembers}
+        renderItem={renderMember}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="people-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyText}>Aucun membre trouvé</Text>
+          </View>
+        )}
+      />
+
+      {isAdmin && (
+        <TouchableOpacity style={styles.fab} onPress={handleAddMember}>
+          <Ionicons name="add" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Modal Ajout/Modification */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingMember ? 'Modifier membre' : 'Nouveau membre'}
+              </Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Nom complet *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: Jean Dupont"
+                  value={formData.name}
+                  onChangeText={(text) => setFormData({ ...formData, name: text })}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>{config?.memberFieldLabel || 'Villa'} *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: Villa 12"
+                  value={formData.customFieldValue}
+                  onChangeText={(text) => setFormData({ ...formData, customFieldValue: text })}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="email@exemple.com"
+                  value={formData.email}
+                  onChangeText={(text) => setFormData({ ...formData, email: text })}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Téléphone</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="+237 6XX XX XX XX"
+                  value={formData.phone}
+                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              {!editingMember && (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Mot de passe (optionnel)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Laisser vide pour auto-génération"
+                    value={formData.password}
+                    onChangeText={(text) => setFormData({ ...formData, password: text })}
+                    secureTextEntry
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+                onPress={handleSaveMember}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>
+                    {editingMember ? 'Modifier' : 'Créer'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
+  );
+}
   
   const [members, setMembers] = useState([]);
   const [filteredMembers, setFilteredMembers] = useState([]);

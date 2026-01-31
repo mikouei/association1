@@ -43,6 +43,9 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/exceptional', exceptionalRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/exceptional', exceptionalRoutes);
+app.use('/api/import', importRoutes);
+app.use('/api/export', exportRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {

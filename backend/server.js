@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import memberRoutes from './routes/members.js';
 import configRoutes from './routes/config.js';
+import yearRoutes from './routes/years.js';
+import paymentRoutes from './routes/payments.js';
 
 dotenv.config();
 

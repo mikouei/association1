@@ -1,0 +1,22 @@
+diff --git a/backend/server.js b/backend/server.js
+index 6b33b2f..65c7ea0 100644
+--- a/backend/server.js
++++ b/backend/server.js
+@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.js';
+ import adminRoutes from './routes/admin.js';
+ import memberRoutes from './routes/members.js';
+ import configRoutes from './routes/config.js';
++import yearRoutes from './routes/years.js';
++import paymentRoutes from './routes/payments.js';
+ 
+ dotenv.config();
+ 
+@@ -33,6 +35,8 @@ app.use('/api/auth', authRoutes);
+ app.use('/api/admin', adminRoutes);
+ app.use('/api/members', memberRoutes);
+ app.use('/api/config', configRoutes);
++app.use('/api/years', yearRoutes);
++app.use('/api/payments', paymentRoutes);
+ 
+ // Error handling
+ app.use((err, req, res, next) => {

@@ -644,20 +644,24 @@ export default function Parametres() {
                 <Text style={styles.previewTitle}>Résultat de la prévisualisation</Text>
                 <View style={styles.previewStats}>
                   <View style={styles.previewStat}>
-                    <Text style={styles.previewStatValue}>{importPreview.valid}</Text>
+                    <Text style={styles.previewStatValue}>{importPreview.valid || 0}</Text>
                     <Text style={styles.previewStatLabel}>Valides</Text>
                   </View>
                   <View style={styles.previewStat}>
-                    <Text style={[styles.previewStatValue, { color: '#FF9800' }]}>{importPreview.duplicates}</Text>
+                    <Text style={[styles.previewStatValue, { color: '#FF9800' }]}>
+                      {typeof importPreview.duplicates === 'number' ? importPreview.duplicates : (importPreview.duplicates?.length || 0)}
+                    </Text>
                     <Text style={styles.previewStatLabel}>Doublons</Text>
                   </View>
                   <View style={styles.previewStat}>
-                    <Text style={[styles.previewStatValue, { color: '#F44336' }]}>{importPreview.errors}</Text>
+                    <Text style={[styles.previewStatValue, { color: '#F44336' }]}>
+                      {typeof importPreview.errors === 'number' ? importPreview.errors : (importPreview.errors?.length || 0)}
+                    </Text>
                     <Text style={styles.previewStatLabel}>Erreurs</Text>
                   </View>
                 </View>
 
-                {importPreview.valid > 0 && (
+                {(importPreview.valid > 0 || (importPreview.preview && importPreview.preview.length > 0)) && (
                   <TouchableOpacity
                     style={[styles.confirmButton, importing && styles.buttonDisabled]}
                     onPress={handleConfirmImport}

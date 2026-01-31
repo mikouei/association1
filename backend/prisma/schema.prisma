@@ -47,3 +47,33 @@ model AssociationConfig {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+// Année de cotisation
+model Year {
+  id            String           @id @default(uuid())
+  year          Int              @unique // 2025, 2026...
+  monthlyAmount Float            // Montant mensuel en FCFA
+  active        Boolean          @default(false) // Une seule année active
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  payments      MonthlyPayment[] // Relation avec les paiements
+}
+
+// Paiements mensuels (support paiements partiels)
+model MonthlyPayment {
+  id          String   @id @default(uuid())
+  memberId    String   // ID du membre
+  yearId      String   // ID de l'année
+  month       Int      // 1-12 (Janvier = 1, Décembre = 12)
+  amountPaid  Float    // Montant payé (permet partiels)
+  paymentDate DateTime @default(now()) // Date du paiement
+  notes       String?  // Notes optionnelles
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  year        Year     @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  
+  @@index([memberId, yearId, month])
+}

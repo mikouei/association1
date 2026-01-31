@@ -1,22 +1,60 @@
-diff --git a/backend/server.js b/backend/server.js
-index 6b33b2f..65c7ea0 100644
---- a/backend/server.js
-+++ b/backend/server.js
-@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.js';
- import adminRoutes from './routes/admin.js';
- import memberRoutes from './routes/members.js';
- import configRoutes from './routes/config.js';
-+import yearRoutes from './routes/years.js';
-+import paymentRoutes from './routes/payments.js';
+diff --git a/backend/routes/payments.js b/backend/routes/payments.js
+index ba0f458..f770e11 100644
+--- a/backend/routes/payments.js
++++ b/backend/routes/payments.js
+@@ -165,10 +165,15 @@ router.post('/', requireAdmin, async (req, res) => {
+     }
  
- dotenv.config();
+     // Vérifier que le membre et l'année existent
+-    const [member, year] = await Promise.all([
+-      req.prisma.member.findUnique({ where: { id: memberId } }),
+-      req.prisma.year.findUnique({ where: { id: yearId } })
+-    ]);
++    // memberId peut être userId ou memberId direct
++    let member = await req.prisma.member.findUnique({ where: { id: memberId } });
++    
++    if (!member) {
++      // Essayer de trouver par userId
++      member = await req.prisma.member.findUnique({ where: { userId: memberId } });
++    }
++
++    const year = await req.prisma.year.findUnique({ where: { id: yearId } });
  
-@@ -33,6 +35,8 @@ app.use('/api/auth', authRoutes);
- app.use('/api/admin', adminRoutes);
- app.use('/api/members', memberRoutes);
- app.use('/api/config', configRoutes);
-+app.use('/api/years', yearRoutes);
-+app.use('/api/payments', paymentRoutes);
+     if (!member) {
+       return res.status(404).json({ error: 'Membre introuvable' });
+@@ -180,7 +185,7 @@ router.post('/', requireAdmin, async (req, res) => {
  
- // Error handling
- app.use((err, req, res, next) => {
+     const payment = await req.prisma.monthlyPayment.create({
+       data: {
+-        memberId,
++        memberId: member.id,
+         yearId,
+         month: parseInt(month),
+         amountPaid: parseFloat(amountPaid),
+diff --git a/model.patch b/model.patch
+index 3f00155..e69de29 100644
+--- a/model.patch
++++ b/model.patch
+@@ -1,22 +0,0 @@
+-diff --git a/backend/server.js b/backend/server.js
+-index 6b33b2f..65c7ea0 100644
+---- a/backend/server.js
+-+++ b/backend/server.js
+-@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.js';
+- import adminRoutes from './routes/admin.js';
+- import memberRoutes from './routes/members.js';
+- import configRoutes from './routes/config.js';
+-+import yearRoutes from './routes/years.js';
+-+import paymentRoutes from './routes/payments.js';
+- 
+- dotenv.config();
+- 
+-@@ -33,6 +35,8 @@ app.use('/api/auth', authRoutes);
+- app.use('/api/admin', adminRoutes);
+- app.use('/api/members', memberRoutes);
+- app.use('/api/config', configRoutes);
+-+app.use('/api/years', yearRoutes);
+-+app.use('/api/payments', paymentRoutes);
+- 
+- // Error handling
+- app.use((err, req, res, next) => {

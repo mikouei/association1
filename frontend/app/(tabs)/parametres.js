@@ -291,29 +291,20 @@ export default function Parametres() {
     }
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Déconnexion',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              // Rediriger vers index qui gère le routing
-              router.replace('/');
-            } catch (error) {
-              console.error('Erreur déconnexion:', error);
-              // Forcer la redirection même en cas d'erreur
-              router.replace('/');
-            }
-          },
-        },
-      ]
-    );
+  const handleLogout = () => {
+    setLogoutModalVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    try {
+      await logout();
+      setLogoutModalVisible(false);
+      router.replace('/');
+    } catch (error) {
+      console.error('Erreur déconnexion:', error);
+      setLogoutModalVisible(false);
+      router.replace('/');
+    }
   };
 
   if (loading) {

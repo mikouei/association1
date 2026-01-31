@@ -71,7 +71,7 @@ export default function Parametres() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Déconnexion',
       'Êtes-vous sûr de vouloir vous déconnecter ?',
@@ -81,8 +81,17 @@ export default function Parametres() {
           text: 'Déconnexion',
           style: 'destructive',
           onPress: async () => {
-            await logout();
-            router.replace('/login');
+            try {
+              await logout();
+              // Petite pause pour s'assurer que le logout est terminé
+              setTimeout(() => {
+                router.replace('/login');
+              }, 100);
+            } catch (error) {
+              console.error('Erreur déconnexion:', error);
+              // Rediriger quand même
+              router.replace('/login');
+            }
           },
         },
       ]

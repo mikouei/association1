@@ -302,12 +302,12 @@ export default function Parametres() {
           onPress: async () => {
             try {
               await logout();
-              setTimeout(() => {
-                router.replace('/login');
-              }, 100);
+              // Rediriger vers index qui gère le routing
+              router.replace('/');
             } catch (error) {
               console.error('Erreur déconnexion:', error);
-              router.replace('/login');
+              // Forcer la redirection même en cas d'erreur
+              router.replace('/');
             }
           },
         },

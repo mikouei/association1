@@ -11,6 +11,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  FlatList,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,26 +28,45 @@ export default function Cotisations() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeYear, setActiveYear] = useState(null);
+  const [years, setYears] = useState([]);
+  const [selectedYear, setSelectedYear] = useState(null);
   const [membersData, setMembersData] = useState([]);
   const [selectedCell, setSelectedCell] = useState(null);
   const [paymentModal, setPaymentModal] = useState(false);
+  const [yearSelectorModal, setYearSelectorModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadData();
+    loadYears();
   }, []);
 
-  const loadData = async () => {
+  const loadYears = async () => {
     try {
-      // Récupérer l'année active
-      const yearRes = await api.get('/years/active');
-      setActiveYear(yearRes.data);
+      const yearsRes = await api.get('/years');
+      setYears(yearsRes.data);
+      
+      // Sélectionner l'année active par défaut
+      const activeYear = yearsRes.data.find(y => y.active);
+      if (activeYear) {
+        setSelectedYear(activeYear);
+        await loadPayments(activeYear.id);
+      } else if (yearsRes.data.length > 0) {
+        // Si pas d'année active, prendre la première
+        setSelectedYear(yearsRes.data[0]);
+        await loadPayments(yearsRes.data[0].id);
+      }
+    } catch (error) {
+      console.error('Erreur chargement années:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Récupérer les paiements de l'année
-      const paymentsRes = await api.get(`/payments/year/${yearRes.data.id}`);
+  const loadPayments = async (yearId) => {
+    try {
+      const paymentsRes = await api.get(`/payments/year/${yearId}`);
       let members = paymentsRes.data.members;
       
       // Si l'utilisateur n'est pas admin, filtrer pour ne montrer que sa propre ligne
@@ -56,19 +76,25 @@ export default function Cotisations() {
       
       setMembersData(members);
     } catch (error) {
-      console.error('Erreur chargement données:', error);
-      if (error.response?.status === 404) {
-        Alert.alert('Info', 'Aucune année active. Créez une année dans les paramètres.');
-      }
+      console.error('Erreur chargement paiements:', error);
+      setMembersData([]);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const onRefresh = () => {
+  const handleSelectYear = async (year) => {
+    setSelectedYear(year);
+    setYearSelectorModal(false);
     setRefreshing(true);
-    loadData();
+    await loadPayments(year.id);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (selectedYear) {
+      await loadPayments(selectedYear.id);
+    }
   };
 
   const handleCellPress = (member, month) => {

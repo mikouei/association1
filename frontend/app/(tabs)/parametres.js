@@ -692,6 +692,38 @@ export default function Parametres() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Modal Déconnexion */}
+      <Modal
+        visible={logoutModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <View style={styles.logoutModalOverlay}>
+          <View style={styles.logoutModalContent}>
+            <Ionicons name="log-out" size={48} color="#F44336" style={{ marginBottom: 16 }} />
+            <Text style={styles.logoutModalTitle}>Déconnexion</Text>
+            <Text style={styles.logoutModalText}>
+              Êtes-vous sûr de vouloir vous déconnecter ?
+            </Text>
+            <View style={styles.logoutModalButtons}>
+              <TouchableOpacity
+                style={styles.logoutCancelButton}
+                onPress={() => setLogoutModalVisible(false)}
+              >
+                <Text style={styles.logoutCancelText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutConfirmButton}
+                onPress={confirmLogout}
+              >
+                <Text style={styles.logoutConfirmText}>Déconnexion</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }

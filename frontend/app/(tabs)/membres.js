@@ -38,6 +38,12 @@ export default function Membres() {
     password: ''
   });
   const [saving, setSaving] = useState(false);
+  
+  // Reset password modal
+  const [resetPasswordModal, setResetPasswordModal] = useState(false);
+  const [resetPasswordMember, setResetPasswordMember] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   useEffect(() => {
     loadMembers();

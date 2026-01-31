@@ -49,6 +49,21 @@ export default function Cotisations() {
     loadYears();
   }, []);
 
+  // Filtrer les membres quand la recherche change
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredMembers(membersData);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = membersData.filter(member => 
+        member.name?.toLowerCase().includes(query) ||
+        member.customFieldValue?.toLowerCase().includes(query) ||
+        member.phone?.toLowerCase().includes(query)
+      );
+      setFilteredMembers(filtered);
+    }
+  }, [searchQuery, membersData]);
+
   const loadYears = async () => {
     try {
       const yearsRes = await api.get('/years');

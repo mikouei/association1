@@ -353,6 +353,19 @@ export default function Membres() {
                 </View>
               )}
 
+              {editingMember && (
+                <TouchableOpacity
+                  style={styles.resetPasswordButton}
+                  onPress={() => {
+                    setModalVisible(false);
+                    setTimeout(() => handleResetPassword(editingMember), 300);
+                  }}
+                >
+                  <Ionicons name="key" size={20} color="#FF9800" />
+                  <Text style={styles.resetPasswordText}>Réinitialiser le mot de passe</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[styles.submitButton, saving && styles.submitButtonDisabled]}
                 onPress={handleSaveMember}

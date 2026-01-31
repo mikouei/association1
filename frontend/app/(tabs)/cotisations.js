@@ -102,7 +102,7 @@ export default function Cotisations() {
     
     setSelectedCell({ member, month });
     const monthData = member.paymentsByMonth[month];
-    setPaymentAmount(monthData.amountPaid > 0 ? monthData.amountPaid.toString() : activeYear.monthlyAmount.toString());
+    setPaymentAmount(monthData.amountPaid > 0 ? monthData.amountPaid.toString() : selectedYear.monthlyAmount.toString());
     setPaymentNotes('');
     setPaymentModal(true);
   };

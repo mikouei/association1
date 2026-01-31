@@ -501,6 +501,12 @@ export default function Parametres() {
                 <Text style={styles.optionText}>Exporter statistiques (CSV)</Text>
                 <Ionicons name="chevron-forward" size={20} color="#999" />
               </TouchableOpacity>
+
+              <TouchableOpacity style={styles.option} onPress={handleExportStatsPDF}>
+                <Ionicons name="document-text" size={24} color="#F44336" />
+                <Text style={styles.optionText}>Exporter statistiques (PDF)</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
             </View>
           </View>
         )}

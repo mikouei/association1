@@ -74,6 +74,13 @@ export default function Cotisations() {
     setPaymentModal(true);
   };
 
+  const handleAddMember = () => {
+    Alert.alert(
+      'Ajouter un membre',
+      'Utilisez l\'onglet "Membres" puis cliquez sur le bouton + en bas à droite pour ajouter un nouveau membre.'
+    );
+  };
+
   const handleSavePayment = async () => {
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
       Alert.alert('Erreur', 'Montant invalide');

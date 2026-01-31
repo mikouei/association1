@@ -298,7 +298,7 @@ export default function Cotisations() {
                   <Text style={styles.label}>Montant (FCFA)</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder={`${activeYear.monthlyAmount}`}
+                    placeholder={`${selectedYear.monthlyAmount}`}
                     value={paymentAmount}
                     onChangeText={setPaymentAmount}
                     keyboardType="numeric"
@@ -330,6 +330,59 @@ export default function Cotisations() {
                 </TouchableOpacity>
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Sélection d'année */}
+      <Modal
+        visible={yearSelectorModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setYearSelectorModal(false)}
+      >
+        <View style={styles.yearModalContainer}>
+          <View style={styles.yearModalContent}>
+            <View style={styles.yearModalHeader}>
+              <Text style={styles.yearModalTitle}>Sélectionner une année</Text>
+              <TouchableOpacity onPress={() => setYearSelectorModal(false)}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={years}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.yearItem,
+                    selectedYear?.id === item.id && styles.yearItemSelected
+                  ]}
+                  onPress={() => handleSelectYear(item)}
+                >
+                  <View style={styles.yearItemInfo}>
+                    <Text style={[
+                      styles.yearItemYear,
+                      selectedYear?.id === item.id && styles.yearItemYearSelected
+                    ]}>
+                      {item.year}
+                    </Text>
+                    <Text style={styles.yearItemAmount}>
+                      {item.monthlyAmount} FCFA/mois
+                    </Text>
+                  </View>
+                  {item.active && (
+                    <View style={styles.yearActiveBadge}>
+                      <Text style={styles.yearActiveBadgeText}>Active</Text>
+                    </View>
+                  )}
+                  {selectedYear?.id === item.id && (
+                    <Ionicons name="checkmark-circle" size={24} color="#2196F3" />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
           </View>
         </View>
       </Modal>

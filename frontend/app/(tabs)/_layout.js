@@ -40,6 +40,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="exceptionnelles"
+        options={{
+          title: 'Exceptionnelles',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="gift" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="membres"
         options={{
           title: 'Membres',
@@ -53,7 +62,7 @@ export default function TabsLayout() {
           name="admin"
           options={{
             title: 'Admin',
-            tabBarIcon: ({ color, size}) => (
+            tabBarIcon: ({ color, size }) => (
               <Ionicons name="shield" size={size} color={color} />
             ),
           }}

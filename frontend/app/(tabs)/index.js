@@ -195,34 +195,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  infoSection: {
-    padding: 16,
-  },
-  infoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
   syncButton: {
     flexDirection: 'row',
     backgroundColor: '#2196F3',

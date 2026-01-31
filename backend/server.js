@@ -35,6 +35,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/years', yearRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {

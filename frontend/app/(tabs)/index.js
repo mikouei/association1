@@ -106,16 +106,6 @@ export default function Dashboard() {
         </View>
       )}
 
-      <View style={styles.infoSection}>
-        <Text style={styles.sectionTitle}>Configuration</Text>
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Libellé champ membre:</Text>
-            <Text style={styles.infoValue}>{config?.memberFieldLabel || 'Villa'}</Text>
-          </View>
-        </View>
-      </View>
-
       <TouchableOpacity style={styles.syncButton} onPress={onRefresh}>
         <Ionicons name="sync" size={20} color="#fff" />
         <Text style={styles.syncButtonText}>Synchroniser</Text>

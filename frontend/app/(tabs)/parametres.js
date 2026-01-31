@@ -294,14 +294,16 @@ export default function Parametres() {
   };
 
   const confirmLogout = async () => {
+    setLogoutModalVisible(false);
     try {
       await logout();
-      setLogoutModalVisible(false);
-      router.replace('/');
+      // Forcer la navigation vers login après un court délai pour s'assurer que le state est mis à jour
+      setTimeout(() => {
+        router.replace('/login');
+      }, 100);
     } catch (error) {
       console.error('Erreur déconnexion:', error);
-      setLogoutModalVisible(false);
-      router.replace('/');
+      router.replace('/login');
     }
   };
 

@@ -165,10 +165,15 @@ router.post('/', requireAdmin, async (req, res) => {
     }
 
     // Vérifier que le membre et l'année existent
-    const [member, year] = await Promise.all([
-      req.prisma.member.findUnique({ where: { id: memberId } }),
-      req.prisma.year.findUnique({ where: { id: yearId } })
-    ]);
+    // memberId peut être userId ou memberId direct
+    let member = await req.prisma.member.findUnique({ where: { id: memberId } });
+    
+    if (!member) {
+      // Essayer de trouver par userId
+      member = await req.prisma.member.findUnique({ where: { userId: memberId } });
+    }
+
+    const year = await req.prisma.year.findUnique({ where: { id: yearId } });
 
     if (!member) {
       return res.status(404).json({ error: 'Membre introuvable' });
@@ -180,7 +185,7 @@ router.post('/', requireAdmin, async (req, res) => {
 
     const payment = await req.prisma.monthlyPayment.create({
       data: {
-        memberId,
+        memberId: member.id,
         yearId,
         month: parseInt(month),
         amountPaid: parseFloat(amountPaid),

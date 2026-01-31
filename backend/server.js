@@ -8,6 +8,9 @@ import memberRoutes from './routes/members.js';
 import configRoutes from './routes/config.js';
 import yearRoutes from './routes/years.js';
 import paymentRoutes from './routes/payments.js';
+import exceptionalRoutes from './routes/exceptional.js';
+import importRoutes from './routes/import.js';
+import exportRoutes from './routes/export.js';
 
 dotenv.config();
 

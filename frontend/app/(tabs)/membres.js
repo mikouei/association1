@@ -389,6 +389,64 @@ export default function Membres() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Modal Reset Password */}
+      <Modal
+        visible={resetPasswordModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setResetPasswordModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.resetModalContainer}
+        >
+          <View style={styles.resetModalContent}>
+            <View style={styles.resetModalHeader}>
+              <Ionicons name="key" size={40} color="#FF9800" />
+              <Text style={styles.resetModalTitle}>Réinitialiser le mot de passe</Text>
+              {resetPasswordMember && (
+                <Text style={styles.resetModalSubtitle}>{resetPasswordMember.name}</Text>
+              )}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Nouveau mot de passe</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Minimum 4 caractères"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                autoFocus
+              />
+            </View>
+
+            <View style={styles.resetModalButtons}>
+              <TouchableOpacity
+                style={styles.resetCancelButton}
+                onPress={() => {
+                  setResetPasswordModal(false);
+                  setNewPassword('');
+                }}
+              >
+                <Text style={styles.resetCancelText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.resetConfirmButton, resettingPassword && styles.submitButtonDisabled]}
+                onPress={confirmResetPassword}
+                disabled={resettingPassword}
+              >
+                {resettingPassword ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.resetConfirmText}>Confirmer</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }

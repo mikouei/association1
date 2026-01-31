@@ -615,6 +615,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  noResults: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  noResultsText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+  },
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',

@@ -47,7 +47,14 @@ export default function Cotisations() {
 
       // Récupérer les paiements de l'année
       const paymentsRes = await api.get(`/payments/year/${yearRes.data.id}`);
-      setMembersData(paymentsRes.data.members);
+      let members = paymentsRes.data.members;
+      
+      // Si l'utilisateur n'est pas admin, filtrer pour ne montrer que sa propre ligne
+      if (user?.role !== 'ADMIN' && user?.member) {
+        members = members.filter(m => m.memberId === user.member.id || m.userId === user.id);
+      }
+      
+      setMembersData(members);
     } catch (error) {
       console.error('Erreur chargement données:', error);
       if (error.response?.status === 404) {

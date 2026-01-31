@@ -25,20 +25,35 @@ export default function Exceptionnelles() {
   const isAdmin = user?.role === 'ADMIN';
 
   const [contributions, setContributions] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Modals
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModal, setDetailModal] = useState(false);
+  const [paymentModal, setPaymentModal] = useState(false);
+  const [memberSelectModal, setMemberSelectModal] = useState(false);
+  
+  // State
   const [selectedContribution, setSelectedContribution] = useState(null);
+  const [editingContribution, setEditingContribution] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     type: 'décès',
     description: ''
   });
+  const [paymentData, setPaymentData] = useState({
+    memberId: '',
+    memberName: '',
+    amount: ''
+  });
   const [saving, setSaving] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
 
   useEffect(() => {
     loadContributions();
+    loadMembers();
   }, []);
 
   const loadContributions = async () => {
@@ -54,12 +69,39 @@ export default function Exceptionnelles() {
     }
   };
 
+  const loadMembers = async () => {
+    try {
+      const response = await api.get('/members');
+      setMembers(response.data.filter(m => m.active));
+    } catch (error) {
+      console.error('Erreur chargement membres:', error);
+    }
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
     loadContributions();
   };
 
-  const handleCreate = async () => {
+  // Créer ou modifier
+  const handleOpenCreateModal = () => {
+    setEditingContribution(null);
+    setFormData({ title: '', type: 'décès', description: '' });
+    setModalVisible(true);
+  };
+
+  const handleOpenEditModal = (contribution) => {
+    setEditingContribution(contribution);
+    setFormData({
+      title: contribution.title,
+      type: contribution.type,
+      description: contribution.description || ''
+    });
+    setDetailModal(false);
+    setTimeout(() => setModalVisible(true), 300);
+  };
+
+  const handleSave = async () => {
     if (!formData.title) {
       Alert.alert('Erreur', 'Titre requis');
       return;
@@ -67,19 +109,52 @@ export default function Exceptionnelles() {
 
     setSaving(true);
     try {
-      await api.post('/exceptional', formData);
-      Alert.alert('Succès', 'Cotisation créée');
+      if (editingContribution) {
+        await api.put(`/exceptional/${editingContribution.id}`, formData);
+        Alert.alert('Succès', 'Cotisation modifiée');
+      } else {
+        await api.post('/exceptional', formData);
+        Alert.alert('Succès', 'Cotisation créée');
+      }
       setModalVisible(false);
       setFormData({ title: '', type: 'décès', description: '' });
+      setEditingContribution(null);
       loadContributions();
     } catch (error) {
-      console.error('Erreur création:', error);
-      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la création');
+      console.error('Erreur sauvegarde:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
     }
   };
 
+  // Supprimer
+  const handleDelete = (contribution) => {
+    Alert.alert(
+      'Supprimer',
+      `Êtes-vous sûr de vouloir supprimer "${contribution.title}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/exceptional/${contribution.id}`);
+              Alert.alert('Succès', 'Cotisation supprimée');
+              setDetailModal(false);
+              loadContributions();
+            } catch (error) {
+              console.error('Erreur suppression:', error);
+              Alert.alert('Erreur', 'Impossible de supprimer');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Détails
   const handleShowDetail = async (contribution) => {
     try {
       const response = await api.get(`/exceptional/${contribution.id}`);
@@ -91,6 +166,88 @@ export default function Exceptionnelles() {
     }
   };
 
+  const refreshDetail = async () => {
+    if (selectedContribution) {
+      try {
+        const response = await api.get(`/exceptional/${selectedContribution.id}`);
+        setSelectedContribution(response.data);
+      } catch (error) {
+        console.error('Erreur refresh:', error);
+      }
+    }
+  };
+
+  // Paiements
+  const handleOpenPaymentModal = () => {
+    setPaymentData({ memberId: '', memberName: '', amount: '' });
+    setPaymentModal(true);
+  };
+
+  const handleSelectMember = (member) => {
+    setPaymentData({
+      ...paymentData,
+      memberId: member.id,
+      memberName: member.name
+    });
+    setMemberSelectModal(false);
+  };
+
+  const handleSavePayment = async () => {
+    if (!paymentData.memberId || !paymentData.amount) {
+      Alert.alert('Erreur', 'Membre et montant requis');
+      return;
+    }
+
+    const amount = parseFloat(paymentData.amount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Erreur', 'Montant invalide');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await api.post(`/exceptional/${selectedContribution.id}/payments`, {
+        memberId: paymentData.memberId,
+        amount: amount
+      });
+      Alert.alert('Succès', 'Paiement enregistré');
+      setPaymentModal(false);
+      setPaymentData({ memberId: '', memberName: '', amount: '' });
+      refreshDetail();
+      loadContributions();
+    } catch (error) {
+      console.error('Erreur paiement:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'enregistrement');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePayment = (payment) => {
+    Alert.alert(
+      'Supprimer le paiement',
+      `Supprimer le paiement de ${payment.member.name} (${Math.round(payment.amount)} FCFA) ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/exceptional/payments/${payment.id}`);
+              Alert.alert('Succès', 'Paiement supprimé');
+              refreshDetail();
+              loadContributions();
+            } catch (error) {
+              console.error('Erreur suppression paiement:', error);
+              Alert.alert('Erreur', 'Impossible de supprimer le paiement');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const getTypeIcon = (type) => {
     switch (type) {
       case 'décès': return 'sad-outline';
@@ -100,6 +257,11 @@ export default function Exceptionnelles() {
       default: return 'star';
     }
   };
+
+  const filteredMembers = members.filter(m =>
+    m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+    m.customFieldValue?.toLowerCase().includes(memberSearch.toLowerCase())
+  );
 
   const renderContribution = ({ item }) => (
     <TouchableOpacity
@@ -158,13 +320,13 @@ export default function Exceptionnelles() {
       {isAdmin && (
         <TouchableOpacity
           style={styles.fab}
-          onPress={() => setModalVisible(true)}
+          onPress={handleOpenCreateModal}
         >
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
       )}
 
-      {/* Modal Création */}
+      {/* Modal Création/Modification */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -177,7 +339,9 @@ export default function Exceptionnelles() {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouvelle cotisation</Text>
+              <Text style={styles.modalTitle}>
+                {editingContribution ? 'Modifier cotisation' : 'Nouvelle cotisation'}
+              </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={28} color="#333" />
               </TouchableOpacity>
@@ -233,13 +397,15 @@ export default function Exceptionnelles() {
 
               <TouchableOpacity
                 style={[styles.submitButton, saving && styles.submitButtonDisabled]}
-                onPress={handleCreate}
+                onPress={handleSave}
                 disabled={saving}
               >
                 {saving ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.submitButtonText}>Créer</Text>
+                  <Text style={styles.submitButtonText}>
+                    {editingContribution ? 'Modifier' : 'Créer'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -255,7 +421,7 @@ export default function Exceptionnelles() {
         onRequestClose={() => setDetailModal(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { maxHeight: '90%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Détails</Text>
               <TouchableOpacity onPress={() => setDetailModal(false)}>
@@ -264,9 +430,17 @@ export default function Exceptionnelles() {
             </View>
 
             {selectedContribution && (
-              <ScrollView>
-                <Text style={styles.detailTitle}>{selectedContribution.title}</Text>
-                <Text style={styles.detailType}>{selectedContribution.type}</Text>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.detailHeader}>
+                  <View style={styles.detailIconContainer}>
+                    <Ionicons name={getTypeIcon(selectedContribution.type)} size={40} color="#2196F3" />
+                  </View>
+                  <View style={styles.detailInfo}>
+                    <Text style={styles.detailTitle}>{selectedContribution.title}</Text>
+                    <Text style={styles.detailType}>{selectedContribution.type}</Text>
+                  </View>
+                </View>
+
                 {selectedContribution.description && (
                   <Text style={styles.detailDescription}>{selectedContribution.description}</Text>
                 )}
@@ -282,19 +456,179 @@ export default function Exceptionnelles() {
                   </View>
                 </View>
 
-                <Text style={styles.sectionTitle}>Paiements</Text>
-                {selectedContribution.payments && selectedContribution.payments.length > 0 ? (
-                  selectedContribution.payments.map((payment) => (
-                    <View key={payment.id} style={styles.paymentItem}>
-                      <Text style={styles.paymentName}>{payment.member.name}</Text>
-                      <Text style={styles.paymentAmount}>{Math.round(payment.amount)} FCFA</Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.noPayments}>Aucun paiement enregistré</Text>
+                {/* Actions Admin */}
+                {isAdmin && (
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => handleOpenEditModal(selectedContribution)}
+                    >
+                      <Ionicons name="pencil" size={20} color="#2196F3" />
+                      <Text style={styles.actionButtonText}>Modifier</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.deleteButton]}
+                      onPress={() => handleDelete(selectedContribution)}
+                    >
+                      <Ionicons name="trash" size={20} color="#F44336" />
+                      <Text style={[styles.actionButtonText, { color: '#F44336' }]}>Supprimer</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
+
+                <View style={styles.paymentsSection}>
+                  <View style={styles.paymentsSectionHeader}>
+                    <Text style={styles.sectionTitle}>Paiements</Text>
+                    {isAdmin && (
+                      <TouchableOpacity
+                        style={styles.addPaymentButton}
+                        onPress={handleOpenPaymentModal}
+                      >
+                        <Ionicons name="add" size={20} color="#fff" />
+                        <Text style={styles.addPaymentText}>Ajouter</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {selectedContribution.payments && selectedContribution.payments.length > 0 ? (
+                    selectedContribution.payments.map((payment) => (
+                      <View key={payment.id} style={styles.paymentItem}>
+                        <View style={styles.paymentInfo}>
+                          <Text style={styles.paymentName}>{payment.member.name}</Text>
+                          <Text style={styles.paymentDate}>
+                            {new Date(payment.paymentDate).toLocaleDateString('fr-FR')}
+                          </Text>
+                        </View>
+                        <View style={styles.paymentRight}>
+                          <Text style={styles.paymentAmount}>{Math.round(payment.amount)} FCFA</Text>
+                          {isAdmin && (
+                            <TouchableOpacity
+                              onPress={() => handleDeletePayment(payment)}
+                              style={styles.paymentDeleteButton}
+                            >
+                              <Ionicons name="trash-outline" size={18} color="#F44336" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noPayments}>Aucun paiement enregistré</Text>
+                  )}
+                </View>
               </ScrollView>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Paiement */}
+      <Modal
+        visible={paymentModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setPaymentModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nouveau paiement</Text>
+              <TouchableOpacity onPress={() => setPaymentModal(false)}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Membre *</Text>
+              <TouchableOpacity
+                style={styles.memberSelector}
+                onPress={() => setMemberSelectModal(true)}
+              >
+                <Text style={paymentData.memberName ? styles.memberSelectorText : styles.memberSelectorPlaceholder}>
+                  {paymentData.memberName || 'Sélectionner un membre'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Montant (FCFA) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: 5000"
+                value={paymentData.amount}
+                onChangeText={(text) => setPaymentData({ ...paymentData, amount: text })}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+              onPress={handleSavePayment}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Enregistrer</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Modal Sélection Membre */}
+      <Modal
+        visible={memberSelectModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setMemberSelectModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Sélectionner un membre</Text>
+              <TouchableOpacity onPress={() => setMemberSelectModal(false)}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#666" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Rechercher..."
+                value={memberSearch}
+                onChangeText={setMemberSearch}
+              />
+            </View>
+
+            <FlatList
+              data={filteredMembers}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.memberItem}
+                  onPress={() => handleSelectMember(item)}
+                >
+                  <View style={styles.memberItemIcon}>
+                    <Ionicons name="person" size={20} color="#2196F3" />
+                  </View>
+                  <View style={styles.memberItemInfo}>
+                    <Text style={styles.memberItemName}>{item.name}</Text>
+                    <Text style={styles.memberItemField}>{item.customFieldValue}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={() => (
+                <Text style={styles.noMembers}>Aucun membre trouvé</Text>
+              )}
+            />
           </View>
         </View>
       </Modal>
@@ -448,7 +782,6 @@ const styles = StyleSheet.create({
   typeContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
   },
   typeButton: {
     paddingHorizontal: 16,
@@ -488,28 +821,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  detailIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  detailInfo: {
+    flex: 1,
+  },
   detailTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
   },
   detailType: {
     fontSize: 16,
     color: '#2196F3',
     textTransform: 'capitalize',
-    marginBottom: 16,
+    marginTop: 4,
   },
   detailDescription: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 24,
+    marginBottom: 16,
     lineHeight: 20,
+    backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
   },
   statsRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   statBox: {
     flex: 1,
@@ -528,29 +880,159 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#E3F2FD',
+    gap: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#FFEBEE',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2196F3',
+  },
+  paymentsSection: {
+    marginTop: 8,
+  },
+  paymentsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12,
+  },
+  addPaymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+  },
+  addPaymentText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   paymentItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
+  paymentInfo: {
+    flex: 1,
+  },
   paymentName: {
     fontSize: 14,
+    fontWeight: '500',
     color: '#333',
+  },
+  paymentDate: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
+  },
+  paymentRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   paymentAmount: {
     fontSize: 14,
     fontWeight: '600',
     color: '#2196F3',
   },
+  paymentDeleteButton: {
+    padding: 4,
+  },
   noPayments: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
+  memberSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  memberSelectorText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  memberSelectorPlaceholder: {
+    fontSize: 16,
+    color: '#999',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    fontSize: 16,
+  },
+  memberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  memberItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  memberItemInfo: {
+    flex: 1,
+  },
+  memberItemName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  memberItemField: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  noMembers: {
     fontSize: 14,
     color: '#999',
     textAlign: 'center',

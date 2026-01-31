@@ -185,30 +185,30 @@ export default function Membres() {
   };
 
   const handleResetPassword = (member) => {
-    Alert.prompt(
-      'Réinitialiser le mot de passe',
-      `Nouveau mot de passe pour ${member.name}:`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Confirmer',
-          onPress: async (newPassword) => {
-            if (!newPassword || newPassword.length < 4) {
-              Alert.alert('Erreur', 'Mot de passe trop court (minimum 4 caractères)');
-              return;
-            }
-            try {
-              await api.post(`/members/${member.id}/reset-password`, { newPassword });
-              Alert.alert('Succès', `Nouveau mot de passe: ${newPassword}`);
-            } catch (error) {
-              console.error('Erreur reset password:', error);
-              Alert.alert('Erreur', 'Erreur lors de la réinitialisation');
-            }
-          }
-        }
-      ],
-      'plain-text'
-    );
+    setResetPasswordMember(member);
+    setNewPassword('');
+    setResetPasswordModal(true);
+  };
+
+  const confirmResetPassword = async () => {
+    if (!newPassword || newPassword.length < 4) {
+      Alert.alert('Erreur', 'Mot de passe trop court (minimum 4 caractères)');
+      return;
+    }
+    
+    setResettingPassword(true);
+    try {
+      await api.post(`/members/${resetPasswordMember.id}/reset-password`, { newPassword });
+      Alert.alert('Succès', `Nouveau mot de passe: ${newPassword}`);
+      setResetPasswordModal(false);
+      setNewPassword('');
+      setResetPasswordMember(null);
+    } catch (error) {
+      console.error('Erreur reset password:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la réinitialisation');
+    } finally {
+      setResettingPassword(false);
+    }
   };
 
   const renderMember = ({ item }) => (

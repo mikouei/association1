@@ -78,3 +78,33 @@ model MonthlyPayment {
   
   @@index([memberId, yearId, month])
 }
+
+// Cotisations exceptionnelles (événements ponctuels)
+model ExceptionalContribution {
+  id          String                 @id @default(uuid())
+  title       String                 // "Décès M. Dupont", "Mariage Marie"
+  type        String                 // décès, mariage, anniversaire, solidarité, autre
+  description String?                // Description optionnelle
+  active      Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  
+  payments    ExceptionalPayment[]   // Paiements associés
+}
+
+// Paiements pour cotisations exceptionnelles (montants variables)
+model ExceptionalPayment {
+  id             String                   @id @default(uuid())
+  contributionId String
+  memberId       String
+  amount         Float                    // Montant variable par membre
+  paymentDate    DateTime                 @default(now())
+  notes          String?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  
+  contribution   ExceptionalContribution  @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  member         Member                   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  @@index([contributionId, memberId])
+}

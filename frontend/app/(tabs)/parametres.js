@@ -146,25 +146,14 @@ export default function Parametres() {
   };
 
   const handleActivateYear = async (year) => {
-    Alert.alert(
-      'Activer année',
-      `Activer l'année ${year.year} ? Cela désactivera les autres années.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Activer',
-          onPress: async () => {
-            try {
-              await api.put(`/years/${year.id}/activate`);
-              Alert.alert('Succès', `Année ${year.year} activée`);
-              loadYears();
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible d\'activer l\'année');
-            }
-          }
-        }
-      ]
-    );
+    try {
+      await api.put(`/years/${year.id}/activate`);
+      Alert.alert('Succès', `Année ${year.year} activée`);
+      loadYears();
+    } catch (error) {
+      console.error('Erreur activation:', error);
+      Alert.alert('Erreur', 'Impossible d\'activer l\'année');
+    }
   };
 
   // Import Membres

@@ -124,7 +124,7 @@ export default function Cotisations() {
     try {
       await api.post('/payments', {
         memberId: selectedCell.member.userId,
-        yearId: activeYear.id,
+        yearId: selectedYear.id,
         month: selectedCell.month,
         amountPaid: parseFloat(paymentAmount),
         notes: paymentNotes
@@ -132,7 +132,7 @@ export default function Cotisations() {
 
       Alert.alert('Succès', 'Paiement enregistré');
       setPaymentModal(false);
-      loadData();
+      loadPayments(selectedYear.id);
     } catch (error) {
       console.error('Erreur sauvegarde paiement:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'enregistrement');

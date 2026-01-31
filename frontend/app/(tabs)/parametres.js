@@ -372,15 +372,22 @@ export default function Parametres() {
       `;
 
       // Sur le web, ouvrir dans une nouvelle fenêtre pour impression
-      if (Platform.OS === 'web') {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const printWindow = window.open('', '_blank');
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.print();
-        Alert.alert('Succès', 'Document PDF ouvert pour impression');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.print();
+          Alert.alert('Succès', 'Document PDF ouvert pour impression');
+        }
       } else {
         // Sur mobile, utiliser expo-print si disponible
-        Alert.alert('Info', 'Export PDF disponible sur l\'application mobile uniquement via impression');
+        try {
+          const { printAsync } = await import('expo-print');
+          await printAsync({ html });
+        } catch (e) {
+          Alert.alert('Info', 'Partagez ce rapport via l\'impression système');
+        }
       }
     } catch (error) {
       console.error('Erreur export PDF:', error);

@@ -420,6 +420,10 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#2196F3',
     padding: 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerTitle: {
@@ -432,6 +436,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginTop: 4,
     opacity: 0.9,
+  },
+  yearSelectorButton: {
+    padding: 4,
+  },
+  activeBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  activeBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   scrollContainer: {
     flex: 1,

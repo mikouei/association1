@@ -201,44 +201,27 @@ export default function Parametres() {
       return;
     }
 
-    Alert.alert(
-      'Confirmer l\'import',
-      `Importer ${importPreview.valid} membre(s) ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Importer',
-          onPress: async () => {
-            setImporting(true);
-            try {
-              const response = await api.post('/import/members', {
-                members: importPreview.preview
-              });
-              
-              Alert.alert(
-                'Import terminé',
-                `Succès: ${response.data.success}\nÉchecs: ${response.data.failed}`,
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      setImportModalVisible(false);
-                      setImportContent('');
-                      setImportPreview(null);
-                    }
-                  }
-                ]
-              );
-            } catch (error) {
-              console.error('Erreur import:', error);
-              Alert.alert('Erreur', 'Erreur lors de l\'import');
-            } finally {
-              setImporting(false);
-            }
-          }
-        }
-      ]
-    );
+    setImporting(true);
+    try {
+      const response = await api.post('/import/members', {
+        members: importPreview.preview
+      });
+      
+      Alert.alert(
+        'Import terminé',
+        `Succès: ${response.data.success}\nÉchecs: ${response.data.failed}`
+      );
+      
+      // Reset et fermer
+      setImportModalVisible(false);
+      setImportContent('');
+      setImportPreview(null);
+    } catch (error) {
+      console.error('Erreur import:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'import');
+    } finally {
+      setImporting(false);
+    }
   };
 
   // Export Membres

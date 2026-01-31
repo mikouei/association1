@@ -48,15 +48,17 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="membres"
-        options={{
-          title: 'Membres',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" size={size} color={color} />
-          ),
-        }}
-      />
+      {isAdmin && (
+        <Tabs.Screen
+          name="membres"
+          options={{
+            title: 'Membres',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="people" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
       {isAdmin && (
         <Tabs.Screen
           name="admin"

@@ -9,11 +9,14 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Modal,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
-import { useRouter } from 'expo-router';
 
 export default function Membres() {
   const { user } = useAuth();

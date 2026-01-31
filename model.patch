@@ -1,91 +1,276 @@
-diff --git a/backend/server.js b/backend/server.js
-index f4d3c37..737fa29 100644
---- a/backend/server.js
-+++ b/backend/server.js
-@@ -8,6 +8,9 @@ import memberRoutes from './routes/members.js';
- import configRoutes from './routes/config.js';
- import yearRoutes from './routes/years.js';
- import paymentRoutes from './routes/payments.js';
-+import exceptionalRoutes from './routes/exceptional.js';
-+import importRoutes from './routes/import.js';
-+import exportRoutes from './routes/export.js';
+diff --git a/frontend/app/(tabs)/cotisations.js b/frontend/app/(tabs)/cotisations.js
+index 466179e..c448260 100644
+--- a/frontend/app/(tabs)/cotisations.js
++++ b/frontend/app/(tabs)/cotisations.js
+@@ -212,14 +212,33 @@ export default function Cotisations() {
+         )}
+       </TouchableOpacity>
  
- dotenv.config();
++      {/* Barre de recherche */}
++      {isAdmin && (
++        <View style={styles.searchContainer}>
++          <Ionicons name="search" size={20} color="#666" />
++          <TextInput
++            style={styles.searchInput}
++            placeholder="Rechercher par nom, villa, téléphone..."
++            value={searchQuery}
++            onChangeText={setSearchQuery}
++            placeholderTextColor="#999"
++          />
++          {searchQuery.length > 0 && (
++            <TouchableOpacity onPress={() => setSearchQuery('')}>
++              <Ionicons name="close-circle" size={20} color="#999" />
++            </TouchableOpacity>
++          )}
++        </View>
++      )}
++
+       <ScrollView
+-        horizontal
+         style={styles.scrollContainer}
+         refreshControl={
+           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+         }
+       >
+-        <View>
++        {/* Table des cotisations */}
++        <View style={styles.tableContainer}>
+           {/* Header row */}
+           <View style={styles.tableHeader}>
+             <View style={[styles.cell, styles.nameCell, styles.headerCell]}>
+@@ -231,50 +250,55 @@ export default function Cotisations() {
+               </View>
+             ))}
+             <View style={[styles.cell, styles.totalCell, styles.headerCell]}>
+-              <Text style={styles.headerText}>Total</Text>
++              <Text style={styles.headerText}>Tot</Text>
+             </View>
+           </View>
  
-@@ -37,8 +40,9 @@ app.use('/api/members', memberRoutes);
- app.use('/api/config', configRoutes);
- app.use('/api/years', yearRoutes);
- app.use('/api/payments', paymentRoutes);
--app.use('/api/years', yearRoutes);
--app.use('/api/payments', paymentRoutes);
-+app.use('/api/exceptional', exceptionalRoutes);
-+app.use('/api/import', importRoutes);
-+app.use('/api/export', exportRoutes);
+           {/* Member rows */}
+-          <ScrollView style={styles.tableBody}>
+-            {membersData.map((member) => (
+-              <View key={member.id} style={styles.row}>
+-                <View style={[styles.cell, styles.nameCell]}>
+-                  <Text style={styles.memberName} numberOfLines={1}>
+-                    {member.name}
+-                  </Text>
+-                  <Text style={styles.memberField} numberOfLines={1}>
+-                    {member.customFieldValue}
+-                  </Text>
+-                </View>
++          {filteredMembers.map((member) => (
++            <View key={member.id} style={styles.row}>
++              <View style={[styles.cell, styles.nameCell]}>
++                <Text style={styles.memberName} numberOfLines={1}>
++                  {member.name}
++                </Text>
++                <Text style={styles.memberField} numberOfLines={1}>
++                  {member.customFieldValue}
++                </Text>
++              </View>
  
- // Error handling
- app.use((err, req, res, next) => {
+-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => {
+-                  const monthData = member.paymentsByMonth[month];
+-                  return (
+-                    <TouchableOpacity
+-                      key={month}
+-                      style={[
+-                        styles.cell,
+-                        styles.monthCell,
+-                        { backgroundColor: getCellColor(monthData, selectedYear.monthlyAmount) }
+-                      ]}
+-                      onPress={() => handleCellPress(member, month)}
+-                      disabled={!isAdmin}
+-                    >
+-                      <Text style={styles.cellText}>
+-                        {monthData.amountPaid > 0 ? Math.round(monthData.amountPaid) : '-'}
+-                      </Text>
+-                    </TouchableOpacity>
+-                  );
+-                })}
+-
+-                <View style={[styles.cell, styles.totalCell, styles.totalCellBg]}>
+-                  <Text style={styles.totalText}>{Math.round(member.totalPaid)}</Text>
+-                  <Text style={styles.percentageText}>{member.percentage}%</Text>
+-                </View>
++              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => {
++                const monthData = member.paymentsByMonth[month];
++                return (
++                  <TouchableOpacity
++                    key={month}
++                    style={[
++                      styles.cell,
++                      styles.monthCell,
++                      { backgroundColor: getCellColor(monthData, selectedYear.monthlyAmount) }
++                    ]}
++                    onPress={() => handleCellPress(member, month)}
++                    disabled={!isAdmin}
++                  >
++                    <Text style={styles.cellText}>
++                      {monthData.amountPaid > 0 ? Math.round(monthData.amountPaid / 1000) + 'k' : '-'}
++                    </Text>
++                  </TouchableOpacity>
++                );
++              })}
++
++              <View style={[styles.cell, styles.totalCell]}>
++                <Text style={styles.totalText}>{Math.round(member.totalPaid / 1000)}k</Text>
+               </View>
+-            ))}
+-          </ScrollView>
++            </View>
++          ))}
++
++          {filteredMembers.length === 0 && (
++            <View style={styles.noResults}>
++              <Text style={styles.noResultsText}>
++                {searchQuery ? 'Aucun résultat trouvé' : 'Aucun membre'}
++              </Text>
++            </View>
++          )}
+         </View>
+       </ScrollView>
+ 
+@@ -475,6 +499,29 @@ const styles = StyleSheet.create({
+     fontSize: 12,
+     fontWeight: '600',
+   },
++  searchContainer: {
++    flexDirection: 'row',
++    alignItems: 'center',
++    backgroundColor: '#fff',
++    margin: 16,
++    paddingHorizontal: 12,
++    paddingVertical: 8,
++    borderRadius: 8,
++    borderWidth: 1,
++    borderColor: '#e0e0e0',
++  },
++  searchInput: {
++    flex: 1,
++    marginLeft: 8,
++    fontSize: 16,
++    color: '#333',
++  },
++  tableContainer: {
++    backgroundColor: '#fff',
++    margin: 16,
++    borderRadius: 8,
++    overflow: 'hidden',
++  },
+   scrollContainer: {
+     flex: 1,
+   },
+@@ -568,6 +615,15 @@ const styles = StyleSheet.create({
+     fontSize: 12,
+     color: '#666',
+   },
++  noResults: {
++    padding: 32,
++    alignItems: 'center',
++  },
++  noResultsText: {
++    fontSize: 16,
++    color: '#999',
++    textAlign: 'center',
++  },
+   modalContainer: {
+     flex: 1,
+     justifyContent: 'flex-end',
 diff --git a/model.patch b/model.patch
-index bc121c3..e69de29 100644
+index 6191a55..65afb3c 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,60 +0,0 @@
--diff --git a/backend/routes/payments.js b/backend/routes/payments.js
--index ba0f458..f770e11 100644
----- a/backend/routes/payments.js
--+++ b/backend/routes/payments.js
--@@ -165,10 +165,15 @@ router.post('/', requireAdmin, async (req, res) => {
--     }
+@@ -1,91 +0,0 @@
+-diff --git a/backend/server.js b/backend/server.js
+-index f4d3c37..737fa29 100644
+---- a/backend/server.js
+-+++ b/backend/server.js
+-@@ -8,6 +8,9 @@ import memberRoutes from './routes/members.js';
+- import configRoutes from './routes/config.js';
+- import yearRoutes from './routes/years.js';
+- import paymentRoutes from './routes/payments.js';
+-+import exceptionalRoutes from './routes/exceptional.js';
+-+import importRoutes from './routes/import.js';
+-+import exportRoutes from './routes/export.js';
 - 
--     // Vérifier que le membre et l'année existent
---    const [member, year] = await Promise.all([
---      req.prisma.member.findUnique({ where: { id: memberId } }),
---      req.prisma.year.findUnique({ where: { id: yearId } })
---    ]);
--+    // memberId peut être userId ou memberId direct
--+    let member = await req.prisma.member.findUnique({ where: { id: memberId } });
--+    
--+    if (!member) {
--+      // Essayer de trouver par userId
--+      member = await req.prisma.member.findUnique({ where: { userId: memberId } });
--+    }
--+
--+    const year = await req.prisma.year.findUnique({ where: { id: yearId } });
+- dotenv.config();
 - 
--     if (!member) {
--       return res.status(404).json({ error: 'Membre introuvable' });
--@@ -180,7 +185,7 @@ router.post('/', requireAdmin, async (req, res) => {
+-@@ -37,8 +40,9 @@ app.use('/api/members', memberRoutes);
+- app.use('/api/config', configRoutes);
+- app.use('/api/years', yearRoutes);
+- app.use('/api/payments', paymentRoutes);
+--app.use('/api/years', yearRoutes);
+--app.use('/api/payments', paymentRoutes);
+-+app.use('/api/exceptional', exceptionalRoutes);
+-+app.use('/api/import', importRoutes);
+-+app.use('/api/export', exportRoutes);
 - 
--     const payment = await req.prisma.monthlyPayment.create({
--       data: {
---        memberId,
--+        memberId: member.id,
--         yearId,
--         month: parseInt(month),
--         amountPaid: parseFloat(amountPaid),
+- // Error handling
+- app.use((err, req, res, next) => {
 -diff --git a/model.patch b/model.patch
--index 3f00155..e69de29 100644
+-index bc121c3..e69de29 100644
 ---- a/model.patch
 -+++ b/model.patch
--@@ -1,22 +0,0 @@
---diff --git a/backend/server.js b/backend/server.js
---index 6b33b2f..65c7ea0 100644
------ a/backend/server.js
---+++ b/backend/server.js
---@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.js';
--- import adminRoutes from './routes/admin.js';
--- import memberRoutes from './routes/members.js';
--- import configRoutes from './routes/config.js';
---+import yearRoutes from './routes/years.js';
---+import paymentRoutes from './routes/payments.js';
+-@@ -1,60 +0,0 @@
+--diff --git a/backend/routes/payments.js b/backend/routes/payments.js
+--index ba0f458..f770e11 100644
+----- a/backend/routes/payments.js
+--+++ b/backend/routes/payments.js
+--@@ -165,10 +165,15 @@ router.post('/', requireAdmin, async (req, res) => {
+--     }
 -- 
--- dotenv.config();
+--     // Vérifier que le membre et l'année existent
+---    const [member, year] = await Promise.all([
+---      req.prisma.member.findUnique({ where: { id: memberId } }),
+---      req.prisma.year.findUnique({ where: { id: yearId } })
+---    ]);
+--+    // memberId peut être userId ou memberId direct
+--+    let member = await req.prisma.member.findUnique({ where: { id: memberId } });
+--+    
+--+    if (!member) {
+--+      // Essayer de trouver par userId
+--+      member = await req.prisma.member.findUnique({ where: { userId: memberId } });
+--+    }
+--+
+--+    const year = await req.prisma.year.findUnique({ where: { id: yearId } });
 -- 
---@@ -33,6 +35,8 @@ app.use('/api/auth', authRoutes);
--- app.use('/api/admin', adminRoutes);
--- app.use('/api/members', memberRoutes);
--- app.use('/api/config', configRoutes);
---+app.use('/api/years', yearRoutes);
---+app.use('/api/payments', paymentRoutes);
+--     if (!member) {
+--       return res.status(404).json({ error: 'Membre introuvable' });
+--@@ -180,7 +185,7 @@ router.post('/', requireAdmin, async (req, res) => {
 -- 
--- // Error handling
--- app.use((err, req, res, next) => {
+--     const payment = await req.prisma.monthlyPayment.create({
+--       data: {
+---        memberId,
+--+        memberId: member.id,
+--         yearId,
+--         month: parseInt(month),
+--         amountPaid: parseFloat(amountPaid),
+--diff --git a/model.patch b/model.patch
+--index 3f00155..e69de29 100644
+----- a/model.patch
+--+++ b/model.patch
+--@@ -1,22 +0,0 @@
+---diff --git a/backend/server.js b/backend/server.js
+---index 6b33b2f..65c7ea0 100644
+------ a/backend/server.js
+---+++ b/backend/server.js
+---@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.js';
+--- import adminRoutes from './routes/admin.js';
+--- import memberRoutes from './routes/members.js';
+--- import configRoutes from './routes/config.js';
+---+import yearRoutes from './routes/years.js';
+---+import paymentRoutes from './routes/payments.js';
+--- 
+--- dotenv.config();
+--- 
+---@@ -33,6 +35,8 @@ app.use('/api/auth', authRoutes);
+--- app.use('/api/admin', adminRoutes);
+--- app.use('/api/members', memberRoutes);
+--- app.use('/api/config', configRoutes);
+---+app.use('/api/years', yearRoutes);
+---+app.use('/api/payments', paymentRoutes);
+--- 
+--- // Error handling
+--- app.use((err, req, res, next) => {

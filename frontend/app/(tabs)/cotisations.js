@@ -158,11 +158,11 @@ export default function Cotisations() {
     );
   }
 
-  if (!activeYear) {
+  if (!selectedYear) {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="calendar-outline" size={64} color="#ccc" />
-        <Text style={styles.emptyText}>Aucune année active</Text>
+        <Text style={styles.emptyText}>Aucune année disponible</Text>
         <Text style={styles.emptySubtext}>Créez une année dans les paramètres</Text>
       </View>
     );
@@ -170,10 +170,25 @@ export default function Cotisations() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Année {activeYear.year}</Text>
-        <Text style={styles.headerSubtitle}>Montant mensuel: {activeYear.monthlyAmount} FCFA</Text>
-      </View>
+      <TouchableOpacity 
+        style={styles.header}
+        onPress={() => setYearSelectorModal(true)}
+      >
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>Année {selectedYear.year}</Text>
+            <Text style={styles.headerSubtitle}>Montant mensuel: {selectedYear.monthlyAmount} FCFA</Text>
+          </View>
+          <View style={styles.yearSelectorButton}>
+            <Ionicons name="chevron-down" size={24} color="#fff" />
+          </View>
+        </View>
+        {selectedYear.active && (
+          <View style={styles.activeBadge}>
+            <Text style={styles.activeBadgeText}>Active</Text>
+          </View>
+        )}
+      </TouchableOpacity>
 
       <ScrollView
         horizontal

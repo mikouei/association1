@@ -221,7 +221,7 @@ export default function Parametres() {
       });
       
       // Sur le web, on télécharge directement
-      if (Platform.OS === 'web') {
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
         const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);

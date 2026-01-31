@@ -18,8 +18,13 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 
 const MONTHS = [
-  'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
-  'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'
+  'J', 'F', 'M', 'A', 'M', 'J',
+  'J', 'A', 'S', 'O', 'N', 'D'
+];
+
+const MONTHS_FULL = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
 
 export default function Cotisations() {
@@ -31,6 +36,8 @@ export default function Cotisations() {
   const [years, setYears] = useState([]);
   const [selectedYear, setSelectedYear] = useState(null);
   const [membersData, setMembersData] = useState([]);
+  const [filteredMembers, setFilteredMembers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCell, setSelectedCell] = useState(null);
   const [paymentModal, setPaymentModal] = useState(false);
   const [yearSelectorModal, setYearSelectorModal] = useState(false);

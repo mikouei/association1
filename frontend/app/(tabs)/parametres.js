@@ -10,11 +10,15 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { useRouter } from 'expo-router';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 export default function Parametres() {
   const { user, logout } = useAuth();
@@ -31,8 +35,26 @@ export default function Parametres() {
     memberFieldLabel: '',
   });
 
+  // Années
+  const [years, setYears] = useState([]);
+  const [yearModalVisible, setYearModalVisible] = useState(false);
+  const [editingYear, setEditingYear] = useState(null);
+  const [yearFormData, setYearFormData] = useState({
+    year: '',
+    monthlyAmount: ''
+  });
+
+  // Import
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importContent, setImportContent] = useState('');
+  const [importPreview, setImportPreview] = useState(null);
+  const [importing, setImporting] = useState(false);
+
   useEffect(() => {
     loadConfig();
+    if (isAdmin) {
+      loadYears();
+    }
   }, []);
 
   const loadConfig = async () => {
@@ -48,6 +70,15 @@ export default function Parametres() {
       console.error('Erreur chargement config:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadYears = async () => {
+    try {
+      const response = await api.get('/years');
+      setYears(response.data);
+    } catch (error) {
+      console.error('Erreur chargement années:', error);
     }
   };
 
@@ -71,6 +102,194 @@ export default function Parametres() {
     }
   };
 
+  // Gestion Années
+  const handleAddYear = () => {
+    setEditingYear(null);
+    setYearFormData({ year: '', monthlyAmount: '' });
+    setYearModalVisible(true);
+  };
+
+  const handleEditYear = (year) => {
+    setEditingYear(year);
+    setYearFormData({ year: year.year.toString(), monthlyAmount: year.monthlyAmount.toString() });
+    setYearModalVisible(true);
+  };
+
+  const handleSaveYear = async () => {
+    if (!yearFormData.year || !yearFormData.monthlyAmount) {
+      Alert.alert('Erreur', 'Année et montant requis');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (editingYear) {
+        await api.put(`/years/${editingYear.id}`, {
+          monthlyAmount: parseFloat(yearFormData.monthlyAmount)
+        });
+        Alert.alert('Succès', 'Montant modifié');
+      } else {
+        await api.post('/years', {
+          year: parseInt(yearFormData.year),
+          monthlyAmount: parseFloat(yearFormData.monthlyAmount),
+          active: false
+        });
+        Alert.alert('Succès', 'Année créée');
+      }
+      setYearModalVisible(false);
+      loadYears();
+    } catch (error) {
+      console.error('Erreur sauvegarde année:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleActivateYear = async (year) => {
+    Alert.alert(
+      'Activer année',
+      `Activer l'année ${year.year} ? Cela désactivera les autres années.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Activer',
+          onPress: async () => {
+            try {
+              await api.put(`/years/${year.id}/activate`);
+              Alert.alert('Succès', `Année ${year.year} activée`);
+              loadYears();
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible d\'activer l\'année');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Import Membres
+  const handlePreviewImport = async () => {
+    if (!importContent.trim()) {
+      Alert.alert('Erreur', 'Veuillez coller le contenu à importer');
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const response = await api.post('/import/members/preview', {
+        content: importContent
+      });
+      setImportPreview(response.data);
+      
+      if (response.data.errors > 0 || response.data.duplicates > 0) {
+        Alert.alert(
+          'Attention',
+          `Lignes valides: ${response.data.valid}\nDoublons: ${response.data.duplicates}\nErreurs: ${response.data.errors}`
+        );
+      }
+    } catch (error) {
+      console.error('Erreur preview:', error);
+      Alert.alert('Erreur', 'Erreur lors de la prévisualisation');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importPreview || importPreview.valid === 0) {
+      Alert.alert('Erreur', 'Aucun membre valide à importer');
+      return;
+    }
+
+    Alert.alert(
+      'Confirmer l\'import',
+      `Importer ${importPreview.valid} membre(s) ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Importer',
+          onPress: async () => {
+            setImporting(true);
+            try {
+              const response = await api.post('/import/members', {
+                members: importPreview.preview
+              });
+              
+              Alert.alert(
+                'Import terminé',
+                `Succès: ${response.data.success}\nÉchecs: ${response.data.failed}`,
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      setImportModalVisible(false);
+                      setImportContent('');
+                      setImportPreview(null);
+                    }
+                  }
+                ]
+              );
+            } catch (error) {
+              console.error('Erreur import:', error);
+              Alert.alert('Erreur', 'Erreur lors de l\'import');
+            } finally {
+              setImporting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Export Membres
+  const handleExportMembers = async () => {
+    try {
+      const response = await api.get('/export/members', {
+        responseType: 'text'
+      });
+      
+      const filename = FileSystem.documentDirectory + 'membres.csv';
+      await FileSystem.writeAsStringAsync(filename, response.data);
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filename);
+      } else {
+        Alert.alert('Succès', 'Fichier enregistré: ' + filename);
+      }
+    } catch (error) {
+      console.error('Erreur export:', error);
+      Alert.alert('Erreur', 'Impossible d\'exporter les membres');
+    }
+  };
+
+  // Export Stats
+  const handleExportStats = async () => {
+    try {
+      const activeYear = years.find(y => y.active);
+      if (!activeYear) {
+        Alert.alert('Erreur', 'Aucune année active');
+        return;
+      }
+
+      const response = await api.get(`/export/statistics/${activeYear.id}`, {
+        responseType: 'text'
+      });
+      
+      const filename = FileSystem.documentDirectory + `statistiques_${activeYear.year}.csv`;
+      await FileSystem.writeAsStringAsync(filename, response.data);
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filename);
+      } else {
+        Alert.alert('Succès', 'Fichier enregistré: ' + filename);
+      }
+    } catch (error) {
+      console.error('Erreur export stats:', error);
+      Alert.alert('Erreur', 'Impossible d\'exporter les statistiques');
+    }
+  };
+
   const handleLogout = async () => {
     Alert.alert(
       'Déconnexion',
@@ -83,13 +302,11 @@ export default function Parametres() {
           onPress: async () => {
             try {
               await logout();
-              // Petite pause pour s'assurer que le logout est terminé
               setTimeout(() => {
                 router.replace('/login');
               }, 100);
             } catch (error) {
               console.error('Erreur déconnexion:', error);
-              // Rediriger quand même
               router.replace('/login');
             }
           },
@@ -112,6 +329,7 @@ export default function Parametres() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Profil */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profil</Text>
           <View style={styles.card}>
@@ -155,6 +373,7 @@ export default function Parametres() {
           </View>
         </View>
 
+        {/* Configuration Association */}
         {isAdmin && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -247,6 +466,82 @@ export default function Parametres() {
           </View>
         )}
 
+        {/* Gestion des Années */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Gestion des Années</Text>
+            <View style={styles.card}>
+              {years.map((year) => (
+                <View key={year.id} style={styles.yearItem}>
+                  <View style={styles.yearInfo}>
+                    <Text style={styles.yearText}>Année {year.year}</Text>
+                    <Text style={styles.yearAmount}>{year.monthlyAmount} FCFA/mois</Text>
+                  </View>
+                  <View style={styles.yearActions}>
+                    {year.active ? (
+                      <View style={styles.activeBadge}>
+                        <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                        <Text style={styles.activeBadgeText}>Active</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.activateButton}
+                        onPress={() => handleActivateYear(year)}
+                      >
+                        <Text style={styles.activateButtonText}>Activer</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={() => handleEditYear(year)}>
+                      <Ionicons name="pencil" size={20} color="#2196F3" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+              
+              <TouchableOpacity style={styles.addButton} onPress={handleAddYear}>
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.addButtonText}>Créer une année</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Import/Export */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Import / Export</Text>
+            <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={() => setImportModalVisible(true)}
+              >
+                <Ionicons name="cloud-upload" size={24} color="#2196F3" />
+                <Text style={styles.optionText}>Importer membres (TXT/CSV)</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={handleExportMembers}
+              >
+                <Ionicons name="download" size={24} color="#4CAF50" />
+                <Text style={styles.optionText}>Exporter membres (CSV)</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.optionButton}
+                onPress={handleExportStats}
+              >
+                <Ionicons name="document" size={24} color="#FF9800" />
+                <Text style={styles.optionText}>Exporter statistiques (CSV)</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Déconnexion */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Actions</Text>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -257,9 +552,154 @@ export default function Parametres() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>AssocManager v1.0.0</Text>
-          <Text style={styles.footerText}>Phase 1 - Authentification & Membres</Text>
+          <Text style={styles.footerText}>Toutes phases implémentées</Text>
         </View>
       </ScrollView>
+
+      {/* Modal Année */}
+      <Modal
+        visible={yearModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setYearModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingYear ? 'Modifier montant' : 'Nouvelle année'}
+              </Text>
+              <TouchableOpacity onPress={() => setYearModalVisible(false)}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            {!editingYear && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Année *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: 2026"
+                  value={yearFormData.year}
+                  onChangeText={(text) => setYearFormData({ ...yearFormData, year: text })}
+                  keyboardType="numeric"
+                />
+              </View>
+            )}
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Montant mensuel (FCFA) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: 5000"
+                value={yearFormData.monthlyAmount}
+                onChangeText={(text) => setYearFormData({ ...yearFormData, monthlyAmount: text })}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+              onPress={handleSaveYear}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>
+                  {editingYear ? 'Modifier' : 'Créer'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Import */}
+      <Modal
+        visible={importModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setImportModalVisible(false)}
+      >
+        <View style={styles.fullModalContainer}>
+          <View style={styles.fullModalHeader}>
+            <TouchableOpacity onPress={() => setImportModalVisible(false)}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.fullModalTitle}>Importer membres</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <ScrollView style={styles.fullModalContent}>
+            <Text style={styles.importInfo}>
+              Format: nom;villa;téléphone (un par ligne)
+            </Text>
+            <Text style={styles.importExample}>
+              Exemple:{'\n'}Jean Dupont;Villa 12;+237 6XX XX XX XX{'\n'}Marie Martin;Villa 7;+237 677 77 77 77
+            </Text>
+
+            <TextInput
+              style={styles.importTextArea}
+              placeholder="Coller le contenu ici..."
+              value={importContent}
+              onChangeText={setImportContent}
+              multiline
+              numberOfLines={10}
+              textAlignVertical="top"
+            />
+
+            <TouchableOpacity
+              style={[styles.previewButton, importing && styles.buttonDisabled]}
+              onPress={handlePreviewImport}
+              disabled={importing}
+            >
+              {importing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="eye" size={20} color="#fff" />
+                  <Text style={styles.previewButtonText}>Prévisualiser</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {importPreview && (
+              <View style={styles.previewContainer}>
+                <Text style={styles.previewTitle}>Résultat de la prévisualisation</Text>
+                <View style={styles.previewStats}>
+                  <View style={styles.previewStat}>
+                    <Text style={styles.previewStatValue}>{importPreview.valid}</Text>
+                    <Text style={styles.previewStatLabel}>Valides</Text>
+                  </View>
+                  <View style={styles.previewStat}>
+                    <Text style={[styles.previewStatValue, { color: '#FF9800' }]}>{importPreview.duplicates}</Text>
+                    <Text style={styles.previewStatLabel}>Doublons</Text>
+                  </View>
+                  <View style={styles.previewStat}>
+                    <Text style={[styles.previewStatValue, { color: '#F44336' }]}>{importPreview.errors}</Text>
+                    <Text style={styles.previewStatLabel}>Erreurs</Text>
+                  </View>
+                </View>
+
+                {importPreview.valid > 0 && (
+                  <TouchableOpacity
+                    style={[styles.confirmButton, importing && styles.buttonDisabled]}
+                    onPress={handleConfirmImport}
+                    disabled={importing}
+                  >
+                    {importing ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.confirmButtonText}>Confirmer l'import</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -385,6 +825,86 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
+  yearItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  yearInfo: {
+    flex: 1,
+  },
+  yearText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  yearAmount: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  yearActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  activeBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  activateButton: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  activateButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2196F3',
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    gap: 12,
+  },
+  optionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
   logoutButton: {
     flexDirection: 'row',
     backgroundColor: '#F44336',
@@ -407,5 +927,142 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 4,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  submitButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  fullModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  fullModalHeader: {
+    backgroundColor: '#2196F3',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    paddingTop: 48,
+  },
+  fullModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  fullModalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  importInfo: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  importExample: {
+    fontSize: 12,
+    color: '#999',
+    backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  importTextArea: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    minHeight: 200,
+    marginBottom: 16,
+  },
+  previewButton: {
+    flexDirection: 'row',
+    backgroundColor: '#2196F3',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  previewButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  previewContainer: {
+    marginTop: 24,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    padding: 16,
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  previewStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+  },
+  previewStat: {
+    alignItems: 'center',
+  },
+  previewStatValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  previewStatLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  confirmButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
   },
 });

@@ -220,13 +220,23 @@ export default function Parametres() {
         responseType: 'text'
       });
       
-      const filename = FileSystem.documentDirectory + 'membres.csv';
-      await FileSystem.writeAsStringAsync(filename, response.data);
-      
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(filename);
+      // Sur le web, on télécharge directement
+      if (Platform.OS === 'web') {
+        const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'membres.csv';
+        link.click();
+        Alert.alert('Succès', 'Fichier téléchargé');
       } else {
-        Alert.alert('Succès', 'Fichier enregistré: ' + filename);
+        const filename = FileSystem.documentDirectory + 'membres.csv';
+        await FileSystem.writeAsStringAsync(filename, response.data);
+        
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(filename);
+        } else {
+          Alert.alert('Succès', 'Fichier enregistré: ' + filename);
+        }
       }
     } catch (error) {
       console.error('Erreur export:', error);
@@ -234,7 +244,7 @@ export default function Parametres() {
     }
   };
 
-  // Export Stats
+  // Export Stats CSV
   const handleExportStats = async () => {
     try {
       const activeYear = years.find(y => y.active);
@@ -247,17 +257,134 @@ export default function Parametres() {
         responseType: 'text'
       });
       
-      const filename = FileSystem.documentDirectory + `statistiques_${activeYear.year}.csv`;
-      await FileSystem.writeAsStringAsync(filename, response.data);
-      
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(filename);
+      // Sur le web, on télécharge directement
+      if (Platform.OS === 'web') {
+        const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `statistiques_${activeYear.year}.csv`;
+        link.click();
+        Alert.alert('Succès', 'Fichier téléchargé');
       } else {
-        Alert.alert('Succès', 'Fichier enregistré: ' + filename);
+        const filename = FileSystem.documentDirectory + `statistiques_${activeYear.year}.csv`;
+        await FileSystem.writeAsStringAsync(filename, response.data);
+        
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(filename);
+        } else {
+          Alert.alert('Succès', 'Fichier enregistré: ' + filename);
+        }
       }
     } catch (error) {
       console.error('Erreur export stats:', error);
       Alert.alert('Erreur', 'Impossible d\'exporter les statistiques');
+    }
+  };
+
+  // Export Stats PDF
+  const handleExportStatsPDF = async () => {
+    try {
+      const activeYear = years.find(y => y.active);
+      if (!activeYear) {
+        Alert.alert('Erreur', 'Aucune année active');
+        return;
+      }
+
+      // Récupérer les données de paiement
+      const response = await api.get(`/payments/year/${activeYear.id}`);
+      const members = response.data.members;
+
+      // Générer le contenu HTML pour le PDF
+      let html = `
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              h1 { color: #2196F3; text-align: center; }
+              h2 { color: #666; text-align: center; margin-bottom: 20px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #2196F3; color: white; }
+              tr:nth-child(even) { background-color: #f2f2f2; }
+              .paid { color: #4CAF50; font-weight: bold; }
+              .partial { color: #FF9800; font-weight: bold; }
+              .unpaid { color: #F44336; font-weight: bold; }
+              .total { font-weight: bold; background-color: #E3F2FD; }
+            </style>
+          </head>
+          <body>
+            <h1>${config?.name || 'Association'}</h1>
+            <h2>Statistiques des cotisations - Année ${activeYear.year}</h2>
+            <p><strong>Montant mensuel:</strong> ${activeYear.monthlyAmount} FCFA</p>
+            <table>
+              <tr>
+                <th>Membre</th>
+                <th>Identifiant</th>
+                <th>Dû (FCFA)</th>
+                <th>Payé (FCFA)</th>
+                <th>Reste (FCFA)</th>
+                <th>%</th>
+              </tr>
+      `;
+
+      let totalDue = 0;
+      let totalPaid = 0;
+
+      members.forEach(member => {
+        const due = activeYear.monthlyAmount * 12;
+        const paid = member.totalPaid;
+        const remaining = due - paid;
+        const percentage = Math.round((paid / due) * 100);
+        
+        totalDue += due;
+        totalPaid += paid;
+
+        const statusClass = percentage >= 100 ? 'paid' : percentage > 0 ? 'partial' : 'unpaid';
+        
+        html += `
+          <tr>
+            <td>${member.name}</td>
+            <td>${member.customFieldValue}</td>
+            <td>${due}</td>
+            <td class="${statusClass}">${Math.round(paid)}</td>
+            <td>${Math.round(remaining)}</td>
+            <td class="${statusClass}">${percentage}%</td>
+          </tr>
+        `;
+      });
+
+      // Ligne total
+      const totalPercentage = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
+      html += `
+          <tr class="total">
+            <td colspan="2">TOTAL</td>
+            <td>${totalDue}</td>
+            <td>${Math.round(totalPaid)}</td>
+            <td>${Math.round(totalDue - totalPaid)}</td>
+            <td>${totalPercentage}%</td>
+          </tr>
+        </table>
+        <p style="margin-top: 20px; text-align: center; color: #666;">
+          Généré le ${new Date().toLocaleDateString('fr-FR')}
+        </p>
+      </body>
+      </html>
+      `;
+
+      // Sur le web, ouvrir dans une nouvelle fenêtre pour impression
+      if (Platform.OS === 'web') {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.print();
+        Alert.alert('Succès', 'Document PDF ouvert pour impression');
+      } else {
+        // Sur mobile, utiliser expo-print si disponible
+        Alert.alert('Info', 'Export PDF disponible sur l\'application mobile uniquement via impression');
+      }
+    } catch (error) {
+      console.error('Erreur export PDF:', error);
+      Alert.alert('Erreur', 'Impossible de générer le PDF');
     }
   };
 

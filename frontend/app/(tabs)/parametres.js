@@ -731,11 +731,19 @@ export default function Parametres() {
       >
         <View style={styles.fullModalContainer}>
           <View style={styles.fullModalHeader}>
-            <TouchableOpacity onPress={() => setImportModalVisible(false)}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => {
+                setImportModalVisible(false);
+                setImportContent('');
+                setImportPreview(null);
+              }}
+            >
               <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Text style={styles.backButtonText}>Retour</Text>
             </TouchableOpacity>
             <Text style={styles.fullModalTitle}>Importer membres</Text>
-            <View style={{ width: 24 }} />
+            <View style={{ width: 80 }} />
           </View>
 
           <ScrollView style={styles.fullModalContent}>

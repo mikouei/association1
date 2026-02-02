@@ -1,199 +1,185 @@
-# AssocManager - Application Mobile de Gestion de Cotisations
+# AssocManager
 
-## 📱 Description
+Application mobile de gestion des cotisations pour associations, syndicats et amicales.
 
-AssocManager est une application mobile pour la gestion de cotisations pour les associations (syndic, tontine, coopérative, ONG, église, association culturelle).
+## 🚀 Fonctionnalités
 
-**Version actuelle:** Phase 1 - Authentification & Gestion des Membres
+### Authentification
+- Connexion par email/téléphone + mot de passe
+- Connexion par token d'accès (pour les membres)
+- Deux rôles : **ADMIN** et **MEMBRE**
 
-## 🏗️ Architecture
+### Gestion des Membres (Admin)
+- Ajouter, modifier, désactiver des membres
+- Réinitialiser le mot de passe d'un membre
+- Recherche par nom, villa ou téléphone
+- Import de membres depuis fichier TXT/CSV
+- Export de la liste des membres en CSV
 
-### Backend
-- **Framework:** Node.js + Express
-- **Base de données:** SQLite + Prisma ORM
-- **Authentification:** JWT (jsonwebtoken + bcryptjs)
-- **Port:** 8001
+### Cotisations Mensuelles
+- Grille interactive des paiements par membre et par mois
+- Sélecteur d'année pour consulter l'historique
+- Support des paiements partiels
+- Code couleur : 🟢 Payé | 🟠 Partiel | 🔴 Non payé
+- Filtrage par nom, villa ou téléphone
+- Les membres ne voient que leur propre ligne
+
+### Cotisations Exceptionnelles
+- Créer des événements (décès, mariage, anniversaire, solidarité, autre)
+- Modifier et supprimer des événements
+- Enregistrer des paiements par membre
+- Statistiques : montant collecté, nombre de participants
+
+### Gestion des Années (Admin)
+- Créer des années avec montant mensuel personnalisé
+- Activer/désactiver des années
+- Consulter les cotisations de n'importe quelle année
+
+### Configuration (Admin)
+- Personnaliser le nom de l'association
+- Définir le type (syndicat, amicale, association)
+- Personnaliser le libellé du champ membre (Villa, Appartement, etc.)
+
+### Export (Admin)
+- Export des membres en CSV
+- Export des statistiques de cotisations en CSV
+- Export des statistiques en PDF (rapport formaté)
+
+## 🛠 Stack Technique
 
 ### Frontend
-- **Framework:** React Native + Expo
-- **Routeur:** Expo Router (file-based routing)
-- **État:** React Context + AsyncStorage
-- **HTTP Client:** Axios
-- **Port:** 3000
+- **React Native** avec **Expo**
+- **Expo Router** (navigation par fichiers)
+- **Axios** pour les appels API
+- **AsyncStorage** pour le stockage local
 
-## 🎯 Fonctionnalités Phase 1
+### Backend
+- **Node.js** avec **Express**
+- **Prisma ORM**
+- **SQLite** (base de données)
+- **JWT** pour l'authentification
 
-### ✅ Authentification
-- Login ADMIN: email/téléphone + mot de passe
-- Login MEMBRE: email/téléphone + mot de passe OU token d'accès
-- JWT avec expiration 30 jours
-- Cache local avec AsyncStorage
-
-### ✅ Gestion Multi-ADMIN
-- Créer des administrateurs
-- Désactiver/Réactiver un administrateur
-- Réinitialiser le mot de passe
-- Tous les ADMIN ont les mêmes droits (V1)
-
-### ✅ Gestion des Membres
-- Créer un membre (nom, champ personnalisé, email, téléphone)
-- Modifier un membre
-- Activer/Désactiver un membre
-- Recherche par nom ou champ personnalisé
-- Réinitialiser mot de passe
-- Régénérer token d'accès
-- Auto-génération de credentials
-
-### ✅ Configuration Association
-- Nom de l'association
-- Type d'association (optionnel)
-- Libellé du champ personnalisé (Villa, Groupe, Section, etc.)
-- Configuration éditable par les ADMIN
-
-### ✅ Interface Mobile
-- **Dashboard:** Statistiques, bienvenue, configuration
-- **Membres:** Liste, recherche, filtres
-- **Admin:** Gestion des administrateurs
-- **Paramètres:** Profil, configuration, déconnexion
-- Navigation par tabs
-- Pull-to-refresh
-- Design mobile-first en français
-
-## 🚀 Installation et Démarrage
+## 📱 Installation
 
 ### Prérequis
-- Node.js (v18+)
-- npm ou yarn
-- Expo Go app (pour tester sur mobile)
+- Node.js 18+
+- Yarn ou npm
+- Expo CLI
 
 ### Backend
-
 ```bash
-cd /app/backend
-
-# Installer les dépendances
-npm install
-
-# Générer le client Prisma
-npx prisma generate
-
-# Créer/Migrer la base de données
-npx prisma migrate dev --name init
-
-# Initialiser la base de données (créer ADMIN par défaut)
-npm run init-db
-
-# Démarrer le serveur
-npm start
-```
-
-Le serveur démarre sur `http://0.0.0.0:8001`
-
-### Frontend
-
-```bash
-cd /app/frontend
-
-# Installer les dépendances
+cd backend
 yarn install
-
-# Démarrer Expo
+npx prisma generate
+npx prisma db push
+node scripts/init-db.js
 yarn start
 ```
 
-Le serveur Expo démarre sur `http://localhost:3000`
-
-### Accès à l'application
-
-**Administrateur par défaut:**
-- Email: `admin@assocmanager.local`
-- Mot de passe: `admin`
-
-⚠️ **Important:** Changez le mot de passe après la première connexion!
-
-## 📡 API Endpoints
-
-### Authentification
-- `POST /api/auth/login` - Connexion
-- `GET /api/auth/me` - Informations utilisateur
-
-### Admin (Protégé: ADMIN uniquement)
-- `GET /api/admin/list` - Liste des admins
-- `POST /api/admin/create` - Créer un admin
-- `PUT /api/admin/:id/activate` - Activer un admin
-- `PUT /api/admin/:id/deactivate` - Désactiver un admin
-- `POST /api/admin/:id/reset-password` - Reset password
-
-### Membres (Protégé: Authentification requise)
-- `GET /api/members` - Liste des membres (avec recherche)
-- `GET /api/members/:id` - Détail d'un membre
-- `POST /api/members` - Créer un membre (ADMIN)
-- `PUT /api/members/:id` - Modifier un membre (ADMIN)
-- `PUT /api/members/:id/activate` - Activer (ADMIN)
-- `PUT /api/members/:id/deactivate` - Désactiver (ADMIN)
-- `POST /api/members/:id/reset-password` - Reset password (ADMIN)
-- `POST /api/members/:id/regenerate-token` - Régénérer token (ADMIN)
-
-### Configuration
-- `GET /api/config` - Récupérer la configuration
-- `POST /api/config` - Créer/Modifier la configuration (ADMIN)
-
-## 🔐 Sécurité
-
-- ✅ Mots de passe hashés avec bcrypt (10 rounds)
-- ✅ JWT avec expiration
-- ✅ Routes protégées par middleware
-- ✅ Validation des rôles (ADMIN/MEMBER)
-- ✅ Tokens d'accès uniques pour les membres
-
-## 🌍 Internationalisation
-
-- **Langue:** Français uniquement (V1)
-- **Devise:** FCFA
-- **Format de date:** Français (jj/mm/aaaa)
-
-## 🧪 Tests
-
-### Backend Tests (curl)
-
+### Frontend
 ```bash
-# Login admin
-curl -X POST http://localhost:8001/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"identifier": "admin@assocmanager.local", "password": "admin"}'
-
-# Créer un membre
-TOKEN="<votre_token>"
-curl -X POST http://localhost:8001/api/members \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"name": "Test User", "customFieldValue": "Villa 1", "email": "test@test.com"}'
+cd frontend
+yarn install
+npx expo start
 ```
 
-## 🚧 Prochaines Phases
+## 🔐 Identifiants par défaut
 
-### Phase 2 - Cotisations Mensuelles
-- Gestion des années
-- Suivi mensuel (Janvier → Décembre)
-- Calculs: dû, payé, reste, pourcentage
-- Paiements partiels
-- Modification des montants
+| Rôle | Email | Mot de passe |
+|------|-------|--------------|
+| Admin | admin@assocmanager.local | admin |
 
-### Phase 3 - Import/Export & Cotisations Exceptionnelles
-- Import CSV/TXT de membres
-- Export statistiques
-- Cotisations exceptionnelles (événements)
-- Montants variables
+## 📂 Structure du projet
 
-## 📝 Notes Importantes
+```
+/app
+├── backend/
+│   ├── prisma/
+│   │   └── schema.prisma
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── members.js
+│   │   ├── payments.js
+│   │   ├── exceptional.js
+│   │   ├── years.js
+│   │   ├── config.js
+│   │   ├── export.js
+│   │   └── import.js
+│   ├── middleware/
+│   │   └── auth.js
+│   └── server.js
+│
+└── frontend/
+    ├── app/
+    │   ├── (tabs)/
+    │   │   ├── index.js          # Accueil
+    │   │   ├── cotisations.js    # Grille des cotisations
+    │   │   ├── exceptionnelles.js # Cotisations exceptionnelles
+    │   │   ├── membres.js        # Gestion des membres
+    │   │   ├── admin.js          # Gestion des administrateurs
+    │   │   └── parametres.js     # Paramètres et configuration
+    │   ├── login.js
+    │   └── _layout.js
+    ├── context/
+    │   └── AuthContext.js
+    └── utils/
+        └── api.js
+```
 
-1. **SQLite** est utilisé en V1 pour simplicité. Migration vers PostgreSQL/MySQL possible en V2.
-2. **Un seul ADMIN** est créé par défaut. Créez-en d'autres via l'interface.
-3. **Synchronisation** V1 = simple refresh. Sync bidirectionnelle en V2.
-4. **Offline** = lecture du cache uniquement en V1.
+## 📊 Format d'import des membres
+
+Format TXT/CSV avec séparateur point-virgule (;) :
+```
+Nom du membre;Villa XX;+237 6XX XX XX XX
+Jean Dupont;Villa 12;+237 699 12 34 56
+Marie Martin;Villa 15;+237 677 98 76 54
+```
+
+## 🎨 Captures d'écran
+
+### Vue Admin
+- Dashboard avec statistiques
+- Grille des cotisations complète
+- Gestion des membres
+- Configuration de l'association
+
+### Vue Membre
+- Dashboard personnel
+- Sa ligne de cotisation uniquement
+- Cotisations exceptionnelles (lecture seule)
+- Paramètres (profil + déconnexion)
+
+## 📝 API Endpoints
+
+### Auth
+- `POST /api/auth/login` - Connexion
+- `POST /api/auth/token-login` - Connexion par token
+
+### Members
+- `GET /api/members` - Liste des membres
+- `POST /api/members` - Créer un membre
+- `PUT /api/members/:id` - Modifier un membre
+- `POST /api/members/:id/reset-password` - Réinitialiser mot de passe
+
+### Payments
+- `GET /api/payments/year/:yearId` - Paiements par année
+- `POST /api/payments` - Enregistrer un paiement
+
+### Exceptional
+- `GET /api/exceptional` - Liste des cotisations exceptionnelles
+- `POST /api/exceptional` - Créer une cotisation
+- `PUT /api/exceptional/:id` - Modifier
+- `DELETE /api/exceptional/:id` - Supprimer
+- `POST /api/exceptional/:id/payments` - Ajouter un paiement
+
+### Export
+- `GET /api/export/members` - Export membres CSV
+- `GET /api/export/statistics/:yearId` - Export stats CSV
+
+## 📄 Licence
+
+Projet privé - Tous droits réservés
 
 ---
 
-**Version:** 1.0.0  
-**Date:** Janvier 2026  
-**Statut:** Phase 1 - Production Ready ✅
+Développé avec ❤️ pour la gestion des associations

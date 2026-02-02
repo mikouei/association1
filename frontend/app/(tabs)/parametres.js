@@ -1126,6 +1126,17 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 48,
   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    gap: 4,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
   fullModalTitle: {
     fontSize: 18,
     fontWeight: 'bold',

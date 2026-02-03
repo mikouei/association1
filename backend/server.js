@@ -11,6 +11,7 @@ import paymentRoutes from './routes/payments.js';
 import exceptionalRoutes from './routes/exceptional.js';
 import importRoutes from './routes/import.js';
 import exportRoutes from './routes/export.js';
+import platformRoutes from './routes/platform.js';
 
 dotenv.config();
 

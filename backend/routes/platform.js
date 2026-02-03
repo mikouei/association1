@@ -3,6 +3,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import { PrismaClient as PlatformPrismaClient } from '../node_modules/.prisma/platform-client/index.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,9 +17,7 @@ let platformPrisma = null;
 // Initialiser le client Platform avec la bonne base de données
 async function getPlatformPrisma() {
   if (!platformPrisma) {
-    // Utiliser le client Prisma standard mais avec une autre datasource
-    const { PrismaClient: PlatformClient } = await import('.prisma/platform-client');
-    platformPrisma = new PlatformClient();
+    platformPrisma = new PlatformPrismaClient();
   }
   return platformPrisma;
 }

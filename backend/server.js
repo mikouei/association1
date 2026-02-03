@@ -32,9 +32,10 @@ app.use((req, res, next) => {
 
 // Routes
 app.get('/api', (req, res) => {
-  res.json({ message: 'AssocManager API V1', status: 'OK' });
+  res.json({ message: 'AssocManager API V2', status: 'OK', version: '2.0.0' });
 });
 
+// Routes V1 (Association)
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/members', memberRoutes);
@@ -44,9 +45,9 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/exceptional', exceptionalRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/export', exportRoutes);
-app.use('/api/exceptional', exceptionalRoutes);
-app.use('/api/import', importRoutes);
-app.use('/api/export', exportRoutes);
+
+// Routes V2 (Platform - SUPER_ADMIN)
+app.use('/api/platform', platformRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {

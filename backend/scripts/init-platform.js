@@ -1,5 +1,5 @@
 // Script d'initialisation de la Platform (SUPER_ADMIN)
-import { PrismaClient } from '.prisma/platform-client';
+import { PrismaClient } from '../node_modules/.prisma/platform-client/index.js';
 import bcrypt from 'bcryptjs';
 
 const platformPrisma = new PrismaClient();

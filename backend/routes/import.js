@@ -26,7 +26,11 @@ router.post('/members/preview', async (req, res) => {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      if (!line) continue;
+      
+      // Ignorer les lignes vides et les commentaires
+      if (!line || line.startsWith('#') || line.startsWith('//')) {
+        continue;
+      }
 
       const parts = line.split(';').map(p => p.trim());
       
@@ -40,11 +44,24 @@ router.post('/members/preview', async (req, res) => {
       }
 
       const [name, customFieldValue, phone] = parts;
+      
+      // Ignorer si le nom est vide
+      if (!name) {
+        errors.push({
+          line: i + 1,
+          content: line,
+          error: 'Le nom est requis'
+        });
+        continue;
+      }
+
+      // Nettoyer le numéro de téléphone (enlever espaces supplémentaires)
+      const cleanPhone = phone ? phone.replace(/\s+/g, ' ').trim() : null;
 
       // Vérifier les doublons dans la base par téléphone
-      if (phone) {
+      if (cleanPhone) {
         const existing = await req.prisma.user.findFirst({
-          where: { phone },
+          where: { phone: cleanPhone },
           include: { member: true }
         });
 
@@ -52,7 +69,7 @@ router.post('/members/preview', async (req, res) => {
           duplicates.push({
             line: i + 1,
             name,
-            phone,
+            phone: cleanPhone,
             existingMember: existing.member?.name
           });
           continue;
@@ -63,13 +80,13 @@ router.post('/members/preview', async (req, res) => {
         line: i + 1,
         name,
         customFieldValue,
-        phone: phone || null,
+        phone: cleanPhone,
         status: 'ok'
       });
     }
 
     res.json({
-      total: lines.length,
+      total: lines.filter(l => l.trim() && !l.trim().startsWith('#') && !l.trim().startsWith('//')).length,
       valid: preview.length,
       duplicates: duplicates.length,
       errors: errors.length,

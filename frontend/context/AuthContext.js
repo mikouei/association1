@@ -6,6 +6,7 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [association, setAssociation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
 
@@ -18,10 +19,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const storedToken = await AsyncStorage.getItem('authToken');
       const storedUser = await AsyncStorage.getItem('user');
+      const storedAssociation = await AsyncStorage.getItem('association');
 
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        if (storedAssociation) {
+          setAssociation(JSON.parse(storedAssociation));
+        }
       }
     } catch (error) {
       console.error('Erreur chargement utilisateur:', error);
@@ -30,20 +35,24 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (identifier, password, accessToken = null) => {
+  const login = async (identifier, password, accessToken = null, associationCode = null) => {
     try {
       const payload = accessToken 
-        ? { accessToken }
-        : { identifier, password };
+        ? { accessToken, associationCode }
+        : { phone: identifier, password, associationCode };
 
       const response = await api.post('/auth/login', payload);
-      const { token: newToken, user: newUser } = response.data;
+      const { token: newToken, user: newUser, association: newAssociation } = response.data;
 
       await AsyncStorage.setItem('authToken', newToken);
       await AsyncStorage.setItem('user', JSON.stringify(newUser));
+      if (newAssociation) {
+        await AsyncStorage.setItem('association', JSON.stringify(newAssociation));
+      }
 
       setToken(newToken);
       setUser(newUser);
+      setAssociation(newAssociation);
 
       return { success: true };
     } catch (error) {
@@ -59,8 +68,10 @@ export const AuthProvider = ({ children }) => {
     try {
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('association');
       setToken(null);
       setUser(null);
+      setAssociation(null);
     } catch (error) {
       console.error('Erreur logout:', error);
     }
@@ -69,16 +80,20 @@ export const AuthProvider = ({ children }) => {
   const refreshUser = async () => {
     try {
       const response = await api.get('/auth/me');
-      const updatedUser = response.data;
+      const { association: updatedAssociation, ...updatedUser } = response.data;
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
+      if (updatedAssociation) {
+        await AsyncStorage.setItem('association', JSON.stringify(updatedAssociation));
+        setAssociation(updatedAssociation);
+      }
     } catch (error) {
       console.error('Erreur refresh user:', error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, token, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, association, loading, token, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -412,6 +412,95 @@ export default function PlatformDashboard() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Modal Modification */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setEditModalVisible(false);
+          setEditingAssociation(null);
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Modifier l'association</Text>
+              <TouchableOpacity onPress={() => {
+                setEditModalVisible(false);
+                setEditingAssociation(null);
+              }}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView>
+              {editingAssociation && (
+                <>
+                  <View style={styles.codeInfoBox}>
+                    <Ionicons name="key" size={18} color="#9C27B0" />
+                    <Text style={styles.codeInfoText}>
+                      Code: <Text style={styles.codeInfoValue}>{editingAssociation.code}</Text>
+                    </Text>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Nom de l'association *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Nom de l'association"
+                      value={editFormData.name}
+                      onChangeText={(text) => setEditFormData({ ...editFormData, name: text })}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Type</Text>
+                    <View style={styles.typeButtons}>
+                      {['association', 'syndicat', 'amicale'].map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.typeButton,
+                            editFormData.type === type && styles.typeButtonActive
+                          ]}
+                          onPress={() => setEditFormData({ ...editFormData, type })}
+                        >
+                          <Text style={[
+                            styles.typeButtonText,
+                            editFormData.type === type && styles.typeButtonTextActive
+                          ]}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={styles.adminInfoBox}>
+                    <Ionicons name="person" size={18} color="#666" />
+                    <Text style={styles.adminInfoText}>
+                      Admin: {editingAssociation.adminEmail || 'Non défini'}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={handleSaveEdit}
+                  >
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    <Text style={styles.saveButtonText}>Enregistrer les modifications</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }

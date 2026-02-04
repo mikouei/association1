@@ -2,83 +2,46 @@ import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { PrismaClient } from '@prisma/client';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_change_this';
 
+// Client Prisma par défaut (V1)
+const defaultPrisma = new PrismaClient();
+
 // Cache pour les clients Prisma par association
 const prismaClients = new Map();
 
-// Obtenir ou créer un client Prisma pour une association spécifique
-export const getPrismaClientForAssociation = async (dbName) => {
+// Créer un client Prisma pour une association spécifique
+export const getPrismaForAssociation = async (dbName) => {
+  // Pour la DB par défaut, utiliser le client standard
+  if (dbName === 'assocmanager.db') {
+    return defaultPrisma;
+  }
+  
   // Si déjà en cache, retourner
   if (prismaClients.has(dbName)) {
     return prismaClients.get(dbName);
   }
 
-  // Utiliser better-sqlite3 directement pour les requêtes
   const dbPath = path.join(__dirname, '../prisma', dbName);
   
   if (!fs.existsSync(dbPath)) {
     throw new Error(`Base de données non trouvée: ${dbName}`);
   }
 
-  const Database = (await import('better-sqlite3')).default;
-  const db = new Database(dbPath);
-  
-  // Créer un wrapper avec les méthodes dont on a besoin
-  const client = {
-    db,
-    dbName,
-    
-    // User methods
-    user: {
-      findFirst: async (options) => {
-        let sql = 'SELECT * FROM User WHERE 1=1';
-        const params = [];
-        
-        if (options.where) {
-          if (options.where.OR) {
-            const orConditions = options.where.OR.map(cond => {
-              const key = Object.keys(cond)[0];
-              params.push(cond[key]);
-              return `${key} = ?`;
-            }).join(' OR ');
-            sql += ` AND (${orConditions})`;
-          }
-          if (options.where.token) {
-            sql += ' AND token = ?';
-            params.push(options.where.token);
-          }
-          if (options.where.active !== undefined) {
-            sql += ' AND active = ?';
-            params.push(options.where.active ? 1 : 0);
-          }
-        }
-        
-        sql += ' LIMIT 1';
-        const user = db.prepare(sql).get(...params);
-        
-        if (user && options.include?.member) {
-          const member = db.prepare('SELECT * FROM Member WHERE userId = ?').get(user.id);
-          user.member = member || null;
-        }
-        
-        return user ? { ...user, active: !!user.active } : null;
-      },
-      
-      findUnique: async (options) => {
-        const user = db.prepare('SELECT * FROM User WHERE id = ?').get(options.where.id);
-        
-        if (user && options.include?.member) {
-          const member = db.prepare('SELECT * FROM Member WHERE userId = ?').get(user.id);
-          user.member = member || null;
-        }
-        
-        return user ? { ...user, active: !!user.active } : null;
+  // Créer un nouveau client Prisma avec la bonne URL
+  const client = new PrismaClient({
+    datasources: {
+      db: {
+        url: `file:${dbPath}`
       }
     }
-  };
+  });
+  
+  // Connecter le client
+  await client.$connect();
   
   prismaClients.set(dbName, client);
   return client;
@@ -96,12 +59,16 @@ export const authenticateToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Si le token contient associationId, charger la bonne DB
-    if (decoded.associationId && decoded.dbName) {
-      const associationPrisma = await getPrismaClientForAssociation(decoded.dbName);
+    // Si le token contient associationId et dbName, charger la bonne DB
+    if (decoded.dbName) {
+      const associationPrisma = await getPrismaForAssociation(decoded.dbName);
       req.prisma = associationPrisma;
       req.associationId = decoded.associationId;
       req.dbName = decoded.dbName;
+    }
+    // Sinon utiliser le client par défaut
+    else {
+      req.prisma = defaultPrisma;
     }
     
     // Récupérer l'utilisateur complet
@@ -141,4 +108,12 @@ export const generateToken = (userId, associationId = null, dbName = null) => {
 // Générer un token d'accès simple pour les membres (pas JWT)
 export const generateAccessToken = () => {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
+// Fermer toutes les connexions (pour le shutdown)
+export const closeAllConnections = async () => {
+  await defaultPrisma.$disconnect();
+  for (const [, client] of prismaClients) {
+    await client.$disconnect();
+  }
 };

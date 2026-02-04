@@ -132,6 +132,15 @@ export default function Login() {
             <Text style={styles.buttonText}>Connexion</Text>
           )}
         </TouchableOpacity>
+
+        {/* Lien vers Platform Admin */}
+        <TouchableOpacity
+          style={styles.platformLink}
+          onPress={() => router.push('/platform')}
+        >
+          <Ionicons name="shield" size={16} color="#9C27B0" />
+          <Text style={styles.platformLinkText}>Accès Platform Admin</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );

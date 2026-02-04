@@ -30,6 +30,8 @@ export default function PlatformDashboard() {
   
   // Modal création
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingAssociation, setEditingAssociation] = useState(null);
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -38,6 +40,10 @@ export default function PlatformDashboard() {
     adminEmail: '',
     adminPassword: '',
     adminName: ''
+  });
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    type: ''
   });
 
   useEffect(() => {

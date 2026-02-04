@@ -123,6 +123,61 @@ export default function PlatformDashboard() {
     router.replace('/platform');
   };
 
+  const handleEditAssociation = (association) => {
+    setEditingAssociation(association);
+    setEditFormData({
+      name: association.name,
+      type: association.type
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editFormData.name) {
+      Alert.alert('Erreur', 'Le nom est requis');
+      return;
+    }
+
+    try {
+      await api.put(`/platform/associations/${editingAssociation.id}`, editFormData);
+      Alert.alert('Succès', 'Association modifiée');
+      setEditModalVisible(false);
+      setEditingAssociation(null);
+      loadData();
+    } catch (error) {
+      console.error('Erreur modification:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la modification');
+    }
+  };
+
+  const handleDeleteAssociation = (association) => {
+    if (association.code === 'V1-DEFAULT') {
+      Alert.alert('Erreur', 'Impossible de supprimer l\'association par défaut');
+      return;
+    }
+    
+    Alert.alert(
+      'Supprimer l\'association',
+      `Êtes-vous sûr de vouloir supprimer "${association.name}" ?\n\nCette action est irréversible et supprimera toutes les données de l'association.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/platform/associations/${association.id}`);
+              Alert.alert('Succès', 'Association supprimée');
+              loadData();
+            } catch (error) {
+              Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la suppression');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderAssociation = ({ item }) => (
     <View style={styles.associationCard}>
       <View style={styles.associationHeader}>

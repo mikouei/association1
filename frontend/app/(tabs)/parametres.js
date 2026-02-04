@@ -157,6 +157,39 @@ export default function Parametres() {
     }
   };
 
+  // Import Membres via fichier
+  const handlePickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/plain', 'text/csv', 'text/comma-separated-values', '*/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const file = result.assets[0];
+      
+      // Sur web, lire le fichier différemment
+      if (Platform.OS === 'web') {
+        // Pour le web, on peut utiliser fetch pour lire le blob
+        const response = await fetch(file.uri);
+        const text = await response.text();
+        setImportContent(text);
+        Alert.alert('Succès', `Fichier "${file.name}" chargé`);
+      } else {
+        // Sur mobile, utiliser FileSystem
+        const content = await FileSystem.readAsStringAsync(file.uri);
+        setImportContent(content);
+        Alert.alert('Succès', `Fichier "${file.name}" chargé`);
+      }
+    } catch (error) {
+      console.error('Erreur lecture fichier:', error);
+      Alert.alert('Erreur', 'Impossible de lire le fichier');
+    }
+  };
+
   // Import Membres
   const handlePreviewImport = async () => {
     if (!importContent.trim()) {

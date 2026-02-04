@@ -197,6 +197,13 @@ export default function PlatformDashboard() {
 
       <View style={styles.associationActions}>
         <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => handleEditAssociation(item)}
+        >
+          <Ionicons name="pencil" size={16} color="#fff" />
+        </TouchableOpacity>
+        
+        <TouchableOpacity
           style={[styles.actionButton, item.active ? styles.deactivateButton : styles.activateButton]}
           onPress={() => handleToggleAssociation(item)}
         >
@@ -205,6 +212,15 @@ export default function PlatformDashboard() {
             {item.active ? 'Désactiver' : 'Activer'}
           </Text>
         </TouchableOpacity>
+
+        {item.code !== 'V1-DEFAULT' && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeleteAssociation(item)}
+          >
+            <Ionicons name="trash" size={16} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

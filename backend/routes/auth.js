@@ -60,7 +60,7 @@ router.post('/login', async (req, res) => {
       }
       
       // Charger le client Prisma pour cette association
-      associationPrisma = await getPrismaClientForAssociation(association.dbName);
+      associationPrisma = getSqliteClientForAssociation(association.dbName);
     }
 
     // Cas 1: Login avec token d'accès (pour les membres)

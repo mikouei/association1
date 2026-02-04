@@ -232,4 +232,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  platformLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    gap: 8,
+  },
+  platformLinkText: {
+    color: '#9C27B0',
+    fontSize: 14,
+  },
 });

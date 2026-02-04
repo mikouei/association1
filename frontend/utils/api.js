@@ -16,7 +16,16 @@ const api = axios.create({
 // Intercepteur pour ajouter le token automatiquement
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem('authToken');
+    // Vérifier d'abord si un header Authorization est déjà défini (par PlatformAuthContext)
+    if (config.headers.Authorization) {
+      return config;
+    }
+    
+    // Sinon, essayer d'utiliser platformToken (SUPER_ADMIN) ou authToken (utilisateur normal)
+    const platformToken = await AsyncStorage.getItem('platformToken');
+    const authToken = await AsyncStorage.getItem('authToken');
+    
+    const token = platformToken || authToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,9 +41,8 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // Token invalide ou expiré
-      await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('user');
+      // Ne pas effacer les tokens automatiquement pour éviter les problèmes de conflit
+      console.log('401 error - token might be invalid');
     }
     return Promise.reject(error);
   }

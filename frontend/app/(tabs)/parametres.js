@@ -19,6 +19,7 @@ import api from '../../utils/api';
 import { useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 
 export default function Parametres() {
   const { user, logout } = useAuth();

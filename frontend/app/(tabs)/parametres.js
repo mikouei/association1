@@ -788,6 +788,17 @@ export default function Parametres() {
               Exemple:{'\n'}Jean Dupont;Villa 12;+237 6XX XX XX XX{'\n'}Marie Martin;Villa 7;+237 677 77 77 77
             </Text>
 
+            {/* Bouton pour charger un fichier */}
+            <TouchableOpacity
+              style={styles.filePickerButton}
+              onPress={handlePickFile}
+            >
+              <Ionicons name="folder-open" size={20} color="#2196F3" />
+              <Text style={styles.filePickerText}>Charger un fichier (TXT/CSV)</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.orText}>ou coller directement :</Text>
+
             <TextInput
               style={styles.importTextArea}
               placeholder="Coller le contenu ici..."

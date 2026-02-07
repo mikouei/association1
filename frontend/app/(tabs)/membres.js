@@ -46,10 +46,13 @@ export default function Membres() {
   const [newPassword, setNewPassword] = useState('');
   const [resettingPassword, setResettingPassword] = useState(false);
 
-  useEffect(() => {
-    loadMembers();
-    loadConfig();
-  }, []);
+  // Recharger les données à chaque fois que l'onglet Membres est affiché
+  useFocusEffect(
+    useCallback(() => {
+      loadMembers();
+      loadConfig();
+    }, [])
+  );
 
   useEffect(() => {
     filterMembers();

@@ -596,6 +596,147 @@ export default function PlatformDashboard() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Modal Gestion des Admins */}
+      <Modal
+        visible={adminsModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setAdminsModalVisible(false);
+          setSelectedAssociationForAdmins(null);
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Gérer les Admins</Text>
+              <TouchableOpacity onPress={() => {
+                setAdminsModalVisible(false);
+                setSelectedAssociationForAdmins(null);
+              }}>
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {selectedAssociationForAdmins && (
+                <>
+                  <View style={styles.codeBox}>
+                    <Ionicons name="business" size={18} color="#9C27B0" />
+                    <Text style={styles.codeBoxText}>{selectedAssociationForAdmins.name}</Text>
+                  </View>
+
+                  {/* Liste des admins existants */}
+                  <Text style={styles.sectionTitle}>Administrateurs ({admins.length})</Text>
+                  
+                  {loadingAdmins ? (
+                    <ActivityIndicator size="small" color="#9C27B0" style={{ marginVertical: 20 }} />
+                  ) : (
+                    admins.map((admin) => (
+                      <View key={admin.id} style={styles.adminCard}>
+                        <View style={styles.adminInfo}>
+                          <Ionicons name="person-circle" size={36} color="#9C27B0" />
+                          <View style={{ marginLeft: 12, flex: 1 }}>
+                            <Text style={styles.adminEmail}>{admin.email}</Text>
+                            {admin.phone && <Text style={styles.adminPhone}>{admin.phone}</Text>}
+                          </View>
+                        </View>
+                        
+                        {/* Changer mot de passe */}
+                        {changePasswordData.adminId === admin.id ? (
+                          <View style={styles.passwordRow}>
+                            <TextInput
+                              style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
+                              placeholder="Nouveau mot de passe"
+                              value={changePasswordData.password}
+                              onChangeText={(text) => setChangePasswordData({ ...changePasswordData, password: text })}
+                              secureTextEntry
+                            />
+                            <TouchableOpacity
+                              style={styles.miniBtn}
+                              onPress={() => handleChangePassword(admin.id)}
+                            >
+                              <Ionicons name="checkmark" size={20} color="#fff" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.miniBtn, { backgroundColor: '#999', marginLeft: 4 }]}
+                              onPress={() => setChangePasswordData({ adminId: null, password: '' })}
+                            >
+                              <Ionicons name="close" size={20} color="#fff" />
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <View style={styles.adminActions}>
+                            <TouchableOpacity
+                              style={[styles.adminActionBtn, { backgroundColor: '#FF9800' }]}
+                              onPress={() => setChangePasswordData({ adminId: admin.id, password: '' })}
+                            >
+                              <Ionicons name="key" size={16} color="#fff" />
+                              <Text style={styles.adminActionText}>Mot de passe</Text>
+                            </TouchableOpacity>
+                            {admins.length > 1 && (
+                              <TouchableOpacity
+                                style={[styles.adminActionBtn, { backgroundColor: '#F44336' }]}
+                                onPress={() => handleDeleteAdmin(admin)}
+                              >
+                                <Ionicons name="trash" size={16} color="#fff" />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    ))
+                  )}
+
+                  {/* Ajouter un nouvel admin */}
+                  <View style={styles.divider}>
+                    <Text style={styles.dividerText}>Ajouter un Admin</Text>
+                  </View>
+
+                  <Text style={styles.inputLabel}>Email *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="admin@exemple.com"
+                    value={newAdminData.email}
+                    onChangeText={(text) => setNewAdminData({ ...newAdminData, email: text })}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+
+                  <Text style={styles.inputLabel}>Mot de passe *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Mot de passe"
+                    value={newAdminData.password}
+                    onChangeText={(text) => setNewAdminData({ ...newAdminData, password: text })}
+                  />
+
+                  <Text style={styles.inputLabel}>Téléphone (optionnel)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="+237 6XX XX XX XX"
+                    value={newAdminData.phone}
+                    onChangeText={(text) => setNewAdminData({ ...newAdminData, phone: text })}
+                    keyboardType="phone-pad"
+                  />
+
+                  <TouchableOpacity
+                    style={styles.submitBtn}
+                    onPress={handleAddAdmin}
+                  >
+                    <Ionicons name="person-add" size={20} color="#fff" />
+                    <Text style={styles.submitBtnText}>Ajouter l'Admin</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }

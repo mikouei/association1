@@ -134,6 +134,7 @@ export default function Login() {
       router.replace('/(tabs)');
     } else {
       Alert.alert('Erreur', result.error);
+      refreshCaptcha(); // Nouveau captcha après échec
     }
   };
 

@@ -16,8 +16,10 @@ export function PlatformAuthProvider({ children }) {
     try {
       const token = await AsyncStorage.getItem('platformToken');
       if (token) {
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        const response = await api.get('/platform/me');
+        // Utiliser le token directement dans la requête, pas dans les defaults
+        const response = await api.get('/platform/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setSuperAdmin(response.data);
       }
     } catch (error) {
@@ -38,7 +40,7 @@ export function PlatformAuthProvider({ children }) {
     await AsyncStorage.removeItem('association');
     
     await AsyncStorage.setItem('platformToken', token);
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    // NE PAS utiliser api.defaults.headers - l'intercepteur gère les tokens via AsyncStorage
     setSuperAdmin(user);
     
     return user;
@@ -46,6 +48,7 @@ export function PlatformAuthProvider({ children }) {
 
   const logout = async () => {
     await AsyncStorage.removeItem('platformToken');
+    // Nettoyer aussi les defaults au cas où
     delete api.defaults.headers.common['Authorization'];
     setSuperAdmin(null);
   };

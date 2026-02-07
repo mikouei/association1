@@ -32,6 +32,11 @@ export function PlatformAuthProvider({ children }) {
     const response = await api.post('/platform/login', { email, password });
     const { token, user } = response.data;
     
+    // Nettoyer le token utilisateur normal pour éviter les conflits
+    await AsyncStorage.removeItem('authToken');
+    await AsyncStorage.removeItem('user');
+    await AsyncStorage.removeItem('association');
+    
     await AsyncStorage.setItem('platformToken', token);
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setSuperAdmin(user);

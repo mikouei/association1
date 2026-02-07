@@ -315,7 +315,15 @@ export default function PlatformDashboard() {
           activeOpacity={0.7}
         >
           <Ionicons name="pencil" size={18} color="#fff" />
-          <Text style={styles.actionBtnText}>Modifier</Text>
+        </TouchableOpacity>
+
+        {/* Bouton Gérer Admins */}
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.adminsBtn]}
+          onPress={() => openAdminsModal(item)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="people" size={18} color="#fff" />
         </TouchableOpacity>
 
         {/* Bouton Activer/Désactiver */}
@@ -325,7 +333,6 @@ export default function PlatformDashboard() {
           activeOpacity={0.7}
         >
           <Ionicons name={item.active ? "pause" : "play"} size={18} color="#fff" />
-          <Text style={styles.actionBtnText}>{item.active ? 'Désactiver' : 'Activer'}</Text>
         </TouchableOpacity>
 
         {/* Bouton Supprimer (pas pour V1-DEFAULT) */}

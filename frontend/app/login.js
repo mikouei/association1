@@ -194,15 +194,15 @@ export default function Login() {
           <View style={styles.form}>
             <View style={styles.inputContainer}>
               <Ionicons name="call" size={20} color="#666" style={styles.icon} />
-<TextInput
-  style={styles.input}
-  placeholder="Téléphone ou email"
-  value={identifier}
-  onChangeText={setIdentifier}
-  keyboardType="default"
-  autoCapitalize="none"
-  autoCorrect={false}
-/>
+              <TextInput
+                style={styles.input}
+                placeholder="Téléphone ou email"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="default"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
             </View>
 
             <View style={styles.inputContainer}>

@@ -896,6 +896,9 @@ const styles = StyleSheet.create({
   editBtn: {
     backgroundColor: '#2196F3',
   },
+  adminsBtn: {
+    backgroundColor: '#9C27B0',
+  },
   activateBtn: {
     backgroundColor: '#4CAF50',
   },

@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, association } = useAuth();
   const [config, setConfig] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);

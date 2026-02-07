@@ -666,22 +666,44 @@ function createPrismaCompatibleWrapper(db, dbName) {
       }
     },
 
-    // Transaction support
-    $transaction: async (operations) => {
-      const results = [];
+    // Transaction support - supporte les deux modes Prisma
+    $transaction: async (operationsOrCallback) => {
       db.prepare('BEGIN').run();
       try {
-        for (const op of operations) {
-          results.push(await op);
+        let result;
+        
+        // Mode callback (comme Prisma interactive transactions)
+        if (typeof operationsOrCallback === 'function') {
+          // Créer un proxy du client pour la transaction
+          const txClient = {
+            user: client.user,
+            member: client.member,
+            year: client.year,
+            monthlyPayment: client.monthlyPayment,
+            exceptionalContribution: client.exceptionalContribution,
+            exceptionalPayment: client.exceptionalPayment,
+            associationConfig: client.associationConfig
+          };
+          result = await operationsOrCallback(txClient);
+        } 
+        // Mode tableau de promesses
+        else if (Array.isArray(operationsOrCallback)) {
+          result = [];
+          for (const op of operationsOrCallback) {
+            result.push(await op);
+          }
         }
+        
         db.prepare('COMMIT').run();
-        return results;
+        return result;
       } catch (error) {
         db.prepare('ROLLBACK').run();
         throw error;
       }
     }
   };
+  
+  return client;
 }
 
 // Middleware pour vérifier le JWT et charger la bonne DB

@@ -20,7 +20,7 @@ import api from '../utils/api';
 
 export default function Login() {
   const [mode, setMode] = useState('password'); // 'password' ou 'token'
-  const [phone, setPhone] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,12 +75,12 @@ export default function Login() {
     }
 
     setLoading(true);
-    const result = await login(
-      mode === 'password' ? phone : null,
-      mode === 'password' ? password : null,
-      mode === 'token' ? accessToken : null,
-      selectedAssociation.code
-    );
+const result = await login(
+  mode === 'password' ? identifier : null,
+  mode === 'password' ? password : null,
+  mode === 'token' ? accessToken : null,
+  selectedAssociation.code
+);
     setLoading(false);
 
     if (result.success) {
@@ -194,13 +194,15 @@ export default function Login() {
           <View style={styles.form}>
             <View style={styles.inputContainer}>
               <Ionicons name="call" size={20} color="#666" style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Numéro de téléphone"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
+<TextInput
+  style={styles.input}
+  placeholder="Téléphone ou email"
+  value={identifier}
+  onChangeText={setIdentifier}
+  keyboardType="default"
+  autoCapitalize="none"
+  autoCorrect={false}
+/>
             </View>
 
             <View style={styles.inputContainer}>

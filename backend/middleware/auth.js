@@ -733,7 +733,7 @@ export const requireAdmin = (req, res, next) => {
 
 // Générer un token JWT avec association
 export const generateToken = (userId, associationId = null, dbName = null) => {
-  const payload = { userId };
+  const payload = { userId, role  };
   if (associationId) payload.associationId = associationId;
   if (dbName) payload.dbName = dbName;
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });

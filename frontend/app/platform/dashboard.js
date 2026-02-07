@@ -189,6 +189,88 @@ export default function PlatformDashboard() {
     );
   };
 
+  // ============ GESTION DES ADMINS ============
+  
+  // Ouvrir modal admins
+  const openAdminsModal = async (association) => {
+    setSelectedAssociationForAdmins(association);
+    setAdminsModalVisible(true);
+    setLoadingAdmins(true);
+    
+    try {
+      const response = await api.get(`/platform/associations/${association.id}/admins`);
+      setAdmins(response.data);
+    } catch (error) {
+      console.error('Erreur chargement admins:', error);
+      Alert.alert('Erreur', 'Impossible de charger les admins');
+    } finally {
+      setLoadingAdmins(false);
+    }
+  };
+
+  // Ajouter un admin
+  const handleAddAdmin = async () => {
+    if (!newAdminData.email || !newAdminData.password) {
+      Alert.alert('Erreur', 'Email et mot de passe requis');
+      return;
+    }
+    
+    try {
+      await api.post(`/platform/associations/${selectedAssociationForAdmins.id}/admins`, newAdminData);
+      Alert.alert('Succès', 'Admin ajouté');
+      setNewAdminData({ email: '', password: '', phone: '' });
+      // Recharger la liste
+      const response = await api.get(`/platform/associations/${selectedAssociationForAdmins.id}/admins`);
+      setAdmins(response.data);
+    } catch (error) {
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur ajout admin');
+    }
+  };
+
+  // Changer mot de passe admin
+  const handleChangePassword = async (adminId) => {
+    if (!changePasswordData.password || changePasswordData.password.length < 4) {
+      Alert.alert('Erreur', 'Mot de passe requis (minimum 4 caractères)');
+      return;
+    }
+    
+    try {
+      await api.put(
+        `/platform/associations/${selectedAssociationForAdmins.id}/admins/${adminId}/password`,
+        { password: changePasswordData.password }
+      );
+      Alert.alert('Succès', 'Mot de passe modifié');
+      setChangePasswordData({ adminId: null, password: '' });
+    } catch (error) {
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur modification mot de passe');
+    }
+  };
+
+  // Supprimer admin
+  const handleDeleteAdmin = (admin) => {
+    Alert.alert(
+      'Supprimer l\'admin',
+      `Supprimer ${admin.email} ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/platform/associations/${selectedAssociationForAdmins.id}/admins/${admin.id}`);
+              Alert.alert('Succès', 'Admin supprimé');
+              const response = await api.get(`/platform/associations/${selectedAssociationForAdmins.id}/admins`);
+              setAdmins(response.data);
+            } catch (error) {
+              Alert.alert('Erreur', error.response?.data?.error || 'Erreur suppression');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Déconnexion
   const handleLogout = () => {
     Alert.alert(

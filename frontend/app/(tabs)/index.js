@@ -68,8 +68,8 @@ export default function Dashboard() {
       }
     >
       <View style={styles.header}>
-        <Text style={styles.title}>{config?.name || 'Mon Association'}</Text>
-        <Text style={styles.subtitle}>{config?.type || 'Association'}</Text>
+        <Text style={styles.title}>{association?.name || config?.name || 'Mon Association'}</Text>
+        <Text style={styles.subtitle}>{config?.type || association?.type || 'Association'}</Text>
       </View>
 
       <View style={styles.welcomeCard}>
@@ -78,6 +78,11 @@ export default function Dashboard() {
         <Text style={styles.roleText}>
           {user?.role === 'ADMIN' ? 'Administrateur' : 'Membre'}
         </Text>
+        {association && (
+          <Text style={styles.associationBadge}>
+            {association.code}
+          </Text>
+        )}
       </View>
 
       {user?.role === 'ADMIN' && stats && (

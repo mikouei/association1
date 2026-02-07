@@ -70,6 +70,11 @@ process.on('SIGTERM', async () => {
 });
 
 // Start server
+
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 AssocManager API démarrée sur le port ${PORT}`);
   console.log(`📍 http://0.0.0.0:${PORT}/api`);

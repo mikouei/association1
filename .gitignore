@@ -121,3 +121,7 @@ android-sdk/ -e
 
 # Prisma engines
 node_modules/.prisma
+-e 
+# Environment files
+*.env
+*.env.*

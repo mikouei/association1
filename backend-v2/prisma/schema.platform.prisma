@@ -1,0 +1,47 @@
+// Prisma schema pour la Platform (SUPER_ADMIN)
+// Base de données séparée pour gérer les associations
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/platform-client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./platform.db"
+}
+
+// Super Administrateur de la plateforme
+model SuperAdmin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String   @default("Super Admin")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Association (chaque association a sa propre base de données)
+model Association {
+  id           String   @id @default(uuid())
+  name         String   // Nom de l'association
+  type         String?  // Type (syndicat, amicale, association)
+  code         String   @unique // Code unique (ex: "SYNDIC-BNI", "AMICALE-X")
+  dbName       String   @unique // Nom du fichier de base de données (ex: "assoc_xxx.db")
+  active       Boolean  @default(true)
+  adminEmail   String?  // Email du premier admin créé
+  adminName    String?  // Nom du premier admin
+  memberCount  Int      @default(0) // Cache du nombre de membres
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Configuration globale de la plateforme
+model PlatformConfig {
+  id        String   @id @default(uuid())
+  name      String   @default("AssocManager Platform")
+  version   String   @default("2.0.0")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

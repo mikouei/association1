@@ -1,0 +1,8 @@
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Prisma engines
+node_modules/.prisma

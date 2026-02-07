@@ -16,23 +16,22 @@ const api = axios.create({
 // Intercepteur pour ajouter le token automatiquement
 api.interceptors.request.use(
   async (config) => {
-    // Vérifier d'abord si un header Authorization est déjà défini (par PlatformAuthContext)
-    if (config.headers.Authorization) {
-      return config;
-    }
-    
-    // Priorité: authToken (utilisateur normal) puis platformToken (SUPER_ADMIN)
-    // L'authToken doit avoir la priorité car les routes normales (/payments, /members, etc.)
-    // nécessitent un token utilisateur avec userId et dbName
+    // Toujours déterminer le bon token depuis AsyncStorage
+    // Ne JAMAIS faire confiance à api.defaults.headers.common['Authorization']
     const authToken = await AsyncStorage.getItem('authToken');
     const platformToken = await AsyncStorage.getItem('platformToken');
     
-    // Pour les routes platform, le PlatformAuthContext met déjà le header Authorization
-    // Ici on gère uniquement les routes normales → authToken en priorité
-    const token = authToken || platformToken;
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Déterminer quel token utiliser selon la route
+    const isPlatformRoute = config.url?.includes('/platform');
+    
+    if (isPlatformRoute && platformToken) {
+      config.headers.Authorization = `Bearer ${platformToken}`;
+    } else if (authToken) {
+      config.headers.Authorization = `Bearer ${authToken}`;
+    } else if (platformToken) {
+      config.headers.Authorization = `Bearer ${platformToken}`;
     }
+    
     return config;
   },
   (error) => {

@@ -667,24 +667,15 @@ function createPrismaCompatibleWrapper(db, dbName) {
     },
 
     // Transaction support - supporte les deux modes Prisma
-    $transaction: async (operationsOrCallback) => {
+    $transaction: async function(operationsOrCallback) {
       db.prepare('BEGIN').run();
       try {
         let result;
         
         // Mode callback (comme Prisma interactive transactions)
         if (typeof operationsOrCallback === 'function') {
-          // Créer un proxy du client pour la transaction
-          const txClient = {
-            user: client.user,
-            member: client.member,
-            year: client.year,
-            monthlyPayment: client.monthlyPayment,
-            exceptionalContribution: client.exceptionalContribution,
-            exceptionalPayment: client.exceptionalPayment,
-            associationConfig: client.associationConfig
-          };
-          result = await operationsOrCallback(txClient);
+          // Passer le client lui-même comme proxy de transaction
+          result = await operationsOrCallback(this);
         } 
         // Mode tableau de promesses
         else if (Array.isArray(operationsOrCallback)) {

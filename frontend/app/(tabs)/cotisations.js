@@ -46,9 +46,16 @@ export default function Cotisations() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadYears();
-  }, []);
+  // Recharger les données à chaque fois que l'onglet Cotisations est affiché
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedYear) {
+        loadPayments(selectedYear.id);
+      } else {
+        loadYears();
+      }
+    }, [selectedYear?.id])
+  );
 
   // Filtrer les membres quand la recherche change
   useEffect(() => {

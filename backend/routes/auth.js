@@ -2,7 +2,6 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { generateToken, authenticateToken, getSqliteClientForAssociation } from '../middleware/auth.js';
 import { PrismaClient as PlatformPrismaClient } from '../node_modules/.prisma/platform-client/index.js';
-import platformPrisma from '../prisma/platformClient.js';
 
 const router = express.Router();
 

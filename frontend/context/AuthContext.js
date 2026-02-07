@@ -44,6 +44,9 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/login', payload);
       const { token: newToken, user: newUser, association: newAssociation } = response.data;
 
+      // Nettoyer le token SUPER_ADMIN pour éviter les conflits
+      await AsyncStorage.removeItem('platformToken');
+      
       await AsyncStorage.setItem('authToken', newToken);
       await AsyncStorage.setItem('user', JSON.stringify(newUser));
       if (newAssociation) {

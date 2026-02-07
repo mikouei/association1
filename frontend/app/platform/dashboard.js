@@ -50,6 +50,14 @@ export default function PlatformDashboard() {
     type: '',
     adminEmail: ''
   });
+  
+  // Gestion des admins
+  const [adminsModalVisible, setAdminsModalVisible] = useState(false);
+  const [selectedAssociationForAdmins, setSelectedAssociationForAdmins] = useState(null);
+  const [admins, setAdmins] = useState([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
+  const [newAdminData, setNewAdminData] = useState({ email: '', password: '', phone: '' });
+  const [changePasswordData, setChangePasswordData] = useState({ adminId: null, password: '' });
 
   useEffect(() => {
     if (!superAdmin) {

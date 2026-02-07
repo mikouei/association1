@@ -20,7 +20,7 @@ import api from '../utils/api';
 
 export default function Login() {
   const [mode, setMode] = useState('password'); // 'password' ou 'token'
-  const [identifier, setIdentifier] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [loading, setLoading] = useState(false);

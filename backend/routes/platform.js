@@ -305,6 +305,195 @@ router.delete('/associations/:id', authenticateSuperAdmin, async (req, res) => {
   }
 });
 
+// ============ GESTION DES ADMINS ============
+
+// GET /api/platform/associations/:id/admins - Lister les admins d'une association
+router.get('/associations/:id/admins', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const prisma = await getPlatformPrisma();
+    
+    const association = await prisma.association.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!association) {
+      return res.status(404).json({ error: 'Association non trouvée' });
+    }
+
+    // Charger la DB de l'association pour lister les admins
+    const Database = (await import('better-sqlite3')).default;
+    const dbPath = path.join(__dirname, '../prisma', association.dbName);
+    
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Base de données non trouvée' });
+    }
+    
+    const db = new Database(dbPath);
+    const admins = db.prepare("SELECT id, email, phone, active, createdAt FROM User WHERE role = 'ADMIN'").all();
+    db.close();
+    
+    res.json(admins.map(admin => ({
+      ...admin,
+      active: !!admin.active
+    })));
+  } catch (error) {
+    console.error('Erreur liste admins:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/platform/associations/:id/admins - Ajouter un admin à une association
+router.post('/associations/:id/admins', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { email, password, phone } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et mot de passe requis' });
+    }
+
+    const prisma = await getPlatformPrisma();
+    
+    const association = await prisma.association.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!association) {
+      return res.status(404).json({ error: 'Association non trouvée' });
+    }
+
+    // Charger la DB de l'association
+    const Database = (await import('better-sqlite3')).default;
+    const dbPath = path.join(__dirname, '../prisma', association.dbName);
+    
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Base de données non trouvée' });
+    }
+    
+    const db = new Database(dbPath);
+    
+    // Vérifier si l'email existe déjà
+    const existing = db.prepare("SELECT id FROM User WHERE email = ?").get(email);
+    if (existing) {
+      db.close();
+      return res.status(400).json({ error: 'Cet email existe déjà' });
+    }
+    
+    // Créer le nouvel admin
+    const passwordHash = await bcrypt.hash(password, 10);
+    const adminId = `admin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+    
+    db.prepare(`
+      INSERT INTO User (id, email, phone, passwordHash, role, active, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, 'ADMIN', 1, ?, ?)
+    `).run(adminId, email, phone || null, passwordHash, now, now);
+    
+    db.close();
+    
+    res.status(201).json({
+      message: 'Admin ajouté avec succès',
+      admin: { id: adminId, email, phone }
+    });
+  } catch (error) {
+    console.error('Erreur ajout admin:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT /api/platform/associations/:id/admins/:adminId/password - Changer mot de passe admin
+router.put('/associations/:id/admins/:adminId/password', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    if (!password || password.length < 4) {
+      return res.status(400).json({ error: 'Mot de passe requis (minimum 4 caractères)' });
+    }
+
+    const prisma = await getPlatformPrisma();
+    
+    const association = await prisma.association.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!association) {
+      return res.status(404).json({ error: 'Association non trouvée' });
+    }
+
+    // Charger la DB de l'association
+    const Database = (await import('better-sqlite3')).default;
+    const dbPath = path.join(__dirname, '../prisma', association.dbName);
+    
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Base de données non trouvée' });
+    }
+    
+    const db = new Database(dbPath);
+    
+    // Vérifier si l'admin existe
+    const admin = db.prepare("SELECT id, email FROM User WHERE id = ? AND role = 'ADMIN'").get(req.params.adminId);
+    if (!admin) {
+      db.close();
+      return res.status(404).json({ error: 'Admin non trouvé' });
+    }
+    
+    // Mettre à jour le mot de passe
+    const passwordHash = await bcrypt.hash(password, 10);
+    const now = new Date().toISOString();
+    
+    db.prepare("UPDATE User SET passwordHash = ?, updatedAt = ? WHERE id = ?").run(passwordHash, now, req.params.adminId);
+    
+    db.close();
+    
+    res.json({ message: 'Mot de passe modifié avec succès' });
+  } catch (error) {
+    console.error('Erreur modification mot de passe:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /api/platform/associations/:id/admins/:adminId - Supprimer un admin
+router.delete('/associations/:id/admins/:adminId', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const prisma = await getPlatformPrisma();
+    
+    const association = await prisma.association.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!association) {
+      return res.status(404).json({ error: 'Association non trouvée' });
+    }
+
+    // Charger la DB de l'association
+    const Database = (await import('better-sqlite3')).default;
+    const dbPath = path.join(__dirname, '../prisma', association.dbName);
+    
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Base de données non trouvée' });
+    }
+    
+    const db = new Database(dbPath);
+    
+    // Compter le nombre d'admins
+    const adminCount = db.prepare("SELECT COUNT(*) as count FROM User WHERE role = 'ADMIN'").get().count;
+    
+    if (adminCount <= 1) {
+      db.close();
+      return res.status(400).json({ error: 'Impossible de supprimer le dernier admin' });
+    }
+    
+    // Supprimer l'admin
+    db.prepare("DELETE FROM User WHERE id = ? AND role = 'ADMIN'").run(req.params.adminId);
+    
+    db.close();
+    
+    res.json({ message: 'Admin supprimé avec succès' });
+  } catch (error) {
+    console.error('Erreur suppression admin:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // GET /api/platform/stats - Statistiques de la plateforme
 router.get('/stats', authenticateSuperAdmin, async (req, res) => {
   try {

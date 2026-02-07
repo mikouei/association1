@@ -7,6 +7,7 @@ import { PrismaClient as PlatformPrismaClient } from '../node_modules/.prisma/pl
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import platformPrisma from '../prisma/platformClient.js';
 
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

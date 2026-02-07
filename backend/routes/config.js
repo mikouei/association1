@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import platformPrisma from '../prisma/platformClient.js';
 
 const router = express.Router();
 

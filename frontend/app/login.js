@@ -75,12 +75,12 @@ export default function Login() {
     }
 
     setLoading(true);
-const result = await login(
-  mode === 'password' ? identifier : null,
-  mode === 'password' ? password : null,
-  mode === 'token' ? accessToken : null,
-  selectedAssociation.code
-);
+    const result = await login(
+      mode === 'password' ? phone : null,
+      mode === 'password' ? password : null,
+      mode === 'token' ? accessToken : null,
+      selectedAssociation.code
+    );
     setLoading(false);
 
     if (result.success) {

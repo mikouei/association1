@@ -101,7 +101,7 @@ export default function Cotisations() {
       
       // Si l'utilisateur n'est pas admin, filtrer pour ne montrer que sa propre ligne
       if (user?.role !== 'ADMIN' && user?.member) {
-        members = members.filter(m => m.memberId === user.member.id || m.userId === user.id);
+        members = members.filter(m => m.id === user.member.id || m.userId === user.id);
       }
       
       setMembersData(members);

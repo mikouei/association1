@@ -52,10 +52,13 @@ export default function Exceptionnelles() {
   const [saving, setSaving] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
 
-  useEffect(() => {
-    loadContributions();
-    loadMembers();
-  }, []);
+  // Recharger les données à chaque fois que l'onglet est affiché
+  useFocusEffect(
+    useCallback(() => {
+      loadContributions();
+      loadMembers();
+    }, [])
+  );
 
   const loadContributions = async () => {
     try {

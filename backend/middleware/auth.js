@@ -486,13 +486,19 @@ function createPrismaCompatibleWrapper(db, dbName) {
         const id = `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const now = new Date().toISOString();
         
-        // Convertir undefined en null pour SQLite
+        // Convertir undefined/null/Date en valeurs compatibles SQLite
         const memberId = data.memberId || null;
         const yearId = data.yearId || null;
         const month = data.month !== undefined ? data.month : null;
         const amountPaid = data.amountPaid !== undefined ? data.amountPaid : null;
-        const paymentDate = data.paymentDate || now;
-        const notes = data.notes !== undefined ? data.notes : null;
+        // Gérer les objets Date
+        let paymentDate = now;
+        if (data.paymentDate) {
+          paymentDate = data.paymentDate instanceof Date 
+            ? data.paymentDate.toISOString() 
+            : data.paymentDate;
+        }
+        const notes = (data.notes !== undefined && data.notes !== null) ? String(data.notes) : null;
         
         db.prepare(`
           INSERT INTO MonthlyPayment (id, memberId, yearId, month, amountPaid, paymentDate, notes, createdAt, updatedAt)

@@ -28,11 +28,13 @@ export default function PlatformDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Modal création
+  // Modals
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingAssociation, setEditingAssociation] = useState(null);
   const [creating, setCreating] = useState(false);
+  
+  // Form data pour création
   const [formData, setFormData] = useState({
     name: '',
     type: 'association',
@@ -41,9 +43,12 @@ export default function PlatformDashboard() {
     adminPassword: '',
     adminName: ''
   });
+  
+  // Form data pour édition
   const [editFormData, setEditFormData] = useState({
     name: '',
-    type: ''
+    type: '',
+    adminEmail: ''
   });
 
   useEffect(() => {
@@ -76,30 +81,28 @@ export default function PlatformDashboard() {
     loadData();
   };
 
+  // Toggle actif/inactif
   const handleToggleAssociation = async (association) => {
     try {
       await api.put(`/platform/associations/${association.id}/toggle`);
       loadData();
-      Alert.alert('Succès', `Association ${association.active ? 'désactivée' : 'activée'}`);
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de modifier l\'association');
+      console.error('Erreur toggle:', error);
+      Alert.alert('Erreur', 'Impossible de modifier le statut');
     }
   };
 
+  // Création d'association
   const handleCreateAssociation = async () => {
     if (!formData.name || !formData.code || !formData.adminEmail || !formData.adminPassword) {
-      Alert.alert('Erreur', 'Tous les champs obligatoires doivent être remplis');
+      Alert.alert('Erreur', 'Tous les champs marqués * sont requis');
       return;
     }
 
     setCreating(true);
     try {
-      const response = await api.post('/platform/associations', formData);
-      Alert.alert(
-        'Association créée !',
-        `Identifiants admin:\nEmail: ${formData.adminEmail}\nMot de passe: ${formData.adminPassword}`,
-        [{ text: 'OK' }]
-      );
+      await api.post('/platform/associations', formData);
+      Alert.alert('Succès', 'Association créée avec succès');
       setCreateModalVisible(false);
       setFormData({
         name: '',
@@ -118,20 +121,19 @@ export default function PlatformDashboard() {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/platform');
-  };
-
-  const handleEditAssociation = (association) => {
+  // Ouvrir modal édition
+  const openEditModal = (association) => {
+    console.log('Opening edit modal for:', association.name);
     setEditingAssociation(association);
     setEditFormData({
       name: association.name,
-      type: association.type
+      type: association.type || 'association',
+      adminEmail: association.adminEmail || ''
     });
     setEditModalVisible(true);
   };
 
+  // Sauvegarder modification
   const handleSaveEdit = async () => {
     if (!editFormData.name) {
       Alert.alert('Erreur', 'Le nom est requis');
@@ -150,6 +152,7 @@ export default function PlatformDashboard() {
     }
   };
 
+  // Supprimer association
   const handleDeleteAssociation = (association) => {
     if (association.code === 'V1-DEFAULT') {
       Alert.alert('Erreur', 'Impossible de supprimer l\'association par défaut');
@@ -158,7 +161,7 @@ export default function PlatformDashboard() {
     
     Alert.alert(
       'Supprimer l\'association',
-      `Êtes-vous sûr de vouloir supprimer "${association.name}" ?\n\nCette action est irréversible et supprimera toutes les données de l'association.`,
+      `Êtes-vous sûr de vouloir supprimer "${association.name}" ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -178,47 +181,71 @@ export default function PlatformDashboard() {
     );
   };
 
+  // Déconnexion
+  const handleLogout = () => {
+    Alert.alert(
+      'Déconnexion',
+      'Voulez-vous vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Déconnexion',
+          onPress: async () => {
+            await logout();
+            router.replace('/platform');
+          }
+        }
+      ]
+    );
+  };
+
+  // Rendu d'une association
   const renderAssociation = ({ item }) => (
-    <View style={styles.associationCard}>
-      <View style={styles.associationHeader}>
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
         <View style={[styles.statusDot, { backgroundColor: item.active ? '#4CAF50' : '#F44336' }]} />
-        <Text style={styles.associationName}>{item.name}</Text>
+        <Text style={styles.cardTitle}>{item.name}</Text>
       </View>
       
-      <View style={styles.associationInfo}>
-        <Text style={styles.associationCode}>Code: {item.code}</Text>
-        <Text style={styles.associationType}>{item.type}</Text>
+      <View style={styles.cardInfo}>
+        <Text style={styles.cardCode}>Code: {item.code}</Text>
+        <Text style={styles.cardType}>{item.type || 'association'}</Text>
       </View>
       
-      <View style={styles.associationAdmin}>
+      <View style={styles.cardAdmin}>
         <Ionicons name="person" size={14} color="#666" />
-        <Text style={styles.adminEmail}>{item.adminEmail || 'Pas d\'admin'}</Text>
+        <Text style={styles.adminText}>{item.adminEmail || 'Pas d\'admin'}</Text>
       </View>
 
-      <View style={styles.associationActions}>
+      <View style={styles.cardActions}>
+        {/* Bouton Modifier */}
         <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => handleEditAssociation(item)}
+          style={[styles.actionBtn, styles.editBtn]}
+          onPress={() => openEditModal(item)}
+          activeOpacity={0.7}
         >
-          <Ionicons name="pencil" size={16} color="#fff" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.actionButton, item.active ? styles.deactivateButton : styles.activateButton]}
-          onPress={() => handleToggleAssociation(item)}
-        >
-          <Ionicons name={item.active ? 'close-circle' : 'checkmark-circle'} size={16} color="#fff" />
-          <Text style={styles.actionButtonText}>
-            {item.active ? 'Désactiver' : 'Activer'}
-          </Text>
+          <Ionicons name="pencil" size={18} color="#fff" />
+          <Text style={styles.actionBtnText}>Modifier</Text>
         </TouchableOpacity>
 
+        {/* Bouton Activer/Désactiver */}
+        <TouchableOpacity
+          style={[styles.actionBtn, item.active ? styles.deactivateBtn : styles.activateBtn]}
+          onPress={() => handleToggleAssociation(item)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name={item.active ? "pause" : "play"} size={18} color="#fff" />
+          <Text style={styles.actionBtnText}>{item.active ? 'Désactiver' : 'Activer'}</Text>
+        </TouchableOpacity>
+
+        {/* Bouton Supprimer (pas pour V1-DEFAULT) */}
         {item.code !== 'V1-DEFAULT' && (
           <TouchableOpacity
-            style={styles.deleteButton}
+            style={[styles.actionBtn, styles.deleteBtn]}
             onPress={() => handleDeleteAssociation(item)}
+            activeOpacity={0.7}
           >
-            <Ionicons name="trash" size={16} color="#fff" />
+            <Ionicons name="trash" size={18} color="#fff" />
           </TouchableOpacity>
         )}
       </View>
@@ -229,6 +256,7 @@ export default function PlatformDashboard() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#9C27B0" />
+        <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
   }
@@ -237,54 +265,51 @@ export default function PlatformDashboard() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.headerTitle}>Platform Admin</Text>
-            <Text style={styles.headerSubtitle}>{superAdmin?.email}</Text>
-          </View>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Ionicons name="log-out" size={24} color="#fff" />
-          </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>Platform Admin</Text>
+          <Text style={styles.headerSubtitle}>{superAdmin?.name || superAdmin?.email}</Text>
         </View>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+          <Ionicons name="log-out" size={24} color="#F44336" />
+        </TouchableOpacity>
       </View>
 
       {/* Stats */}
       {stats && (
         <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: '#9C27B0' }]}>
+          <View style={styles.statBox}>
             <Text style={styles.statNumber}>{stats.totalAssociations}</Text>
             <Text style={styles.statLabel}>Total</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: '#4CAF50' }]}>
-            <Text style={styles.statNumber}>{stats.activeAssociations}</Text>
+          <View style={[styles.statBox, { backgroundColor: '#E8F5E9' }]}>
+            <Text style={[styles.statNumber, { color: '#4CAF50' }]}>{stats.activeAssociations}</Text>
             <Text style={styles.statLabel}>Actives</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: '#F44336' }]}>
-            <Text style={styles.statNumber}>{stats.inactiveAssociations}</Text>
+          <View style={[styles.statBox, { backgroundColor: '#FFEBEE' }]}>
+            <Text style={[styles.statNumber, { color: '#F44336' }]}>{stats.inactiveAssociations}</Text>
             <Text style={styles.statLabel}>Inactives</Text>
           </View>
         </View>
       )}
 
-      {/* Liste des associations */}
-      <View style={styles.listHeader}>
-        <Text style={styles.listTitle}>Associations</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => setCreateModalVisible(true)}
-        >
-          <Ionicons name="add" size={20} color="#fff" />
-          <Text style={styles.addButtonText}>Nouvelle</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Bouton Nouvelle Association */}
+      <TouchableOpacity
+        style={styles.createBtn}
+        onPress={() => setCreateModalVisible(true)}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="add-circle" size={24} color="#fff" />
+        <Text style={styles.createBtnText}>Nouvelle Association</Text>
+      </TouchableOpacity>
 
+      {/* Liste des associations */}
       <FlatList
         data={associations}
         renderItem={renderAssociation}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#9C27B0']} />
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
@@ -313,89 +338,71 @@ export default function PlatformDashboard() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Nom de l'association *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: Syndicat BNI"
-                  value={formData.name}
-                  onChangeText={(text) => setFormData({ ...formData, name: text })}
-                />
-              </View>
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.inputLabel}>Nom de l'association *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Mon Association"
+                value={formData.name}
+                onChangeText={(text) => setFormData({ ...formData, name: text })}
+              />
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Code unique *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: SYNDIC-BNI"
-                  value={formData.code}
-                  onChangeText={(text) => setFormData({ ...formData, code: text.toUpperCase() })}
-                  autoCapitalize="characters"
-                />
-              </View>
+              <Text style={styles.inputLabel}>Code unique *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: MON-ASSOC"
+                value={formData.code}
+                onChangeText={(text) => setFormData({ ...formData, code: text.toUpperCase() })}
+                autoCapitalize="characters"
+              />
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Type</Text>
-                <View style={styles.typeButtons}>
-                  {['association', 'syndicat', 'amicale'].map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={[
-                        styles.typeButton,
-                        formData.type === type && styles.typeButtonActive
-                      ]}
-                      onPress={() => setFormData({ ...formData, type })}
-                    >
-                      <Text style={[
-                        styles.typeButtonText,
-                        formData.type === type && styles.typeButtonTextActive
-                      ]}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+              <Text style={styles.inputLabel}>Type</Text>
+              <View style={styles.typeRow}>
+                {['association', 'syndicat', 'amicale'].map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.typeBtn, formData.type === type && styles.typeBtnActive]}
+                    onPress={() => setFormData({ ...formData, type })}
+                  >
+                    <Text style={[styles.typeBtnText, formData.type === type && styles.typeBtnTextActive]}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
 
               <View style={styles.divider}>
-                <Text style={styles.dividerText}>Administrateur initial</Text>
+                <Text style={styles.dividerText}>Administrateur</Text>
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Nom de l'admin</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: Jean Dupont"
-                  value={formData.adminName}
-                  onChangeText={(text) => setFormData({ ...formData, adminName: text })}
-                />
-              </View>
+              <Text style={styles.inputLabel}>Nom de l'admin</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Jean Dupont"
+                value={formData.adminName}
+                onChangeText={(text) => setFormData({ ...formData, adminName: text })}
+              />
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email admin *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="admin@association.com"
-                  value={formData.adminEmail}
-                  onChangeText={(text) => setFormData({ ...formData, adminEmail: text })}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
+              <Text style={styles.inputLabel}>Email admin *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="admin@exemple.com"
+                value={formData.adminEmail}
+                onChangeText={(text) => setFormData({ ...formData, adminEmail: text })}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Mot de passe admin *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Mot de passe initial"
-                  value={formData.adminPassword}
-                  onChangeText={(text) => setFormData({ ...formData, adminPassword: text })}
-                />
-              </View>
+              <Text style={styles.inputLabel}>Mot de passe *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Mot de passe"
+                value={formData.adminPassword}
+                onChangeText={(text) => setFormData({ ...formData, adminPassword: text })}
+              />
 
               <TouchableOpacity
-                style={[styles.createButton, creating && styles.createButtonDisabled]}
+                style={[styles.submitBtn, creating && styles.submitBtnDisabled]}
                 onPress={handleCreateAssociation}
                 disabled={creating}
               >
@@ -404,7 +411,7 @@ export default function PlatformDashboard() {
                 ) : (
                   <>
                     <Ionicons name="add-circle" size={20} color="#fff" />
-                    <Text style={styles.createButtonText}>Créer l'association</Text>
+                    <Text style={styles.submitBtnText}>Créer</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -429,7 +436,7 @@ export default function PlatformDashboard() {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Modifier l'association</Text>
+              <Text style={styles.modalTitle}>Modifier Association</Text>
               <TouchableOpacity onPress={() => {
                 setEditModalVisible(false);
                 setEditingAssociation(null);
@@ -438,62 +445,53 @@ export default function PlatformDashboard() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView>
+            <ScrollView style={styles.modalBody}>
               {editingAssociation && (
                 <>
-                  <View style={styles.codeInfoBox}>
+                  <View style={styles.codeBox}>
                     <Ionicons name="key" size={18} color="#9C27B0" />
-                    <Text style={styles.codeInfoText}>
-                      Code: <Text style={styles.codeInfoValue}>{editingAssociation.code}</Text>
-                    </Text>
+                    <Text style={styles.codeBoxText}>Code: {editingAssociation.code}</Text>
                   </View>
 
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Nom de l'association *</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Nom de l'association"
-                      value={editFormData.name}
-                      onChangeText={(text) => setEditFormData({ ...editFormData, name: text })}
-                    />
+                  <Text style={styles.inputLabel}>Nom de l'association *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Nom"
+                    value={editFormData.name}
+                    onChangeText={(text) => setEditFormData({ ...editFormData, name: text })}
+                  />
+
+                  <Text style={styles.inputLabel}>Type</Text>
+                  <View style={styles.typeRow}>
+                    {['association', 'syndicat', 'amicale'].map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={[styles.typeBtn, editFormData.type === type && styles.typeBtnActive]}
+                        onPress={() => setEditFormData({ ...editFormData, type })}
+                      >
+                        <Text style={[styles.typeBtnText, editFormData.type === type && styles.typeBtnTextActive]}>
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
 
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Type</Text>
-                    <View style={styles.typeButtons}>
-                      {['association', 'syndicat', 'amicale'].map((type) => (
-                        <TouchableOpacity
-                          key={type}
-                          style={[
-                            styles.typeButton,
-                            editFormData.type === type && styles.typeButtonActive
-                          ]}
-                          onPress={() => setEditFormData({ ...editFormData, type })}
-                        >
-                          <Text style={[
-                            styles.typeButtonText,
-                            editFormData.type === type && styles.typeButtonTextActive
-                          ]}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.adminInfoBox}>
-                    <Ionicons name="person" size={18} color="#666" />
-                    <Text style={styles.adminInfoText}>
-                      Admin: {editingAssociation.adminEmail || 'Non défini'}
-                    </Text>
-                  </View>
+                  <Text style={styles.inputLabel}>Email admin</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email admin"
+                    value={editFormData.adminEmail}
+                    onChangeText={(text) => setEditFormData({ ...editFormData, adminEmail: text })}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
 
                   <TouchableOpacity
-                    style={styles.saveButton}
+                    style={styles.saveBtn}
                     onPress={handleSaveEdit}
                   >
                     <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                    <Text style={styles.saveButtonText}>Enregistrer les modifications</Text>
+                    <Text style={styles.saveBtnText}>Enregistrer</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -515,16 +513,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    backgroundColor: '#9C27B0',
-    paddingTop: 48,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+  loadingText: {
+    marginTop: 16,
+    color: '#666',
   },
-  headerContent: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: '#9C27B0',
+    padding: 20,
+    paddingTop: 50,
   },
   headerTitle: {
     fontSize: 24,
@@ -533,19 +532,22 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#E1BEE7',
+    color: 'rgba(255,255,255,0.8)',
     marginTop: 4,
   },
-  logoutButton: {
-    padding: 8,
+  logoutBtn: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: 10,
+    borderRadius: 8,
   },
   statsContainer: {
     flexDirection: 'row',
     padding: 16,
     gap: 12,
   },
-  statCard: {
+  statBox: {
     flex: 1,
+    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -553,153 +555,154 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#333',
   },
   statLabel: {
     fontSize: 12,
-    color: '#fff',
+    color: '#666',
     marginTop: 4,
-    opacity: 0.9,
   },
-  listHeader: {
+  createBtn: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  listTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#9C27B0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
-  addButtonText: {
+  createBtnText: {
     color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
   listContent: {
-    padding: 16,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
-  associationCard: {
+  card: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    elevation: 3,
   },
-  associationHeader: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
   statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 8,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 10,
   },
-  associationName: {
-    fontSize: 16,
+  cardTitle: {
+    fontSize: 18,
     fontWeight: '600',
     color: '#333',
     flex: 1,
   },
-  associationInfo: {
+  cardInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  associationCode: {
+  cardCode: {
     fontSize: 14,
     color: '#9C27B0',
     fontWeight: '500',
   },
-  associationType: {
+  cardType: {
     fontSize: 14,
     color: '#666',
     textTransform: 'capitalize',
   },
-  associationAdmin: {
+  cardAdmin: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     marginBottom: 12,
   },
-  adminEmail: {
-    fontSize: 12,
+  adminText: {
+    fontSize: 13,
     color: '#666',
   },
-  associationActions: {
+  cardActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 12,
   },
-  actionButton: {
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
     paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    gap: 4,
+    gap: 6,
   },
-  activateButton: {
+  actionBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  editBtn: {
+    backgroundColor: '#2196F3',
+  },
+  activateBtn: {
     backgroundColor: '#4CAF50',
   },
-  deactivateButton: {
-    backgroundColor: '#F44336',
+  deactivateBtn: {
+    backgroundColor: '#FF9800',
   },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
+  deleteBtn: {
+    backgroundColor: '#F44336',
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 64,
+    paddingVertical: 60,
   },
   emptyText: {
+    marginTop: 16,
     fontSize: 16,
     color: '#999',
-    marginTop: 16,
   },
+  // Modal styles
   modalContainer: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
   },
-  inputGroup: {
-    marginBottom: 16,
+  modalBody: {
+    padding: 20,
   },
   inputLabel: {
     fontSize: 14,
@@ -710,74 +713,69 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
-    padding: 12,
+    padding: 14,
     fontSize: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
-  typeButtons: {
+  typeRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
+    marginBottom: 16,
   },
-  typeButton: {
+  typeBtn: {
     flex: 1,
-    paddingVertical: 10,
+    padding: 12,
     borderRadius: 8,
     backgroundColor: '#f5f5f5',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  typeButtonActive: {
-    backgroundColor: '#9C27B0',
+  typeBtnActive: {
+    backgroundColor: '#F3E5F5',
+    borderColor: '#9C27B0',
   },
-  typeButtonText: {
-    fontSize: 14,
+  typeBtnText: {
     color: '#666',
+    fontWeight: '500',
   },
-  typeButtonTextActive: {
-    color: '#fff',
-    fontWeight: '600',
+  typeBtnTextActive: {
+    color: '#9C27B0',
   },
   divider: {
-    marginVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 16,
+    marginTop: 8,
+    marginBottom: 16,
   },
   dividerText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9C27B0',
+    color: '#666',
   },
-  createButton: {
+  submitBtn: {
     flexDirection: 'row',
     backgroundColor: '#9C27B0',
-    paddingVertical: 16,
+    padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 16,
-    marginBottom: 32,
+    marginTop: 8,
+    marginBottom: 30,
   },
-  createButtonDisabled: {
+  submitBtnDisabled: {
     opacity: 0.6,
   },
-  createButtonText: {
+  submitBtnText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  editButton: {
-    backgroundColor: '#2196F3',
-    padding: 10,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  deleteButton: {
-    backgroundColor: '#F44336',
-    padding: 10,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  codeInfoBox: {
+  codeBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3E5F5',
@@ -786,40 +784,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
-  codeInfoText: {
+  codeBoxText: {
     fontSize: 14,
-    color: '#666',
-  },
-  codeInfoValue: {
-    fontWeight: '600',
     color: '#9C27B0',
+    fontWeight: '500',
   },
-  adminInfoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-    marginBottom: 16,
-    gap: 8,
-  },
-  adminInfoText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  saveButton: {
+  saveBtn: {
     flexDirection: 'row',
     backgroundColor: '#4CAF50',
-    paddingVertical: 16,
+    padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 16,
-    marginBottom: 32,
+    marginTop: 8,
+    marginBottom: 30,
   },
-  saveButtonText: {
+  saveBtnText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

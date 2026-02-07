@@ -21,11 +21,15 @@ api.interceptors.request.use(
       return config;
     }
     
-    // Sinon, essayer d'utiliser platformToken (SUPER_ADMIN) ou authToken (utilisateur normal)
-    const platformToken = await AsyncStorage.getItem('platformToken');
+    // Priorité: authToken (utilisateur normal) puis platformToken (SUPER_ADMIN)
+    // L'authToken doit avoir la priorité car les routes normales (/payments, /members, etc.)
+    // nécessitent un token utilisateur avec userId et dbName
     const authToken = await AsyncStorage.getItem('authToken');
+    const platformToken = await AsyncStorage.getItem('platformToken');
     
-    const token = platformToken || authToken;
+    // Pour les routes platform, le PlatformAuthContext met déjà le header Authorization
+    // Ici on gère uniquement les routes normales → authToken en priorité
+    const token = authToken || platformToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -286,6 +286,31 @@ export default function Login() {
           </View>
         )}
 
+        {/* Captcha de sécurité */}
+        <View style={styles.captchaContainer}>
+          <View style={styles.captchaHeader}>
+            <Ionicons name="shield-checkmark" size={20} color="#4CAF50" />
+            <Text style={styles.captchaTitle}>Vérification de sécurité</Text>
+          </View>
+          <View style={styles.captchaQuestion}>
+            <Text style={styles.captchaQuestionText}>{captcha.question}</Text>
+            <TouchableOpacity onPress={refreshCaptcha} style={styles.refreshBtn}>
+              <Ionicons name="refresh" size={20} color="#2196F3" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.inputContainer}>
+            <Ionicons name="calculator" size={20} color="#666" style={styles.icon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Entrez le résultat"
+              value={captchaInput}
+              onChangeText={setCaptchaInput}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+          </View>
+        </View>
+
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleLogin}

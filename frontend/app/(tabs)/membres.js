@@ -215,6 +215,30 @@ export default function Membres() {
     }
   };
 
+  const handleDeleteMember = (member) => {
+    Alert.alert(
+      'Supprimer le membre',
+      `Voulez-vous vraiment supprimer "${member.name}" ?\n\nCette action supprimera aussi tous ses paiements et ne peut pas être annulée.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/members/${member.userId}`);
+              Alert.alert('Succès', 'Membre supprimé avec succès');
+              loadMembers();
+            } catch (error) {
+              console.error('Erreur suppression:', error);
+              Alert.alert('Erreur', error.response?.data?.error || 'Impossible de supprimer le membre');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderMember = ({ item }) => (
     <TouchableOpacity
       style={styles.memberCard}
@@ -232,6 +256,15 @@ export default function Membres() {
           </Text>
           {item.phone && <Text style={styles.memberPhone}>{item.phone}</Text>}
         </View>
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeleteMember(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="trash-outline" size={20} color="#FF5252" />
+          </TouchableOpacity>
+        )}
         <View style={styles.memberStatus}>
           <Ionicons
             name={item.active ? 'checkmark-circle' : 'close-circle'}

@@ -375,6 +375,16 @@ const styles = StyleSheet.create({
     color: '#555',
     fontWeight: '500',
   },
+  noDataContainer: {
+    alignItems: 'center',
+    padding: 20,
+    gap: 8,
+  },
+  noDataText: {
+    fontSize: 13,
+    color: '#999',
+    textAlign: 'center',
+  },
   syncButton: {
     flexDirection: 'row',
     backgroundColor: '#2196F3',

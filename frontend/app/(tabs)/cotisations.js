@@ -181,6 +181,39 @@ export default function Cotisations() {
     return '#F44336'; // Rouge: non payé
   };
 
+  // Calculer les statistiques de l'année
+  const stats = useMemo(() => {
+    if (!selectedYear || !membersData.length) return null;
+    
+    const totalMembers = membersData.length;
+    const monthlyAmount = selectedYear.monthlyAmount;
+    const totalExpected = totalMembers * monthlyAmount * 12;
+    
+    let totalCollected = 0;
+    let membersFullyPaid = 0;
+    
+    membersData.forEach(member => {
+      const memberTotal = member.totalPaid || 0;
+      totalCollected += memberTotal;
+      if (memberTotal >= monthlyAmount * 12) {
+        membersFullyPaid++;
+      }
+    });
+    
+    const remaining = totalExpected - totalCollected;
+    const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+    
+    return {
+      totalExpected,
+      totalCollected,
+      remaining,
+      rate,
+      totalMembers,
+      membersFullyPaid,
+      membersPending: totalMembers - membersFullyPaid,
+    };
+  }, [membersData, selectedYear]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>

@@ -571,6 +571,10 @@ const styles = StyleSheet.create({
   memberStatus: {
     marginLeft: 8,
   },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 4,
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',

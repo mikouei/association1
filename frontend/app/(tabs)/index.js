@@ -16,11 +16,11 @@ import { useFocusEffect } from '@react-navigation/native';
 export default function Dashboard() {
   const { user, association } = useAuth();
   const [config, setConfig] = useState(null);
-  const [stats, setStats] = useState(null);
+  const [memberStats, setMemberStats] = useState(null);
+  const [paymentStats, setPaymentStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Recharger les données à chaque fois que le dashboard est affiché
   useFocusEffect(
     useCallback(() => {
       loadData();
@@ -29,20 +29,60 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [configRes, membersRes] = await Promise.all([
+      const [configRes, membersRes, yearsRes] = await Promise.all([
         api.get('/config'),
         api.get('/members'),
+        api.get('/years'),
       ]);
 
       setConfig(configRes.data);
       
-      // Calculer des stats basiques
       const members = membersRes.data;
-      setStats({
+      setMemberStats({
         totalMembers: members.length,
         activeMembers: members.filter(m => m.active).length,
         inactiveMembers: members.filter(m => !m.active).length,
       });
+
+      // Charger les stats de paiement pour l'année active
+      const activeYear = yearsRes.data.find(y => y.active);
+      if (activeYear && members.length > 0) {
+        try {
+          const paymentsRes = await api.get(`/payments/year/${activeYear.id}`);
+          const paymentMembers = paymentsRes.data;
+          
+          const totalMembers = paymentMembers.length;
+          const monthlyAmount = activeYear.monthlyAmount;
+          const totalExpected = totalMembers * monthlyAmount * 12;
+          
+          let totalCollected = 0;
+          let membersFullyPaid = 0;
+          
+          paymentMembers.forEach(member => {
+            const memberTotal = member.totalPaid || 0;
+            totalCollected += memberTotal;
+            if (memberTotal >= monthlyAmount * 12) {
+              membersFullyPaid++;
+            }
+          });
+          
+          const remaining = totalExpected - totalCollected;
+          const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+          
+          setPaymentStats({
+            year: activeYear.year,
+            monthlyAmount,
+            totalExpected,
+            totalCollected,
+            remaining,
+            rate,
+            membersFullyPaid,
+            membersPending: totalMembers - membersFullyPaid,
+          });
+        } catch (e) {
+          console.log('Pas de stats paiement:', e.message);
+        }
+      }
     } catch (error) {
       console.error('Erreur chargement données:', error);
     } finally {
@@ -54,6 +94,12 @@ export default function Dashboard() {
   const onRefresh = () => {
     setRefreshing(true);
     loadData();
+  };
+
+  const formatAmount = (amount) => {
+    if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
+    if (amount >= 1000) return Math.round(amount / 1000) + 'k';
+    return amount.toString();
   };
 
   if (loading) {
@@ -89,27 +135,66 @@ export default function Dashboard() {
         )}
       </View>
 
-      {user?.role === 'ADMIN' && stats && (
-        <View style={styles.statsContainer}>
-          <Text style={styles.sectionTitle}>Statistiques</Text>
-          
+      {/* Statistiques membres */}
+      {user?.role === 'ADMIN' && memberStats && (
+        <View style={styles.statsSection}>
+          <Text style={styles.sectionTitle}>Membres</Text>
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: '#4CAF50' }]}>
-              <Ionicons name="people" size={32} color="#fff" />
-              <Text style={styles.statNumber}>{stats.totalMembers}</Text>
-              <Text style={styles.statLabel}>Total membres</Text>
+              <Ionicons name="people" size={28} color="#fff" />
+              <Text style={styles.statNumber}>{memberStats.totalMembers}</Text>
+              <Text style={styles.statLabel}>Total</Text>
             </View>
-
             <View style={[styles.statCard, { backgroundColor: '#2196F3' }]}>
-              <Ionicons name="checkmark-circle" size={32} color="#fff" />
-              <Text style={styles.statNumber}>{stats.activeMembers}</Text>
+              <Ionicons name="checkmark-circle" size={28} color="#fff" />
+              <Text style={styles.statNumber}>{memberStats.activeMembers}</Text>
               <Text style={styles.statLabel}>Actifs</Text>
             </View>
-
             <View style={[styles.statCard, { backgroundColor: '#FF9800' }]}>
-              <Ionicons name="close-circle" size={32} color="#fff" />
-              <Text style={styles.statNumber}>{stats.inactiveMembers}</Text>
+              <Ionicons name="close-circle" size={28} color="#fff" />
+              <Text style={styles.statNumber}>{memberStats.inactiveMembers}</Text>
               <Text style={styles.statLabel}>Inactifs</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Statistiques cotisations */}
+      {user?.role === 'ADMIN' && paymentStats && (
+        <View style={styles.statsSection}>
+          <Text style={styles.sectionTitle}>Cotisations {paymentStats.year}</Text>
+          
+          <View style={styles.paymentStatsGrid}>
+            <View style={styles.paymentStatRow}>
+              <View style={[styles.paymentStatCard, { borderLeftColor: '#2196F3' }]}>
+                <Text style={styles.paymentStatLabel}>Attendu</Text>
+                <Text style={[styles.paymentStatValue, { color: '#2196F3' }]}>{formatAmount(paymentStats.totalExpected)} FCFA</Text>
+              </View>
+              <View style={[styles.paymentStatCard, { borderLeftColor: '#4CAF50' }]}>
+                <Text style={styles.paymentStatLabel}>Collecté</Text>
+                <Text style={[styles.paymentStatValue, { color: '#4CAF50' }]}>{formatAmount(paymentStats.totalCollected)} FCFA</Text>
+              </View>
+            </View>
+            <View style={styles.paymentStatRow}>
+              <View style={[styles.paymentStatCard, { borderLeftColor: '#FF9800' }]}>
+                <Text style={styles.paymentStatLabel}>Reste</Text>
+                <Text style={[styles.paymentStatValue, { color: '#FF9800' }]}>{formatAmount(paymentStats.remaining)} FCFA</Text>
+              </View>
+              <View style={[styles.paymentStatCard, { borderLeftColor: paymentStats.rate >= 70 ? '#4CAF50' : paymentStats.rate >= 40 ? '#FF9800' : '#F44336' }]}>
+                <Text style={styles.paymentStatLabel}>Taux recouvrement</Text>
+                <Text style={[styles.paymentStatValue, { color: paymentStats.rate >= 70 ? '#4CAF50' : paymentStats.rate >= 40 ? '#FF9800' : '#F44336' }]}>{paymentStats.rate}%</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.paymentMembersRow}>
+            <View style={styles.paymentMemberItem}>
+              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+              <Text style={styles.paymentMemberText}>{paymentStats.membersFullyPaid} à jour</Text>
+            </View>
+            <View style={styles.paymentMemberItem}>
+              <Ionicons name="time" size={16} color="#FF9800" />
+              <Text style={styles.paymentMemberText}>{paymentStats.membersPending} en retard</Text>
             </View>
           </View>
         </View>
@@ -172,37 +257,99 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  statsContainer: {
+  associationBadge: {
+    fontSize: 12,
+    color: '#2196F3',
+    fontWeight: '600',
+    marginTop: 8,
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  statsSection: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
     padding: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#333',
     marginBottom: 12,
   },
   statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   statCard: {
     flex: 1,
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
     alignItems: 'center',
-    marginHorizontal: 4,
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: 8,
+    marginTop: 6,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#fff',
-    marginTop: 4,
+    marginTop: 2,
     textAlign: 'center',
+    opacity: 0.9,
+  },
+  paymentStatsGrid: {
+    gap: 8,
+  },
+  paymentStatRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  paymentStatCard: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 3,
+  },
+  paymentStatLabel: {
+    fontSize: 11,
+    color: '#888',
+    fontWeight: '500',
+  },
+  paymentStatValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  paymentMembersRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  paymentMemberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  paymentMemberText: {
+    fontSize: 13,
+    color: '#555',
+    fontWeight: '500',
   },
   syncButton: {
     flexDirection: 'row',

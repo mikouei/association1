@@ -479,6 +479,7 @@ export default function PlatformDashboard() {
                 placeholder="Ex: Jean Dupont"
                 value={formData.adminName}
                 onChangeText={(text) => setFormData({ ...formData, adminName: text })}
+                autoCapitalize="words"
               />
 
               <Text style={styles.inputLabel}>Email admin *</Text>

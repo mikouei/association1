@@ -316,6 +316,7 @@ export default function Membres() {
                   placeholder="Ex: Jean Dupont"
                   value={formData.name}
                   onChangeText={(text) => setFormData({ ...formData, name: text })}
+                  autoCapitalize="words"
                 />
               </View>
 

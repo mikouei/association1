@@ -717,6 +717,8 @@ export default function PlatformDashboard() {
                     placeholder="Mot de passe"
                     value={newAdminData.password}
                     onChangeText={(text) => setNewAdminData({ ...newAdminData, password: text })}
+                    secureTextEntry
+                    autoCapitalize="none"
                   />
 
                   <Text style={styles.inputLabel}>Téléphone (optionnel)</Text>

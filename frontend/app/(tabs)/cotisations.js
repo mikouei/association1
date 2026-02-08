@@ -406,59 +406,67 @@ export default function Cotisations() {
         transparent={true}
         onRequestClose={() => setPaymentModal(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Enregistrer un paiement</Text>
-              <TouchableOpacity onPress={() => setPaymentModal(false)}>
-                <Ionicons name="close" size={28} color="#333" />
-              </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <ScrollView bounces={false} keyboardShouldPersistTaps="handled">
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Enregistrer un paiement</Text>
+                  <TouchableOpacity onPress={() => setPaymentModal(false)}>
+                    <Ionicons name="close" size={28} color="#333" />
+                  </TouchableOpacity>
+                </View>
+
+                {selectedCell && (
+                  <>
+                    <Text style={styles.modalInfo}>
+                      {selectedCell.member.name} - {MONTHS_FULL[selectedCell.month - 1]}
+                    </Text>
+
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>Montant (FCFA)</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder={`${selectedYear.monthlyAmount}`}
+                        value={paymentAmount}
+                        onChangeText={setPaymentAmount}
+                        keyboardType="numeric"
+                      />
+                    </View>
+
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>Notes (optionnel)</Text>
+                      <TextInput
+                        style={[styles.input, styles.textArea]}
+                        placeholder="Ajouter une note..."
+                        value={paymentNotes}
+                        onChangeText={setPaymentNotes}
+                        multiline
+                        numberOfLines={3}
+                      />
+                    </View>
+
+                    <TouchableOpacity
+                      style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                      onPress={handleSavePayment}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.saveButtonText}>Enregistrer</Text>
+                      )}
+                    </TouchableOpacity>
+                    <View style={{ height: Platform.OS === 'android' ? 40 : 0 }} />
+                  </>
+                )}
+              </ScrollView>
             </View>
-
-            {selectedCell && (
-              <>
-                <Text style={styles.modalInfo}>
-                  {selectedCell.member.name} - {MONTHS_FULL[selectedCell.month - 1]}
-                </Text>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Montant (FCFA)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={`${selectedYear.monthlyAmount}`}
-                    value={paymentAmount}
-                    onChangeText={setPaymentAmount}
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Notes (optionnel)</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    placeholder="Ajouter une note..."
-                    value={paymentNotes}
-                    onChangeText={setPaymentNotes}
-                    multiline
-                    numberOfLines={3}
-                  />
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-                  onPress={handleSavePayment}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.saveButtonText}>Enregistrer</Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modal Sélection d'année */}

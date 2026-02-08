@@ -230,6 +230,8 @@ export default function Cotisations() {
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#999"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>

@@ -498,6 +498,8 @@ export default function PlatformDashboard() {
                 placeholder="Mot de passe"
                 value={formData.adminPassword}
                 onChangeText={(text) => setFormData({ ...formData, adminPassword: text })}
+                secureTextEntry
+                autoCapitalize="none"
               />
 
               <TouchableOpacity

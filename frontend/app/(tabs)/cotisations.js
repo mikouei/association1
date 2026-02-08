@@ -521,91 +521,76 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  tableContainer: {
+  memberCard: {
     backgroundColor: '#fff',
-    margin: 12,
+    marginHorizontal: 12,
+    marginBottom: 10,
     borderRadius: 10,
-    overflow: 'hidden',
+    padding: 12,
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
   },
-  scrollContainer: {
-    flex: 1,
-  },
-  tableHeader: {
+  memberCardHeader: {
     flexDirection: 'row',
-    backgroundColor: '#1565C0',
-  },
-  tableBody: {
-    flex: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
-  },
-  cell: {
-    paddingVertical: 6,
-    paddingHorizontal: 2,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderRightWidth: 0.5,
-    borderRightColor: 'rgba(0,0,0,0.08)',
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  headerCell: {
-    backgroundColor: '#1565C0',
-    paddingVertical: 10,
-  },
-  nameCell: {
-    width: 90,
-    alignItems: 'flex-start',
-    backgroundColor: '#FAFAFA',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRightWidth: 1,
-    borderRightColor: '#E0E0E0',
-  },
-  monthCell: {
-    width: 30,
-    minHeight: 48,
-  },
-  totalCell: {
-    width: 42,
-    backgroundColor: '#F5F5F5',
-  },
-  totalCellBg: {
-    backgroundColor: '#E3F2FD',
-  },
-  headerText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 11,
-  },
-  memberName: {
-    fontSize: 13,
+  memberCardName: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#222',
   },
-  memberField: {
-    fontSize: 11,
+  memberCardField: {
+    fontSize: 12,
     color: '#777',
     marginTop: 1,
   },
-  cellText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+  memberCardTotal: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
   },
-  totalText: {
-    fontSize: 13,
+  memberCardTotalLabel: {
+    fontSize: 9,
+    color: '#1565C0',
+    fontWeight: '600',
+  },
+  memberCardTotalValue: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#1565C0',
+  },
+  monthRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  monthCard: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  monthCardLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  monthCardValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 2,
   },
   percentageText: {
     fontSize: 11,

@@ -127,16 +127,16 @@ export default function Dashboard() {
       </View>
 
       <View style={styles.welcomeCard}>
-        <Ionicons name="person-circle" size={60} color="#2196F3" />
-        <Text style={styles.welcomeText}>Bienvenue, {user?.member?.name || 'Administrateur'}</Text>
-        <Text style={styles.roleText}>
-          {user?.role === 'ADMIN' ? 'Administrateur' : 'Membre'}
-        </Text>
-        {association && (
-          <Text style={styles.associationBadge}>
-            {association.code}
-          </Text>
-        )}
+        <View style={styles.welcomeRow}>
+          <Ionicons name="person-circle" size={36} color="#2196F3" />
+          <View style={styles.welcomeInfo}>
+            <Text style={styles.welcomeText}>{user?.member?.name || 'Administrateur'}</Text>
+            <Text style={styles.roleText}>
+              {user?.role === 'ADMIN' ? 'Administrateur' : 'Membre'}
+              {association ? ` · ${association.code}` : ''}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Statistiques membres */}

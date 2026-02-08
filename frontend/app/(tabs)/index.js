@@ -45,8 +45,9 @@ export default function Dashboard() {
       });
 
       // Charger les stats de paiement pour l'année active
-      const activeYear = yearsRes.data.find(y => y.active);
-      if (activeYear && members.length > 0) {
+      const years = yearsRes.data;
+      const activeYear = years.find(y => y.active);
+      if (activeYear) {
         try {
           const paymentsRes = await api.get(`/payments/year/${activeYear.id}`);
           const paymentMembers = paymentsRes.data;
@@ -81,7 +82,10 @@ export default function Dashboard() {
           });
         } catch (e) {
           console.log('Pas de stats paiement:', e.message);
+          setPaymentStats({ noYear: false, error: true });
         }
+      } else {
+        setPaymentStats({ noYear: true, yearCount: years.length });
       }
     } catch (error) {
       console.error('Erreur chargement données:', error);

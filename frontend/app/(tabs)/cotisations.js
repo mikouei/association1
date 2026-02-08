@@ -535,52 +535,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  statsContainer: {
-    margin: 16,
-    marginBottom: 0,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    padding: 8,
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#666',
-    fontWeight: '500',
-  },
-  statValue: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 2,
-  },
-  statsMembersRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  statsMemberItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statsMemberText: {
-    fontSize: 12,
-    color: '#555',
-  },
   tableContainer: {
     backgroundColor: '#fff',
     margin: 12,

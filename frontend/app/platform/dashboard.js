@@ -560,6 +560,7 @@ export default function PlatformDashboard() {
                     placeholder="Nom"
                     value={editFormData.name}
                     onChangeText={(text) => setEditFormData({ ...editFormData, name: text })}
+                    autoCapitalize="words"
                   />
 
                   <Text style={styles.inputLabel}>Type</Text>

@@ -281,6 +281,43 @@ export default function Cotisations() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Statistiques de l'année */}
+        {stats && isAdmin && (
+          <View style={styles.statsContainer}>
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Attendu</Text>
+                <Text style={styles.statValue}>{(stats.totalExpected / 1000).toLocaleString()}k</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: '#E8F5E9' }]}>
+                <Text style={styles.statLabel}>Collecté</Text>
+                <Text style={[styles.statValue, { color: '#4CAF50' }]}>{(stats.totalCollected / 1000).toLocaleString()}k</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: '#FFF3E0' }]}>
+                <Text style={styles.statLabel}>Reste</Text>
+                <Text style={[styles.statValue, { color: '#FF9800' }]}>{(stats.remaining / 1000).toLocaleString()}k</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: stats.rate >= 70 ? '#E8F5E9' : stats.rate >= 40 ? '#FFF3E0' : '#FFEBEE' }]}>
+                <Text style={styles.statLabel}>Taux</Text>
+                <Text style={[styles.statValue, { color: stats.rate >= 70 ? '#4CAF50' : stats.rate >= 40 ? '#FF9800' : '#F44336' }]}>{stats.rate}%</Text>
+              </View>
+            </View>
+            <View style={styles.statsMembersRow}>
+              <View style={styles.statsMemberItem}>
+                <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
+                <Text style={styles.statsMemberText}>{stats.membersFullyPaid} à jour</Text>
+              </View>
+              <View style={styles.statsMemberItem}>
+                <Ionicons name="time" size={14} color="#FF9800" />
+                <Text style={styles.statsMemberText}>{stats.membersPending} en retard</Text>
+              </View>
+              <View style={styles.statsMemberItem}>
+                <Ionicons name="people" size={14} color="#2196F3" />
+                <Text style={styles.statsMemberText}>{stats.totalMembers} membres</Text>
+              </View>
+            </View>
+          </View>
+        )}
         {/* Table des cotisations */}
         <View style={styles.tableContainer}>
           {/* Header row */}

@@ -13,3 +13,7 @@ backend/.env
 # Logs
 *.log
 
+-e 
+# Environment files
+*.env
+*.env.*

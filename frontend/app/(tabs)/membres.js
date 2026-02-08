@@ -260,6 +260,8 @@ export default function Membres() {
           placeholder="Rechercher un membre..."
           value={search}
           onChangeText={setSearch}
+          autoCapitalize="none"
+          autoCorrect={false}
         />
       </View>
 

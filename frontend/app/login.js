@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,36 +17,6 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../utils/api';
-
-// Générer un captcha mathématique
-const generateCaptcha = () => {
-  const operations = ['+', '-', '×'];
-  const operation = operations[Math.floor(Math.random() * operations.length)];
-  let num1, num2, answer;
-  
-  switch (operation) {
-    case '+':
-      num1 = Math.floor(Math.random() * 20) + 1;
-      num2 = Math.floor(Math.random() * 20) + 1;
-      answer = num1 + num2;
-      break;
-    case '-':
-      num1 = Math.floor(Math.random() * 20) + 10;
-      num2 = Math.floor(Math.random() * 10) + 1;
-      answer = num1 - num2;
-      break;
-    case '×':
-      num1 = Math.floor(Math.random() * 10) + 1;
-      num2 = Math.floor(Math.random() * 10) + 1;
-      answer = num1 * num2;
-      break;
-  }
-  
-  return {
-    question: `${num1} ${operation} ${num2} = ?`,
-    answer: answer.toString()
-  };
-};
 
 export default function Login() {
   const [mode, setMode] = useState('password'); // 'password' ou 'token'

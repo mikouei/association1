@@ -592,6 +592,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginTop: 2,
   },
+  scrollContainer: {
+    flex: 1,
+  },
   percentageText: {
     fontSize: 11,
     color: '#666',

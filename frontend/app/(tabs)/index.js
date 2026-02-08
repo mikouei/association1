@@ -50,7 +50,7 @@ export default function Dashboard() {
       if (activeYear) {
         try {
           const paymentsRes = await api.get(`/payments/year/${activeYear.id}`);
-          const paymentMembers = paymentsRes.data;
+          const paymentMembers = paymentsRes.data.members || paymentsRes.data;
           
           const totalMembers = paymentMembers.length;
           const monthlyAmount = activeYear.monthlyAmount;

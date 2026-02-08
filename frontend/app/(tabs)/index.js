@@ -386,8 +386,10 @@ const styles = StyleSheet.create({
   syncButton: {
     flexDirection: 'row',
     backgroundColor: '#2196F3',
-    margin: 16,
-    padding: 16,
+    marginHorizontal: 12,
+    marginTop: 6,
+    marginBottom: 12,
+    padding: 12,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',

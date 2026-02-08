@@ -250,6 +250,8 @@ export default function Login() {
                 keyboardType="default"
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
 

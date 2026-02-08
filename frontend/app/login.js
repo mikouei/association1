@@ -358,6 +358,8 @@ export default function Login() {
                 placeholder="Rechercher..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               {searchQuery ? (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>

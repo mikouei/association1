@@ -166,41 +166,61 @@ export default function Dashboard() {
       {/* Statistiques cotisations */}
       {user?.role === 'ADMIN' && paymentStats && (
         <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Cotisations {paymentStats.year}</Text>
+          <Text style={styles.sectionTitle}>
+            Cotisations {paymentStats.year || ''}
+          </Text>
           
-          <View style={styles.paymentStatsGrid}>
-            <View style={styles.paymentStatRow}>
-              <View style={[styles.paymentStatCard, { borderLeftColor: '#2196F3' }]}>
-                <Text style={styles.paymentStatLabel}>Attendu</Text>
-                <Text style={[styles.paymentStatValue, { color: '#2196F3' }]}>{formatAmount(paymentStats.totalExpected)} FCFA</Text>
-              </View>
-              <View style={[styles.paymentStatCard, { borderLeftColor: '#4CAF50' }]}>
-                <Text style={styles.paymentStatLabel}>Collecté</Text>
-                <Text style={[styles.paymentStatValue, { color: '#4CAF50' }]}>{formatAmount(paymentStats.totalCollected)} FCFA</Text>
-              </View>
+          {paymentStats.noYear ? (
+            <View style={styles.noDataContainer}>
+              <Ionicons name="calendar-outline" size={32} color="#999" />
+              <Text style={styles.noDataText}>
+                {paymentStats.yearCount > 0
+                  ? 'Aucune année active. Activez une année dans Paramètres.'
+                  : 'Créez une année dans Paramètres pour voir les statistiques.'}
+              </Text>
             </View>
-            <View style={styles.paymentStatRow}>
-              <View style={[styles.paymentStatCard, { borderLeftColor: '#FF9800' }]}>
-                <Text style={styles.paymentStatLabel}>Reste</Text>
-                <Text style={[styles.paymentStatValue, { color: '#FF9800' }]}>{formatAmount(paymentStats.remaining)} FCFA</Text>
-              </View>
-              <View style={[styles.paymentStatCard, { borderLeftColor: paymentStats.rate >= 70 ? '#4CAF50' : paymentStats.rate >= 40 ? '#FF9800' : '#F44336' }]}>
-                <Text style={styles.paymentStatLabel}>Taux recouvrement</Text>
-                <Text style={[styles.paymentStatValue, { color: paymentStats.rate >= 70 ? '#4CAF50' : paymentStats.rate >= 40 ? '#FF9800' : '#F44336' }]}>{paymentStats.rate}%</Text>
-              </View>
+          ) : paymentStats.error ? (
+            <View style={styles.noDataContainer}>
+              <Ionicons name="alert-circle-outline" size={32} color="#FF9800" />
+              <Text style={styles.noDataText}>Erreur de chargement des statistiques</Text>
             </View>
-          </View>
+          ) : (
+            <>
+              <View style={styles.paymentStatsGrid}>
+                <View style={styles.paymentStatRow}>
+                  <View style={[styles.paymentStatCard, { borderLeftColor: '#2196F3' }]}>
+                    <Text style={styles.paymentStatLabel}>Attendu</Text>
+                    <Text style={[styles.paymentStatValue, { color: '#2196F3' }]}>{formatAmount(paymentStats.totalExpected)} FCFA</Text>
+                  </View>
+                  <View style={[styles.paymentStatCard, { borderLeftColor: '#4CAF50' }]}>
+                    <Text style={styles.paymentStatLabel}>Collecté</Text>
+                    <Text style={[styles.paymentStatValue, { color: '#4CAF50' }]}>{formatAmount(paymentStats.totalCollected)} FCFA</Text>
+                  </View>
+                </View>
+                <View style={styles.paymentStatRow}>
+                  <View style={[styles.paymentStatCard, { borderLeftColor: '#FF9800' }]}>
+                    <Text style={styles.paymentStatLabel}>Reste</Text>
+                    <Text style={[styles.paymentStatValue, { color: '#FF9800' }]}>{formatAmount(paymentStats.remaining)} FCFA</Text>
+                  </View>
+                  <View style={[styles.paymentStatCard, { borderLeftColor: paymentStats.rate >= 70 ? '#4CAF50' : paymentStats.rate >= 40 ? '#FF9800' : '#F44336' }]}>
+                    <Text style={styles.paymentStatLabel}>Taux recouvrement</Text>
+                    <Text style={[styles.paymentStatValue, { color: paymentStats.rate >= 70 ? '#4CAF50' : paymentStats.rate >= 40 ? '#FF9800' : '#F44336' }]}>{paymentStats.rate}%</Text>
+                  </View>
+                </View>
+              </View>
 
-          <View style={styles.paymentMembersRow}>
-            <View style={styles.paymentMemberItem}>
-              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-              <Text style={styles.paymentMemberText}>{paymentStats.membersFullyPaid} à jour</Text>
-            </View>
-            <View style={styles.paymentMemberItem}>
-              <Ionicons name="time" size={16} color="#FF9800" />
-              <Text style={styles.paymentMemberText}>{paymentStats.membersPending} en retard</Text>
-            </View>
-          </View>
+              <View style={styles.paymentMembersRow}>
+                <View style={styles.paymentMemberItem}>
+                  <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                  <Text style={styles.paymentMemberText}>{paymentStats.membersFullyPaid} à jour</Text>
+                </View>
+                <View style={styles.paymentMemberItem}>
+                  <Ionicons name="time" size={16} color="#FF9800" />
+                  <Text style={styles.paymentMemberText}>{paymentStats.membersPending} en retard</Text>
+                </View>
+              </View>
+            </>
+          )}
         </View>
       )}
 

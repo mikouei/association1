@@ -318,4 +318,52 @@ router.post('/:id/regenerate-token', requireAdmin, async (req, res) => {
   }
 });
 
+// DELETE /api/members/:id
+// Supprimer un membre et son compte utilisateur
+router.delete('/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Trouver le membre via son userId
+    const user = await req.prisma.user.findUnique({
+      where: { id },
+      include: { member: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Membre non trouvé' });
+    }
+
+    // Supprimer dans une transaction : paiements → membre → utilisateur
+    await req.prisma.$transaction(async (prisma) => {
+      if (user.member) {
+        // Supprimer les paiements mensuels du membre
+        await prisma.monthlyPayment.deleteMany({
+          where: { memberId: user.member.id }
+        });
+
+        // Supprimer les paiements exceptionnels du membre
+        await prisma.exceptionalPayment.deleteMany({
+          where: { memberId: user.member.id }
+        });
+
+        // Supprimer le membre
+        await prisma.member.delete({
+          where: { id: user.member.id }
+        });
+      }
+
+      // Supprimer l'utilisateur
+      await prisma.user.delete({
+        where: { id }
+      });
+    });
+
+    res.json({ message: 'Membre supprimé avec succès' });
+  } catch (error) {
+    console.error('Delete member error:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du membre' });
+  }
+});
+
 export default router;

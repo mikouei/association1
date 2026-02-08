@@ -458,43 +458,6 @@ const styles = StyleSheet.create({
     color: '#9C27B0',
     fontSize: 14,
   },
-  // Captcha styles
-  captchaContainer: {
-    backgroundColor: '#E8F5E9',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  captchaHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  captchaTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2E7D32',
-  },
-  captchaQuestion: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  captchaQuestionText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  refreshBtn: {
-    padding: 8,
-  },
   // Modal styles
   modalOverlay: {
     flex: 1,

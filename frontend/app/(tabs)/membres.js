@@ -226,7 +226,7 @@ export default function Membres() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.delete(`/members/${member.userId}`);
+              await api.delete(`/members/${member.id}`);
               Alert.alert('Succès', 'Membre supprimé avec succès');
               loadMembers();
             } catch (error) {

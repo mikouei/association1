@@ -248,71 +248,55 @@ export default function Cotisations() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Table des cotisations */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={true} style={{ marginBottom: 8 }}>
-        <View style={styles.tableContainer}>
-          {/* Header row */}
-          <View style={styles.tableHeader}>
-            <View style={[styles.cell, styles.nameCell, styles.headerCell]}>
-              <Text style={styles.headerText}>Membre</Text>
+        {/* Cartes membres avec 3 lignes de 4 mois */}
+        {filteredMembers.map((member, idx) => (
+          <View key={member.id} style={styles.memberCard}>
+            {/* En-tête membre */}
+            <View style={styles.memberCardHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.memberCardName}>{member.name}</Text>
+                <Text style={styles.memberCardField}>{member.customFieldValue}</Text>
+              </View>
+              <View style={styles.memberCardTotal}>
+                <Text style={styles.memberCardTotalLabel}>Total</Text>
+                <Text style={styles.memberCardTotalValue}>{Math.round(member.totalPaid / 1000)}k</Text>
+              </View>
             </View>
-            {MONTHS.map((month, index) => (
-              <View key={index} style={[styles.cell, styles.monthCell, styles.headerCell]}>
-                <Text style={styles.headerText}>{month}</Text>
+
+            {/* Grille 3x4 mois */}
+            {[[1,2,3,4],[5,6,7,8],[9,10,11,12]].map((row, rowIdx) => (
+              <View key={rowIdx} style={styles.monthRow}>
+                {row.map((month) => {
+                  const monthData = member.paymentsByMonth[month];
+                  return (
+                    <TouchableOpacity
+                      key={month}
+                      style={[
+                        styles.monthCard,
+                        { backgroundColor: getCellColor(monthData, selectedYear.monthlyAmount) }
+                      ]}
+                      onPress={() => handleCellPress(member, month)}
+                      disabled={!isAdmin}
+                    >
+                      <Text style={styles.monthCardLabel}>{MONTHS[month - 1]}</Text>
+                      <Text style={styles.monthCardValue}>
+                        {monthData.amountPaid > 0 ? Math.round(monthData.amountPaid / 1000) + 'k' : '-'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             ))}
-            <View style={[styles.cell, styles.totalCell, styles.headerCell]}>
-              <Text style={styles.headerText}>Tot</Text>
-            </View>
           </View>
+        ))}
 
-          {/* Member rows */}
-          {filteredMembers.map((member, idx) => (
-            <View key={member.id} style={[styles.row, idx % 2 === 1 && { backgroundColor: '#F8F9FA' }]}>
-              <View style={[styles.cell, styles.nameCell, idx % 2 === 1 && { backgroundColor: '#F0F1F2' }]}>
-                <Text style={styles.memberName} numberOfLines={1}>
-                  {member.name}
-                </Text>
-                <Text style={styles.memberField} numberOfLines={1}>
-                  {member.customFieldValue}
-                </Text>
-              </View>
-
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => {
-                const monthData = member.paymentsByMonth[month];
-                return (
-                  <TouchableOpacity
-                    key={month}
-                    style={[
-                      styles.cell,
-                      styles.monthCell,
-                      { backgroundColor: getCellColor(monthData, selectedYear.monthlyAmount) }
-                    ]}
-                    onPress={() => handleCellPress(member, month)}
-                    disabled={!isAdmin}
-                  >
-                    <Text style={styles.cellText}>
-                      {monthData.amountPaid > 0 ? Math.round(monthData.amountPaid / 1000) + 'k' : '-'}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-
-              <View style={[styles.cell, styles.totalCell]}>
-                <Text style={styles.totalText}>{Math.round(member.totalPaid / 1000)}k</Text>
-              </View>
-            </View>
-          ))}
-
-          {filteredMembers.length === 0 && (
-            <View style={styles.noResults}>
-              <Text style={styles.noResultsText}>
-                {searchQuery ? 'Aucun résultat trouvé' : 'Aucun membre'}
-              </Text>
-            </View>
-          )}
-        </View>
-        </ScrollView>
+        {filteredMembers.length === 0 && (
+          <View style={styles.noResults}>
+            <Text style={styles.noResultsText}>
+              {searchQuery ? 'Aucun résultat trouvé' : 'Aucun membre'}
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* Légende */}

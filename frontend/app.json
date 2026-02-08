@@ -20,6 +20,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "package": "com.anonymous.frontendv1"
     },
     "web": {

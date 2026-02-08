@@ -32,8 +32,10 @@ yarn-error.*
 
 # local env files
 .env*.local
+# Expo / Metro
+.metro-cache/
+.expo/
+.expo-shared/
 
-# typescript
-*.tsbuildinfo
-
-app-example
+# Build
+dist/

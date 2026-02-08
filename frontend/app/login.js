@@ -56,10 +56,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  // Captcha
-  const [captcha, setCaptcha] = useState(generateCaptcha());
-  const [captchaInput, setCaptchaInput] = useState('');
-  
   // Association selection
   const [associations, setAssociations] = useState([]);
   const [selectedAssociation, setSelectedAssociation] = useState(null);
@@ -69,12 +65,6 @@ export default function Login() {
   
   const { login } = useAuth();
   const router = useRouter();
-
-  // Régénérer le captcha
-  const refreshCaptcha = useCallback(() => {
-    setCaptcha(generateCaptcha());
-    setCaptchaInput('');
-  }, []);
 
   // Charger la liste des associations au démarrage
   useEffect(() => {

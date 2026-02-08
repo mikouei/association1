@@ -28,8 +28,17 @@ export const getSqliteClientForAssociation = (dbName) => {
   const dbPath = path.join(__dirname, '../prisma', dbName);
   
   if (!fs.existsSync(dbPath)) {
-    throw new Error(`Base de données non trouvée: ${dbName}`);
+  console.log(`[DB] Création de la base ${dbName}`);
+
+  // Copier un template de base vide
+  const templatePath = path.join(__dirname, '../prisma/assoc_template.db');
+
+  if (!fs.existsSync(templatePath)) {
+    throw new Error('Template de base introuvable');
   }
+
+  fs.copyFileSync(templatePath, dbPath);
+}
 
   // Créer un VRAI client Prisma qui pointe vers la DB de l'association
   // Toutes les DB ont le même schéma, donc le même client généré fonctionne

@@ -104,13 +104,6 @@ export default function Login() {
       return;
     }
 
-    // Vérifier le captcha
-    if (captchaInput.trim() !== captcha.answer) {
-      Alert.alert('Erreur', 'Le calcul de sécurité est incorrect');
-      refreshCaptcha();
-      return;
-    }
-
     setLoading(true);
     const result = await login(
       mode === 'password' ? phone : null,

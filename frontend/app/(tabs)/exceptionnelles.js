@@ -609,6 +609,8 @@ export default function Exceptionnelles() {
                 placeholder="Rechercher..."
                 value={memberSearch}
                 onChangeText={setMemberSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
 

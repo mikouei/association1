@@ -359,6 +359,7 @@ export default function Exceptionnelles() {
                   placeholder="Ex: Décès M. Kamga"
                   value={formData.title}
                   onChangeText={(text) => setFormData({ ...formData, title: text })}
+                  autoCapitalize="sentences"
                 />
               </View>
 

@@ -442,6 +442,7 @@ export default function PlatformDashboard() {
                 placeholder="Ex: Mon Association"
                 value={formData.name}
                 onChangeText={(text) => setFormData({ ...formData, name: text })}
+                autoCapitalize="words"
               />
 
               <Text style={styles.inputLabel}>Code unique *</Text>

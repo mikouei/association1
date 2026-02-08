@@ -249,6 +249,7 @@ export default function Cotisations() {
         }
       >
         {/* Table des cotisations */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={true} style={{ marginBottom: 8 }}>
         <View style={styles.tableContainer}>
           {/* Header row */}
           <View style={styles.tableHeader}>
@@ -266,9 +267,9 @@ export default function Cotisations() {
           </View>
 
           {/* Member rows */}
-          {filteredMembers.map((member) => (
-            <View key={member.id} style={styles.row}>
-              <View style={[styles.cell, styles.nameCell]}>
+          {filteredMembers.map((member, idx) => (
+            <View key={member.id} style={[styles.row, idx % 2 === 1 && { backgroundColor: '#F8F9FA' }]}>
+              <View style={[styles.cell, styles.nameCell, idx % 2 === 1 && { backgroundColor: '#F0F1F2' }]}>
                 <Text style={styles.memberName} numberOfLines={1}>
                   {member.name}
                 </Text>
@@ -311,6 +312,7 @@ export default function Cotisations() {
             </View>
           )}
         </View>
+        </ScrollView>
       </ScrollView>
 
       {/* Légende */}

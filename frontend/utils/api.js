@@ -13,7 +13,7 @@ const api = axios.create({
   },
 });
 
-// Interceptor optionnel (si tu l’avais avant)
+// Interceptor pour ajouter le token d'authentification
 api.interceptors.request.use(async (config) => {
   // Vérifier si c'est une route platform (SUPER_ADMIN)
   const isPlatformRoute = config.url?.startsWith('/platform');

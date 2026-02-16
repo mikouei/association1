@@ -25,8 +25,8 @@ api.interceptors.request.use(async (config) => {
       config.headers.Authorization = `Bearer ${platformToken}`;
     }
   } else {
-    // Utiliser le token normal pour les autres routes
-    const token = await AsyncStorage.getItem("token");
+    // Utiliser le token normal pour les autres routes (clé: authToken)
+    const token = await AsyncStorage.getItem("authToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

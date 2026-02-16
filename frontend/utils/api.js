@@ -15,10 +15,23 @@ const api = axios.create({
 
 // Interceptor optionnel (si tu l’avais avant)
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Vérifier si c'est une route platform (SUPER_ADMIN)
+  const isPlatformRoute = config.url?.startsWith('/platform');
+  
+  if (isPlatformRoute) {
+    // Utiliser le token platform pour les routes platform
+    const platformToken = await AsyncStorage.getItem("platformToken");
+    if (platformToken) {
+      config.headers.Authorization = `Bearer ${platformToken}`;
+    }
+  } else {
+    // Utiliser le token normal pour les autres routes
+    const token = await AsyncStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
+  
   return config;
 });
 

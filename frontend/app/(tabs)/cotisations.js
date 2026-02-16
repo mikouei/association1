@@ -348,8 +348,13 @@ export default function Cotisations() {
                         style={styles.input}
                         placeholder={`${selectedYear.monthlyAmount}`}
                         value={paymentAmount}
-                        onChangeText={setPaymentAmount}
+                        onChangeText={(text) => {
+                          // Nettoyer le texte pour n'accepter que les chiffres
+                          const cleanedText = text.replace(/[^0-9]/g, '');
+                          setPaymentAmount(cleanedText);
+                        }}
                         keyboardType="numeric"
+                        selectTextOnFocus={true}
                       />
                     </View>
 

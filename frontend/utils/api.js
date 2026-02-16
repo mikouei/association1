@@ -13,4 +13,13 @@ const api = axios.create({
   },
 });
 
+// Interceptor optionnel (si tu l’avais avant)
+api.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export default api;

@@ -734,8 +734,13 @@ export default function Parametres() {
                 style={styles.input}
                 placeholder="Ex: 5000"
                 value={yearFormData.monthlyAmount}
-                onChangeText={(text) => setYearFormData({ ...yearFormData, monthlyAmount: text })}
+                onChangeText={(text) => {
+                  // Nettoyer le texte pour n'accepter que les chiffres
+                  const cleanedText = text.replace(/[^0-9]/g, '');
+                  setYearFormData(prev => ({ ...prev, monthlyAmount: cleanedText }));
+                }}
                 keyboardType="numeric"
+                selectTextOnFocus={true}
               />
             </View>
 

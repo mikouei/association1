@@ -145,7 +145,8 @@ router.get('/member/:memberId/year/:yearId', async (req, res) => {
 });
 
 // POST /api/payments
-// Enregistrer un paiement (ADMIN uniquement)
+// Enregistrer ou mettre à jour un paiement (ADMIN uniquement)
+// Si un paiement existe déjà pour ce membre/année/mois, il sera REMPLACÉ (pas accumulé)
 router.post('/', requireAdmin, async (req, res) => {
   try {
     const { memberId, yearId, month, amountPaid, paymentDate, notes } = req.body;
@@ -183,16 +184,40 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Année introuvable' });
     }
 
-    const payment = await req.prisma.monthlyPayment.create({
-      data: {
+    // Vérifier s'il existe déjà un paiement pour ce membre/année/mois
+    const existingPayment = await req.prisma.monthlyPayment.findFirst({
+      where: {
         memberId: member.id,
         yearId,
-        month: parseInt(month),
-        amountPaid: parseFloat(amountPaid),
-        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-        notes: notes || null
+        month: parseInt(month)
       }
     });
+
+    let payment;
+    
+    if (existingPayment) {
+      // MISE À JOUR: Remplacer le montant existant (ne pas accumuler)
+      payment = await req.prisma.monthlyPayment.update({
+        where: { id: existingPayment.id },
+        data: {
+          amountPaid: parseFloat(amountPaid),
+          paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+          notes: notes || existingPayment.notes
+        }
+      });
+    } else {
+      // CRÉATION: Nouveau paiement
+      payment = await req.prisma.monthlyPayment.create({
+        data: {
+          memberId: member.id,
+          yearId,
+          month: parseInt(month),
+          amountPaid: parseFloat(amountPaid),
+          paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+          notes: notes || null
+        }
+      });
+    }
 
     res.status(201).json(payment);
   } catch (error) {

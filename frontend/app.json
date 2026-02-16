@@ -12,7 +12,8 @@
       "enabled": false
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.frontendv1"
     },
     "android": {
       "adaptiveIcon": {

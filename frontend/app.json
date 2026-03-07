@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "AssocManager",
-    "slug": "frontendv1",
+    "slug": "assocmanage",
     "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/react-logo.png",
@@ -46,12 +46,12 @@
     "experiments": {
       "typedRoutes": true
     },
+    "owner": "mikouei",
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b4dd720b-c0a6-4b3f-aad5-f8b54b579d5a"
+        "projectId": "772ac13f-514a-49d7-af14-7a6a8ef4fcab"
       }
-    },
-    "owner": "drigo1"
+    }
   }
 }

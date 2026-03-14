@@ -1,5 +1,19 @@
 {
   "dependencies": {
     "yet": "^0.1.0"
-  }
+  },
+  "name": "app",
+  "version": "1.0.0",
+  "description": "Application mobile de gestion des cotisations pour associations, syndicats et amicales.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

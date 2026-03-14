@@ -34,7 +34,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>exp+frontendv1</string>
+          <string>exp+assocmanage</string>
         </array>
       </dict>
     </array>

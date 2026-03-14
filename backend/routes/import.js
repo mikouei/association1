@@ -58,22 +58,25 @@ router.post('/members/preview', async (req, res) => {
       // Nettoyer le numéro de téléphone (enlever espaces supplémentaires)
       const cleanPhone = phone ? phone.replace(/\s+/g, ' ').trim() : null;
 
-      // Vérifier les doublons dans la base par téléphone
-      if (cleanPhone) {
-        const existing = await req.prisma.user.findFirst({
-          where: { phone: cleanPhone },
-          include: { member: true }
-        });
-
-        if (existing) {
-          duplicates.push({
-            line: i + 1,
-            name,
-            phone: cleanPhone,
-            existingMember: existing.member?.name
-          });
-          continue;
+      // Vérifier les doublons dans la base par NOM (plus fiable que téléphone)
+      // Car plusieurs membres peuvent avoir le même numéro de téléphone
+      const existingByName = await req.prisma.member.findFirst({
+        where: { 
+          name: {
+            equals: name,
+            mode: 'insensitive'
+          }
         }
+      });
+
+      if (existingByName) {
+        duplicates.push({
+          line: i + 1,
+          name,
+          phone: cleanPhone,
+          existingMember: existingByName.name
+        });
+        continue;
       }
 
       preview.push({

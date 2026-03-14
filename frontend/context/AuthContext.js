@@ -1,8 +1,70 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import api from '../utils/api';
 
 const AuthContext = createContext();
+
+// Helper pour vérifier si on est sur le web
+const isWeb = Platform.OS === 'web';
+
+// Helper pour stocker une valeur (AsyncStorage + localStorage sur web)
+const setStorageItem = async (key, value) => {
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (e) {
+    console.log('AsyncStorage setItem failed:', e);
+  }
+  
+  // Aussi stocker dans localStorage sur web
+  if (isWeb && typeof window !== "undefined" && window.localStorage) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (e) {
+      console.log('localStorage setItem failed:', e);
+    }
+  }
+};
+
+// Helper pour récupérer une valeur (AsyncStorage ou localStorage sur web)
+const getStorageItem = async (key) => {
+  let value = null;
+  
+  try {
+    value = await AsyncStorage.getItem(key);
+  } catch (e) {
+    console.log('AsyncStorage getItem failed:', e);
+  }
+  
+  // Fallback sur localStorage pour le web
+  if (!value && isWeb && typeof window !== "undefined" && window.localStorage) {
+    try {
+      value = window.localStorage.getItem(key);
+    } catch (e) {
+      console.log('localStorage getItem failed:', e);
+    }
+  }
+  
+  return value;
+};
+
+// Helper pour supprimer une valeur (AsyncStorage + localStorage sur web)
+const removeStorageItem = async (key) => {
+  try {
+    await AsyncStorage.removeItem(key);
+  } catch (e) {
+    console.log('AsyncStorage removeItem failed:', e);
+  }
+  
+  // Aussi supprimer de localStorage sur web
+  if (isWeb && typeof window !== "undefined" && window.localStorage) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch (e) {
+      console.log('localStorage removeItem failed:', e);
+    }
+  }
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -17,9 +79,9 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async () => {
     try {
-      const storedToken = await AsyncStorage.getItem('authToken');
-      const storedUser = await AsyncStorage.getItem('user');
-      const storedAssociation = await AsyncStorage.getItem('association');
+      const storedToken = await getStorageItem('authToken');
+      const storedUser = await getStorageItem('user');
+      const storedAssociation = await getStorageItem('association');
 
       if (storedToken && storedUser) {
         setToken(storedToken);
@@ -45,12 +107,13 @@ export const AuthProvider = ({ children }) => {
       const { token: newToken, user: newUser, association: newAssociation } = response.data;
 
       // Nettoyer le token SUPER_ADMIN pour éviter les conflits
-      await AsyncStorage.removeItem('platformToken');
+      await removeStorageItem('platformToken');
       
-      await AsyncStorage.setItem('authToken', newToken);
-      await AsyncStorage.setItem('user', JSON.stringify(newUser));
+      // Stocker le nouveau token et les données utilisateur
+      await setStorageItem('authToken', newToken);
+      await setStorageItem('user', JSON.stringify(newUser));
       if (newAssociation) {
-        await AsyncStorage.setItem('association', JSON.stringify(newAssociation));
+        await setStorageItem('association', JSON.stringify(newAssociation));
       }
 
       setToken(newToken);
@@ -69,9 +132,9 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('association');
+      await removeStorageItem('authToken');
+      await removeStorageItem('user');
+      await removeStorageItem('association');
       setToken(null);
       setUser(null);
       setAssociation(null);
@@ -84,10 +147,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.get('/auth/me');
       const { association: updatedAssociation, ...updatedUser } = response.data;
-      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      await setStorageItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       if (updatedAssociation) {
-        await AsyncStorage.setItem('association', JSON.stringify(updatedAssociation));
+        await setStorageItem('association', JSON.stringify(updatedAssociation));
         setAssociation(updatedAssociation);
       }
     } catch (error) {

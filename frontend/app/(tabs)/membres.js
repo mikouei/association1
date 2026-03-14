@@ -223,7 +223,7 @@ export default function Membres() {
             try {
               const endpoint = member.active ? 'deactivate' : 'activate';
               await api.put(`/members/${member.id}/${endpoint}`);
-              loadMembers();
+              await refreshMembers();
             } catch (error) {
               Alert.alert('Erreur', 'Impossible de modifier le statut');
             }

@@ -138,7 +138,9 @@ export default function PlatformDashboard() {
     setEditFormData({
       name: association.name,
       type: association.type || 'association',
-      adminEmail: association.adminEmail || ''
+      adminEmail: association.adminEmail || '',
+      enableVehiclePlates: association.enableVehiclePlates || false,
+      customFieldLabel: association.customFieldLabel || 'Villa'
     });
     setEditModalVisible(true);
   };

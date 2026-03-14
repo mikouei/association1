@@ -343,10 +343,20 @@ export default function Membres() {
         <View style={styles.memberInfo}>
           <Text style={styles.memberName}>{item.name}</Text>
           <Text style={styles.memberField}>
-            {config?.memberFieldLabel || 'Villa'}: {item.customFieldValue}
+            {config?.memberFieldLabel || associationSettings?.customFieldLabel || 'Villa'}: {item.customFieldValue}
           </Text>
           {item.phone && <Text style={styles.memberPhone}>{item.phone}</Text>}
         </View>
+        {/* Bouton Matricules (visible si activé) */}
+        {isAdmin && associationSettings?.enableVehiclePlates && (
+          <TouchableOpacity
+            style={styles.vehicleButton}
+            onPress={() => openVehicleModal(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="car" size={20} color="#9C27B0" />
+          </TouchableOpacity>
+        )}
         {isAdmin && (
           <TouchableOpacity
             style={styles.deleteButton}
@@ -362,6 +372,7 @@ export default function Membres() {
             size={24}
             color={item.active ? '#4CAF50' : '#FF5252'}
           />
+        </View>
         </View>
       </View>
     </TouchableOpacity>

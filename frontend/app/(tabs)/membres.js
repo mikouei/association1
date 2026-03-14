@@ -373,7 +373,6 @@ export default function Membres() {
             color={item.active ? '#4CAF50' : '#FF5252'}
           />
         </View>
-        </View>
       </View>
     </TouchableOpacity>
   );

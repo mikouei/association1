@@ -273,7 +273,7 @@ export default function Membres() {
             try {
               await api.delete(`/members/${member.id}`);
               Alert.alert('Succès', 'Membre supprimé avec succès');
-              loadMembers();
+              await refreshMembers();
             } catch (error) {
               console.error('Erreur suppression:', error);
               Alert.alert('Erreur', error.response?.data?.error || 'Impossible de supprimer le membre');

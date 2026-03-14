@@ -201,7 +201,7 @@ export default function Membres() {
         );
       }
       setModalVisible(false);
-      loadMembers();
+      await refreshMembers();
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la sauvegarde');

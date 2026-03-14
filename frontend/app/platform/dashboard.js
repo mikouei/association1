@@ -1144,4 +1144,60 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
   },
+  // Options personnalisées styles
+  sectionDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    marginTop: 20,
+    paddingTop: 16,
+    marginBottom: 8,
+  },
+  toggleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f5f5f5',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  toggleOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  toggleOptionText: {
+    flex: 1,
+  },
+  toggleOptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+  toggleOptionDesc: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  toggleSwitch: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#ccc',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleSwitchOn: {
+    backgroundColor: '#4CAF50',
+  },
+  toggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  toggleKnobOn: {
+    alignSelf: 'flex-end',
+  },
 });

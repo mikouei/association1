@@ -12,6 +12,7 @@ import exceptionalRoutes from './routes/exceptional.js';
 import importRoutes from './routes/import.js';
 import exportRoutes from './routes/export.js';
 import platformRoutes from './routes/platform.js';
+import vehicleRoutes from './routes/vehicles.js';
 
 dotenv.config();
 

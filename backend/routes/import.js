@@ -117,26 +117,20 @@ router.post('/members', async (req, res) => {
       try {
         const { name, customFieldValue, phone } = memberData;
 
-        // Vérifier si un membre avec ce nom existe déjà
-        const existingMember = await req.prisma.member.findFirst({
-          where: { 
-            name: {
-              equals: name,
-              mode: 'insensitive'
-            }
-          }
-        });
-        
-        if (existingMember) {
+        // Générer email par défaut si pas de téléphone
+        const email = phone 
+          ? `${phone.replace(/[^0-9]/g, '')}@temp.local`
+          : `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}@temp.local`;
+
+        // Vérifier unicité email
+        const emailExists = await req.prisma.user.findUnique({ where: { email } });
+        if (emailExists) {
           errors.push({
             name,
-            error: 'Un membre avec ce nom existe déjà'
+            error: 'Email déjà utilisé (doublon détecté)'
           });
           continue;
         }
-
-        // Générer email unique (basé sur timestamp + random, pas sur téléphone)
-        const email = `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}@temp.local`;
 
         // Générer credentials
         const password = Math.random().toString(36).slice(-8);

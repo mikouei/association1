@@ -191,4 +191,39 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/auth/association-settings
+// Récupérer les paramètres de l'association (enableVehiclePlates, customFieldLabel)
+router.get('/association-settings', authenticateToken, async (req, res) => {
+  try {
+    // Récupérer les paramètres depuis la base platform
+    const { PrismaClient: PlatformPrismaClient } = await import('../node_modules/.prisma/platform-client/index.js');
+    const platformPrisma = new PlatformPrismaClient();
+    
+    // Trouver l'association par son dbName
+    const association = await platformPrisma.association.findFirst({
+      where: { dbName: req.dbName }
+    });
+    
+    await platformPrisma.$disconnect();
+    
+    if (!association) {
+      return res.json({
+        enableVehiclePlates: false,
+        customFieldLabel: 'Villa'
+      });
+    }
+    
+    res.json({
+      enableVehiclePlates: association.enableVehiclePlates || false,
+      customFieldLabel: association.customFieldLabel || 'Villa'
+    });
+  } catch (error) {
+    console.error('Get association settings error:', error);
+    res.json({
+      enableVehiclePlates: false,
+      customFieldLabel: 'Villa'
+    });
+  }
+});
+
 export default router;

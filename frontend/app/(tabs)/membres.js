@@ -61,6 +61,7 @@ export default function Membres() {
     useCallback(() => {
       loadMembers();
       loadConfig();
+      loadAssociationSettings();
     }, [])
   );
 
@@ -74,6 +75,18 @@ export default function Membres() {
       setConfig(response.data);
     } catch (error) {
       console.error('Erreur chargement config:', error);
+    }
+  };
+
+  const loadAssociationSettings = async () => {
+    try {
+      // Charger les paramètres de l'association depuis la plateforme
+      if (association?.id) {
+        const response = await api.get(`/auth/association-settings`);
+        setAssociationSettings(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur chargement paramètres association:', error);
     }
   };
 

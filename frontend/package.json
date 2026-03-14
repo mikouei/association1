@@ -59,7 +59,7 @@
     "@types/react": "~19.1.10",
     "eslint": "^10.0.0",
     "eslint-config-expo": "^10.0.0",
-    "prisma": "^7.5.0",
+    "prisma": "^6.19.2",
     "typescript": "~5.9.2"
   },
   "private": true,

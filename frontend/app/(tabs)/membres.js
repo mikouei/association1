@@ -20,7 +20,7 @@ import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function Membres() {
-  const { user } = useAuth();
+  const { user, association } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   
   const [members, setMembers] = useState([]);
@@ -29,6 +29,7 @@ export default function Membres() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [config, setConfig] = useState(null);
+  const [associationSettings, setAssociationSettings] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [formData, setFormData] = useState({
@@ -45,6 +46,15 @@ export default function Membres() {
   const [resetPasswordMember, setResetPasswordMember] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [resettingPassword, setResettingPassword] = useState(false);
+
+  // Vehicle plates modal
+  const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
+  const [selectedMemberForVehicle, setSelectedMemberForVehicle] = useState(null);
+  const [memberVehicles, setMemberVehicles] = useState([]);
+  const [newPlateNumber, setNewPlateNumber] = useState('');
+  const [newPlateDescription, setNewPlateDescription] = useState('');
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [savingVehicle, setSavingVehicle] = useState(false);
 
   // Recharger les données à chaque fois que l'onglet Membres est affiché
   useFocusEffect(

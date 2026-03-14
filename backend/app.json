@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "b7c736f8-75f4-4f76-8706-f27d2161785e"
+      }
+    },
+    "android": {
+      "package": "com.drigo1.assocmanagerbackend"
+    }
+  }
+}

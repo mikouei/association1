@@ -592,6 +592,38 @@ export default function PlatformDashboard() {
                     autoCapitalize="none"
                   />
 
+                  {/* Section Options personnalisées */}
+                  <View style={styles.sectionDivider}>
+                    <Text style={styles.sectionTitle}>Options personnalisées</Text>
+                  </View>
+
+                  <Text style={styles.inputLabel}>Libellé du champ membre (Villa, Désignation, etc.)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Villa, Désignation, Groupe..."
+                    value={editFormData.customFieldLabel}
+                    onChangeText={(text) => setEditFormData({ ...editFormData, customFieldLabel: text })}
+                    autoCapitalize="words"
+                  />
+
+                  <TouchableOpacity
+                    style={styles.toggleOption}
+                    onPress={() => setEditFormData({ ...editFormData, enableVehiclePlates: !editFormData.enableVehiclePlates })}
+                  >
+                    <View style={styles.toggleOptionLeft}>
+                      <Ionicons name="car" size={24} color={editFormData.enableVehiclePlates ? '#4CAF50' : '#999'} />
+                      <View style={styles.toggleOptionText}>
+                        <Text style={styles.toggleOptionTitle}>Matricules de véhicules</Text>
+                        <Text style={styles.toggleOptionDesc}>
+                          Permet aux membres d'ajouter plusieurs matricules de véhicules
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={[styles.toggleSwitch, editFormData.enableVehiclePlates && styles.toggleSwitchOn]}>
+                      <View style={[styles.toggleKnob, editFormData.enableVehiclePlates && styles.toggleKnobOn]} />
+                    </View>
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     style={styles.saveBtn}
                     onPress={handleSaveEdit}

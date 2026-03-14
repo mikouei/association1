@@ -589,6 +589,99 @@ export default function Membres() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Modal Gestion des Matricules */}
+      <Modal
+        visible={vehicleModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setVehicleModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.vehicleModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                <Ionicons name="car" size={24} color="#9C27B0" /> Matricules
+              </Text>
+              <TouchableOpacity onPress={() => setVehicleModalVisible(false)}>
+                <Ionicons name="close" size={28} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedMemberForVehicle && (
+              <Text style={styles.vehicleMemberName}>{selectedMemberForVehicle.name}</Text>
+            )}
+
+            {loadingVehicles ? (
+              <ActivityIndicator size="large" color="#9C27B0" style={{ marginVertical: 30 }} />
+            ) : (
+              <>
+                {/* Liste des matricules existants */}
+                <ScrollView style={styles.vehicleList}>
+                  {memberVehicles.length === 0 ? (
+                    <View style={styles.noVehicles}>
+                      <Ionicons name="car-outline" size={48} color="#ccc" />
+                      <Text style={styles.noVehiclesText}>Aucun matricule enregistré</Text>
+                    </View>
+                  ) : (
+                    memberVehicles.map((vehicle) => (
+                      <View key={vehicle.id} style={styles.vehicleItem}>
+                        <View style={styles.vehicleInfo}>
+                          <Text style={styles.vehiclePlate}>{vehicle.plateNumber}</Text>
+                          {vehicle.description && (
+                            <Text style={styles.vehicleDesc}>{vehicle.description}</Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteVehicle(vehicle)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons name="trash-outline" size={20} color="#FF5252" />
+                        </TouchableOpacity>
+                      </View>
+                    ))
+                  )}
+                </ScrollView>
+
+                {/* Formulaire d'ajout */}
+                <View style={styles.addVehicleForm}>
+                  <Text style={styles.addVehicleTitle}>Ajouter un matricule</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Numéro de plaque (ex: AB-1234-CD)"
+                    value={newPlateNumber}
+                    onChangeText={setNewPlateNumber}
+                    autoCapitalize="characters"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Description (optionnel)"
+                    value={newPlateDescription}
+                    onChangeText={setNewPlateDescription}
+                  />
+                  <TouchableOpacity
+                    style={[styles.addVehicleButton, savingVehicle && styles.submitButtonDisabled]}
+                    onPress={handleAddVehicle}
+                    disabled={savingVehicle}
+                  >
+                    {savingVehicle ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="add" size={20} color="#fff" />
+                        <Text style={styles.addVehicleButtonText}>Ajouter</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }

@@ -925,4 +925,85 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  // Styles pour les matricules
+  vehicleButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  vehicleModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  vehicleMemberName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  vehicleList: {
+    maxHeight: 200,
+    marginBottom: 16,
+  },
+  noVehicles: {
+    alignItems: 'center',
+    padding: 30,
+  },
+  noVehiclesText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+  },
+  vehicleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  vehicleInfo: {
+    flex: 1,
+  },
+  vehiclePlate: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    letterSpacing: 1,
+  },
+  vehicleDesc: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  addVehicleForm: {
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    paddingTop: 16,
+  },
+  addVehicleTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  addVehicleButton: {
+    flexDirection: 'row',
+    backgroundColor: '#9C27B0',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  addVehicleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
 });

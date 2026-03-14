@@ -1,8 +1,70 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import api from '../utils/api';
 
 const PlatformAuthContext = createContext(null);
+
+// Helper pour vérifier si on est sur le web
+const isWeb = Platform.OS === 'web';
+
+// Helper pour stocker un token (AsyncStorage + localStorage sur web)
+const setToken = async (key, value) => {
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (e) {
+    console.log('AsyncStorage setItem failed:', e);
+  }
+  
+  // Aussi stocker dans localStorage sur web
+  if (isWeb && typeof window !== "undefined" && window.localStorage) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (e) {
+      console.log('localStorage setItem failed:', e);
+    }
+  }
+};
+
+// Helper pour récupérer un token (AsyncStorage ou localStorage sur web)
+const getToken = async (key) => {
+  let token = null;
+  
+  try {
+    token = await AsyncStorage.getItem(key);
+  } catch (e) {
+    console.log('AsyncStorage getItem failed:', e);
+  }
+  
+  // Fallback sur localStorage pour le web
+  if (!token && isWeb && typeof window !== "undefined" && window.localStorage) {
+    try {
+      token = window.localStorage.getItem(key);
+    } catch (e) {
+      console.log('localStorage getItem failed:', e);
+    }
+  }
+  
+  return token;
+};
+
+// Helper pour supprimer un token (AsyncStorage + localStorage sur web)
+const removeToken = async (key) => {
+  try {
+    await AsyncStorage.removeItem(key);
+  } catch (e) {
+    console.log('AsyncStorage removeItem failed:', e);
+  }
+  
+  // Aussi supprimer de localStorage sur web
+  if (isWeb && typeof window !== "undefined" && window.localStorage) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch (e) {
+      console.log('localStorage removeItem failed:', e);
+    }
+  }
+};
 
 export function PlatformAuthProvider({ children }) {
   const [superAdmin, setSuperAdmin] = useState(null);
@@ -14,9 +76,9 @@ export function PlatformAuthProvider({ children }) {
 
   const checkAuth = async () => {
     try {
-      const token = await AsyncStorage.getItem('platformToken');
+      const token = await getToken('platformToken');
       if (token) {
-        // Utiliser le token directement dans la requête, pas dans les defaults
+        // Utiliser le token directement dans la requête
         const response = await api.get('/platform/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -24,7 +86,7 @@ export function PlatformAuthProvider({ children }) {
       }
     } catch (error) {
       console.log('Platform auth check failed:', error);
-      await AsyncStorage.removeItem('platformToken');
+      await removeToken('platformToken');
     } finally {
       setLoading(false);
     }
@@ -34,22 +96,28 @@ export function PlatformAuthProvider({ children }) {
     const response = await api.post('/platform/login', { email, password });
     const { token, user } = response.data;
     
-    // Nettoyer le token utilisateur normal pour éviter les conflits
-    await AsyncStorage.removeItem('authToken');
-    await AsyncStorage.removeItem('user');
-    await AsyncStorage.removeItem('association');
+    // Nettoyer les tokens utilisateur normal pour éviter les conflits
+    await removeToken('authToken');
+    await removeToken('user');
+    await removeToken('association');
     
-    await AsyncStorage.setItem('platformToken', token);
-    // NE PAS utiliser api.defaults.headers - l'intercepteur gère les tokens via AsyncStorage
+    // Stocker le token platform (AsyncStorage + localStorage sur web)
+    await setToken('platformToken', token);
+    
     setSuperAdmin(user);
     
     return user;
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem('platformToken');
+    // Supprimer le token (AsyncStorage + localStorage sur web)
+    await removeToken('platformToken');
+    
     // Nettoyer aussi les defaults au cas où
-    delete api.defaults.headers.common['Authorization'];
+    if (api.defaults?.headers?.common) {
+      delete api.defaults.headers.common['Authorization'];
+    }
+    
     setSuperAdmin(null);
   };
 

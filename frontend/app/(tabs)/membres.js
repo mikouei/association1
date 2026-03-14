@@ -262,6 +262,74 @@ export default function Membres() {
     );
   };
 
+  // ========== GESTION DES MATRICULES ==========
+  const openVehicleModal = async (member) => {
+    setSelectedMemberForVehicle(member);
+    setVehicleModalVisible(true);
+    setLoadingVehicles(true);
+    try {
+      const response = await api.get(`/vehicles/member/${member.id}`);
+      setMemberVehicles(response.data);
+    } catch (error) {
+      console.error('Erreur chargement véhicules:', error);
+      setMemberVehicles([]);
+    } finally {
+      setLoadingVehicles(false);
+    }
+  };
+
+  const handleAddVehicle = async () => {
+    if (!newPlateNumber.trim()) {
+      Alert.alert('Erreur', 'Numéro de plaque requis');
+      return;
+    }
+    
+    setSavingVehicle(true);
+    try {
+      await api.post('/vehicles', {
+        memberId: selectedMemberForVehicle.id,
+        plateNumber: newPlateNumber.trim(),
+        description: newPlateDescription.trim() || null
+      });
+      
+      // Recharger les véhicules
+      const response = await api.get(`/vehicles/member/${selectedMemberForVehicle.id}`);
+      setMemberVehicles(response.data);
+      setNewPlateNumber('');
+      setNewPlateDescription('');
+      Alert.alert('Succès', 'Matricule ajouté');
+    } catch (error) {
+      console.error('Erreur ajout véhicule:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'ajout');
+    } finally {
+      setSavingVehicle(false);
+    }
+  };
+
+  const handleDeleteVehicle = (vehicle) => {
+    Alert.alert(
+      'Supprimer le matricule',
+      `Supprimer "${vehicle.plateNumber}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/vehicles/${vehicle.id}`);
+              const response = await api.get(`/vehicles/member/${selectedMemberForVehicle.id}`);
+              setMemberVehicles(response.data);
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de supprimer');
+            }
+          }
+        }
+      ]
+    );
+  };
+  // ========== FIN GESTION DES MATRICULES ==========
+
   const renderMember = ({ item }) => (
     <TouchableOpacity
       style={styles.memberCard}

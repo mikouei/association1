@@ -13,25 +13,28 @@ const api = axios.create({
   },
 });
 
-// Interceptor pour ajouter le token d'authentification
 api.interceptors.request.use(async (config) => {
-  // Vérifier si c'est une route platform (SUPER_ADMIN)
-  const isPlatformRoute = config.url?.startsWith('/platform');
-  
-  if (isPlatformRoute) {
-    // Utiliser le token platform pour les routes platform
+
+  let token = null;
+
+  // MOBILE
+  try {
     const platformToken = await AsyncStorage.getItem("platformToken");
-    if (platformToken) {
-      config.headers.Authorization = `Bearer ${platformToken}`;
-    }
-  } else {
-    // Utiliser le token normal pour les autres routes (clé: authToken)
-    const token = await AsyncStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    const authToken = await AsyncStorage.getItem("authToken");
+    token = platformToken || authToken;
+  } catch (e) {}
+
+  // WEB fallback
+  if (!token && typeof window !== "undefined") {
+    const platformToken = localStorage.getItem("platformToken");
+    const authToken = localStorage.getItem("authToken");
+    token = platformToken || authToken;
   }
-  
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
 

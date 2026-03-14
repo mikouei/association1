@@ -56,10 +56,17 @@ export default function Membres() {
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [savingVehicle, setSavingVehicle] = useState(false);
 
+  // Charger les données au montage initial
+  useEffect(() => {
+    loadMembers();
+    loadConfig();
+    loadAssociationSettings();
+  }, []);
+
   // Recharger les données à chaque fois que l'onglet Membres est affiché
   useFocusEffect(
     useCallback(() => {
-      loadMembers();
+      refreshMembers();
       loadConfig();
       loadAssociationSettings();
     }, [])
@@ -90,17 +97,32 @@ export default function Membres() {
     }
   };
 
+  // Fonction pour charger les membres (premier chargement)
   const loadMembers = async () => {
     try {
+      setLoading(true);
       const response = await api.get('/members');
-      setMembers(response.data);
-      setFilteredMembers(response.data);
+      setMembers(response.data || []);
+      setFilteredMembers(response.data || []);
     } catch (error) {
       console.error('Erreur chargement membres:', error);
+      setMembers([]);
+      setFilteredMembers([]);
       Alert.alert('Erreur', 'Impossible de charger les membres');
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  // Fonction pour rafraîchir les membres (après create/update/delete)
+  const refreshMembers = async () => {
+    try {
+      const response = await api.get('/members');
+      setMembers(response.data || []);
+      setFilteredMembers(response.data || []);
+    } catch (error) {
+      console.error('Erreur rafraîchissement membres:', error);
     }
   };
 

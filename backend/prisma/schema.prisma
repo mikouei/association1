@@ -38,6 +38,22 @@ model Member {
   user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   payments          MonthlyPayment[]       // Paiements mensuels
   exceptionalPayments ExceptionalPayment[] // Paiements exceptionnels
+  vehiclePlates     VehiclePlate[]         // Matricules de véhicules
+}
+
+// Matricules de véhicules (plusieurs par membre)
+model VehiclePlate {
+  id          String   @id @default(uuid())
+  memberId    String
+  plateNumber String   // Numéro de plaque (ex: "AB-1234-CD")
+  description String?  // Description optionnelle (ex: "Toyota Corolla")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  @@index([memberId])
 }
 
 // Configuration de l'association

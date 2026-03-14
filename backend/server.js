@@ -54,6 +54,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/exceptional', exceptionalRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/vehicles', vehicleRoutes);
 
 // Routes V2 (Platform - SUPER_ADMIN)
 app.use('/api/platform', platformRoutes);

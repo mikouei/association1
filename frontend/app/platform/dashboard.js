@@ -48,7 +48,9 @@ export default function PlatformDashboard() {
   const [editFormData, setEditFormData] = useState({
     name: '',
     type: '',
-    adminEmail: ''
+    adminEmail: '',
+    enableVehiclePlates: false,
+    customFieldLabel: 'Villa'
   });
   
   // Gestion des admins

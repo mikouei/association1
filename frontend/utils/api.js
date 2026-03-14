@@ -66,13 +66,17 @@ api.interceptors.request.use(async (config) => {
   if (isPlatformRoute) {
     // Utiliser le token platform pour les routes platform
     token = await getToken("platformToken");
+    console.log('[API] Platform route detected:', config.url, 'Token found:', !!token);
   } else {
     // Utiliser le token normal pour les autres routes
     token = await getToken("authToken");
+    console.log('[API] Normal route:', config.url, 'Token found:', !!token);
   }
   
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    console.warn('[API] No token found for route:', config.url);
   }
   
   return config;

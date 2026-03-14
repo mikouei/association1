@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,12 +17,28 @@ import { usePlatformAuth } from '../../context/PlatformAuthContext';
 
 export default function PlatformLogin() {
   const router = useRouter();
-  const { login } = usePlatformAuth();
+  const { login, superAdmin, loading: authLoading } = usePlatformAuth();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Rediriger vers dashboard si déjà connecté
+  useEffect(() => {
+    if (!authLoading && superAdmin) {
+      router.replace('/platform/dashboard');
+    }
+  }, [superAdmin, authLoading]);
+
+  // Afficher un loader pendant la vérification auth
+  if (authLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#9C27B0" />
+      </View>
+    );
+  }
 
   const handleLogin = async () => {
     if (!email || !password) {

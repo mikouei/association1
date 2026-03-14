@@ -214,7 +214,7 @@ router.post('/associations', authenticateSuperAdmin, async (req, res) => {
 // PUT /api/platform/associations/:id - Modifier une association
 router.put('/associations/:id', authenticateSuperAdmin, async (req, res) => {
   try {
-    const { name, type, active } = req.body;
+    const { name, type, active, enableVehiclePlates, customFieldLabel } = req.body;
     const prisma = await getPlatformPrisma();
 
     const association = await prisma.association.findUnique({
@@ -230,7 +230,9 @@ router.put('/associations/:id', authenticateSuperAdmin, async (req, res) => {
       data: {
         ...(name && { name }),
         ...(type && { type }),
-        ...(typeof active === 'boolean' && { active })
+        ...(typeof active === 'boolean' && { active }),
+        ...(typeof enableVehiclePlates === 'boolean' && { enableVehiclePlates }),
+        ...(customFieldLabel && { customFieldLabel })
       }
     });
 

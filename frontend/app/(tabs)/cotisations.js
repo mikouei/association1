@@ -280,7 +280,11 @@ export default function Cotisations() {
                     >
                       <Text style={styles.monthCardLabel}>{MONTHS[month - 1]}</Text>
                       <Text style={styles.monthCardValue}>
-                        {monthData.amountPaid > 0 ? Math.round(monthData.amountPaid / 1000) + 'k' : '-'}
+                        {monthData.amountPaid > 0 
+                          ? (monthData.amountPaid >= 1000 
+                              ? (monthData.amountPaid / 1000).toFixed(1).replace('.0', '') + 'k'
+                              : monthData.amountPaid)
+                          : '-'}
                       </Text>
                     </TouchableOpacity>
                   );

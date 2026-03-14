@@ -33,6 +33,11 @@ model Association {
   adminEmail   String?  // Email du premier admin créé
   adminName    String?  // Nom du premier admin
   memberCount  Int      @default(0) // Cache du nombre de membres
+  
+  // Options de champs personnalisés
+  enableVehiclePlates Boolean @default(false) // Activer les matricules de véhicules
+  customFieldLabel    String  @default("Villa") // Libellé du champ personnalisé (Villa, Désignation, etc.)
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

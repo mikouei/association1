@@ -7,6 +7,15 @@ const router = express.Router();
 // Authentification requise pour toutes les routes
 router.use(authenticateToken);
 
+// Désactiver le cache HTTP pour toutes les routes members
+router.use((req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  res.set("Surrogate-Control", "no-store");
+  next();
+});
+
 // GET /api/members
 // Liste tous les membres (avec recherche)
 router.get('/', async (req, res) => {
@@ -25,28 +34,30 @@ router.get('/', async (req, res) => {
     // Recherche par nom ou champ personnalisé
     if (search) {
       where.OR = [
-        { member: { name: { contains: search, mode: 'insensitive' } } },
-        { member: { customFieldValue: { contains: search, mode: 'insensitive' } } }
+        { member: { name: { contains: search } } },
+        { member: { customFieldValue: { contains: search } } }
       ];
     }
 
+    // Requête avec fresh data
     const members = await req.prisma.user.findMany({
       where,
       include: {
         member: true
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: 1000
     });
 
-    // Formatter les résultats
+    // Formatter les résultats avec accès sécurisé aux propriétés
     const formatted = members.map(user => ({
       id: user.id,
       email: user.email,
       phone: user.phone,
       active: user.active,
-      token: req.user.role === 'ADMIN' ? user.token : undefined, // Token visible uniquement pour ADMIN
-      name: user.member?.name,
-      customFieldValue: user.member?.customFieldValue,
+      token: req.user.role === 'ADMIN' ? user.token : undefined,
+      name: user.member?.name || null,
+      customFieldValue: user.member?.customFieldValue || null,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     }));

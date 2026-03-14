@@ -1,5 +1,6 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_BACKEND_URL ||
@@ -13,28 +14,51 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use(async (config) => {
+// Helper pour vérifier si on est sur le web
+const isWeb = Platform.OS === 'web';
 
+// Helper pour récupérer un token depuis AsyncStorage ou localStorage
+const getToken = async (key) => {
   let token = null;
-
-  // MOBILE
+  
+  // Essayer AsyncStorage d'abord (fonctionne sur mobile et parfois web)
   try {
-    const platformToken = await AsyncStorage.getItem("platformToken");
-    const authToken = await AsyncStorage.getItem("authToken");
-    token = platformToken || authToken;
-  } catch (e) {}
-
-  // WEB fallback
-  if (!token && typeof window !== "undefined") {
-    const platformToken = localStorage.getItem("platformToken");
-    const authToken = localStorage.getItem("authToken");
-    token = platformToken || authToken;
+    token = await AsyncStorage.getItem(key);
+  } catch (e) {
+    // AsyncStorage peut échouer sur web dans certains cas
   }
+  
+  // Fallback sur localStorage pour le web
+  if (!token && isWeb && typeof window !== "undefined" && window.localStorage) {
+    try {
+      token = window.localStorage.getItem(key);
+    } catch (e) {
+      // localStorage peut être désactivé
+    }
+  }
+  
+  return token;
+};
 
+// Interceptor pour ajouter le token d'authentification
+api.interceptors.request.use(async (config) => {
+  // Vérifier si c'est une route platform (SUPER_ADMIN)
+  const isPlatformRoute = config.url?.startsWith('/platform');
+  
+  let token = null;
+  
+  if (isPlatformRoute) {
+    // Utiliser le token platform pour les routes platform
+    token = await getToken("platformToken");
+  } else {
+    // Utiliser le token normal pour les autres routes
+    token = await getToken("authToken");
+  }
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-
+  
   return config;
 });
 

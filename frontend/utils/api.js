@@ -14,6 +14,14 @@ const api = axios.create({
   },
 });
 
+// Désactiver le cache HTTP pour les requêtes GET
+api.defaults.headers.get = {
+  ...api.defaults.headers.get,
+  "Cache-Control": "no-cache, no-store, must-revalidate",
+  "Pragma": "no-cache",
+  "Expires": "0"
+};
+
 // Helper pour vérifier si on est sur le web
 const isWeb = Platform.OS === 'web';
 
@@ -40,8 +48,16 @@ const getToken = async (key) => {
   return token;
 };
 
-// Interceptor pour ajouter le token d'authentification
+// Interceptor pour ajouter le token d'authentification et désactiver le cache
 api.interceptors.request.use(async (config) => {
+  // Ajouter un timestamp pour éviter le cache sur toutes les requêtes GET
+  if (config.method === 'get') {
+    config.params = {
+      ...config.params,
+      _t: Date.now()
+    };
+  }
+  
   // Vérifier si c'est une route platform (SUPER_ADMIN)
   const isPlatformRoute = config.url?.startsWith('/platform');
   

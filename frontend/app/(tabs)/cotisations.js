@@ -259,7 +259,11 @@ export default function Cotisations() {
               </View>
               <View style={styles.memberCardTotal}>
                 <Text style={styles.memberCardTotalLabel}>Total</Text>
-                <Text style={styles.memberCardTotalValue}>{Math.round(member.totalPaid / 1000)}k</Text>
+                <Text style={styles.memberCardTotalValue}>
+                  {member.totalPaid >= 1000 
+                    ? (member.totalPaid / 1000).toFixed(1).replace('.0', '') + 'k'
+                    : member.totalPaid}
+                </Text>
               </View>
             </View>
 

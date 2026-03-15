@@ -21,6 +21,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
+import * as MediaLibrary from 'expo-media-library';
 
 export default function Parametres() {
   const { user, logout } = useAuth();
@@ -279,6 +280,91 @@ export default function Parametres() {
     }
   };
 
+  // Fonction helper pour sauvegarder dans le dossier Téléchargements (Android)
+  const saveToDownloads = async (content, filename, mimeType) => {
+    try {
+      if (Platform.OS === 'android') {
+        // Demander les permissions de stockage
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        
+        if (permissions.granted) {
+          // Créer le fichier dans le dossier choisi par l'utilisateur
+          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            filename,
+            mimeType
+          );
+          
+          // Écrire le contenu dans le fichier
+          await FileSystem.writeAsStringAsync(fileUri, content, {
+            encoding: FileSystem.EncodingType.UTF8
+          });
+          
+          Alert.alert('Succès', `Fichier "${filename}" téléchargé avec succès !`);
+          return true;
+        } else {
+          Alert.alert('Permission refusée', 'Impossible de sauvegarder le fichier sans permission.');
+          return false;
+        }
+      } else {
+        // iOS - utiliser le partage car pas d'accès direct au système de fichiers
+        const tempUri = FileSystem.documentDirectory + filename;
+        await FileSystem.writeAsStringAsync(tempUri, content, {
+          encoding: FileSystem.EncodingType.UTF8
+        });
+        await Sharing.shareAsync(tempUri);
+        return true;
+      }
+    } catch (error) {
+      console.error('Erreur saveToDownloads:', error);
+      Alert.alert('Erreur', 'Impossible de sauvegarder le fichier');
+      return false;
+    }
+  };
+
+  // Fonction helper pour sauvegarder un PDF dans le dossier Téléchargements (Android)
+  const savePdfToDownloads = async (pdfUri, filename) => {
+    try {
+      if (Platform.OS === 'android') {
+        // Demander les permissions de stockage
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        
+        if (permissions.granted) {
+          // Lire le contenu du PDF
+          const pdfContent = await FileSystem.readAsStringAsync(pdfUri, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          
+          // Créer le fichier dans le dossier choisi par l'utilisateur
+          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            filename,
+            'application/pdf'
+          );
+          
+          // Écrire le contenu PDF en base64
+          await FileSystem.writeAsStringAsync(fileUri, pdfContent, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          
+          Alert.alert('Succès', `Fichier "${filename}" téléchargé avec succès !`);
+          return true;
+        } else {
+          Alert.alert('Permission refusée', 'Impossible de sauvegarder le fichier sans permission.');
+          return false;
+        }
+      } else {
+        // iOS - utiliser le partage
+        await Sharing.shareAsync(pdfUri);
+        return true;
+      }
+    } catch (error) {
+      console.error('Erreur savePdfToDownloads:', error);
+      Alert.alert('Erreur', 'Impossible de sauvegarder le fichier');
+      return false;
+    }
+  };
+
   // Export Stats CSV
   const handleExportStats = async () => {
     try {
@@ -314,30 +400,19 @@ export default function Parametres() {
       const totalPercentage = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
       csvContent += `TOTAL,,${totalDue},${Math.round(totalPaid)},${Math.round(totalDue - totalPaid)},${totalPercentage}%\n`;
       
+      const filename = `statistiques_${activeYear.year}.csv`;
+
       // Sur le web, on télécharge directement
       if (Platform.OS === 'web' && typeof document !== 'undefined') {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `statistiques_${activeYear.year}.csv`;
+        link.download = filename;
         link.click();
         Alert.alert('Succès', 'Fichier téléchargé');
       } else {
-        // Sur mobile, utiliser FileSystem + Sharing
-        const filename = FileSystem.documentDirectory + `statistiques_${activeYear.year}.csv`;
-        await FileSystem.writeAsStringAsync(filename, csvContent, {
-          encoding: FileSystem.EncodingType.UTF8
-        });
-        
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(filename, {
-            mimeType: 'text/csv',
-            dialogTitle: 'Exporter les statistiques CSV',
-            UTI: 'public.comma-separated-values-text'
-          });
-        } else {
-          Alert.alert('Succès', 'Fichier enregistré: ' + filename);
-        }
+        // Sur mobile, sauvegarder directement dans Téléchargements
+        await saveToDownloads(csvContent, filename, 'text/csv');
       }
     } catch (error) {
       console.error('Erreur export stats:', error);
@@ -436,6 +511,8 @@ export default function Parametres() {
       </html>
       `;
 
+      const filename = `statistiques_${activeYear.year}.pdf`;
+
       // Sur le web, ouvrir dans une nouvelle fenêtre pour impression/téléchargement
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const printWindow = window.open('', '_blank');
@@ -446,22 +523,15 @@ export default function Parametres() {
           Alert.alert('Succès', 'Document PDF ouvert pour impression');
         }
       } else {
-        // Sur mobile, utiliser expo-print pour générer le PDF et expo-sharing pour le partager
+        // Sur mobile, générer le PDF et le télécharger directement
         try {
           const { uri } = await Print.printToFileAsync({ 
             html,
             base64: false
           });
           
-          if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(uri, {
-              mimeType: 'application/pdf',
-              dialogTitle: 'Exporter les statistiques PDF',
-              UTI: 'com.adobe.pdf'
-            });
-          } else {
-            Alert.alert('Succès', 'PDF enregistré: ' + uri);
-          }
+          // Sauvegarder directement dans le dossier Téléchargements
+          await savePdfToDownloads(uri, filename);
         } catch (e) {
           console.error('Erreur Print.printToFileAsync:', e);
           Alert.alert('Erreur', 'Impossible de générer le PDF');

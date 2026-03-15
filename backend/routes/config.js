@@ -1,6 +1,5 @@
 import express from 'express';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
-import platformPrisma from '../prisma/platformClient.js';
+import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -8,20 +7,31 @@ const router = express.Router();
 // Récupérer la configuration de l'association (accessible à tous)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    let config = await req.prisma.associationConfig.findFirst();
+    // La config est maintenant dans la table Association
+    const association = req.association;
 
-    // Si aucune config, créer une config par défaut
+    // Récupérer ou créer la config associée
+    let config = await prisma.associationConfig.findFirst({
+      where: { associationId: req.associationId }
+    });
+
+    // Si aucune config spécifique, utiliser les valeurs de l'association
     if (!config) {
-      config = await req.prisma.associationConfig.create({
-        data: {
-          name: 'Mon Association',
-          type: 'Association',
-          memberFieldLabel: 'Villa'
-        }
-      });
+      config = {
+        id: null,
+        associationId: req.associationId,
+        name: association.name,
+        type: association.type || 'Association',
+        memberFieldLabel: association.memberFieldLabel || 'Villa',
+        createdAt: association.createdAt,
+        updatedAt: association.updatedAt
+      };
     }
 
-    res.json(config);
+    res.json({
+      ...config,
+      memberFieldLabel: association.memberFieldLabel || 'Villa'
+    });
   } catch (error) {
     console.error('Get config error:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération de la configuration' });
@@ -38,24 +48,43 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Nom et libellé du champ requis' });
     }
 
+    // Mettre à jour l'association directement
+    const updatedAssociation = await prisma.association.update({
+      where: { id: req.associationId },
+      data: { 
+        name,
+        type,
+        memberFieldLabel
+      }
+    });
+
     // Vérifier s'il existe déjà une config
-    const existing = await req.prisma.associationConfig.findFirst();
+    const existingConfig = await prisma.associationConfig.findFirst({
+      where: { associationId: req.associationId }
+    });
 
     let config;
-    if (existing) {
+    if (existingConfig) {
       // Mettre à jour
-      config = await req.prisma.associationConfig.update({
-        where: { id: existing.id },
-        data: { name, type, memberFieldLabel }
+      config = await prisma.associationConfig.update({
+        where: { id: existingConfig.id },
+        data: { name, type }
       });
     } else {
       // Créer
-      config = await req.prisma.associationConfig.create({
-        data: { name, type, memberFieldLabel }
+      config = await prisma.associationConfig.create({
+        data: { 
+          associationId: req.associationId,
+          name, 
+          type 
+        }
       });
     }
 
-    res.json(config);
+    res.json({
+      ...config,
+      memberFieldLabel: updatedAssociation.memberFieldLabel
+    });
   } catch (error) {
     console.error('Save config error:', error);
     res.status(500).json({ error: 'Erreur lors de la sauvegarde de la configuration' });

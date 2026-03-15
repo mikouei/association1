@@ -1,204 +1,171 @@
 <analysis>
+<original_problem_statement>
+The user wants to migrate the backend from its current multi-file SQLite architecture to a single PostgreSQL database. This is a critical fix to solve persistent data loss issues experienced on the Render deployment environment, which has an ephemeral filesystem.
 
-**original_problem_statement:**
-The initial goal was to fix a critical bug in a multi-tenant AssocManager application where newly created associations were non-functional. The agent successfully refactored the backend's multi-database architecture, resolving this core issue.
+The migration requires a complete refactor of the data layer, including:
+1.  A new unified Prisma schema for PostgreSQL.
+2.  A new authentication middleware to handle multi-tenancy with an .
+3.  Updating all backend services and routes to use a single, global Prisma client instead of dynamic, per-request clients.
+4.  Ensuring complete API compatibility so the existing React Native mobile app and the new Next.js web app continue to function without changes.
 
-The user has since requested and overseen several UI/UX improvements and bug fixes. The current focus is on a new set of bugs and feature enhancements reported by the user.
-
-**PRODUCT REQUIREMENTS (current):**
-1.  **Bug Fixes (Highest Priority):**
-    *   Fix an issue where the payment amount for a contribution accumulates on repeated entries instead of being set to the new value.
-    *   Improve the Create Year amount input to behave like other amount inputs. Ensure changes to the year settings are immediately reflected on other pages without a manual refresh.
-    *   Investigate and fix a critical bug where an imported list of members disappears after some time, reverting to a previous state. This suggests a data persistence problem.
-2.  **UI/UX Improvements:**
-    *   (DONE) Move statistics to the admin home page.
-    *   (DONE) Make the admin home page more compact to avoid scrolling.
-    *   (DONE) Redesign the monthly contributions table to be a 3-row, 4-column grid per member, removing horizontal scroll.
-    *   (DONE) Fix Android keyboard behavior in modals.
-    *   (DONE) Improve the visibility of the member contribution table.
-3.  **Feature Implementation (Upcoming):**
-    *   Allow members to add/edit/remove a vehicle registration number (matricule).
-    *   Rename the UI label Villa to the more generic Désignation.
-4.  **Other Requests:**
-    *   (DONE) Remove the captcha from the login page.
-    *   (DONE) Implement member deletion functionality.
+This migration is the highest priority task.
+</original_problem_statement>
 
 **User's preferred language**: French
 
 **what currently exists?**
--   A stable backend using a dynamic Prisma Client instantiation for multi-tenancy. The original, critical bug with new associations is **RESOLVED**.
--   A frontend with numerous recent UI/UX improvements, including:
-    -   Data that auto-refreshes on tab focus ().
-    -   Improved keyboard types () and attributes on all  components.
-    -   A working member deletion feature.
-    -   A redesigned, compact admin home page with statistics.
-    -   A redesigned monthly contributions page that displays payments in a 3x4 grid per member.
-    -   Fixes for keyboard handling inside modals.
+-   A Node.js/Express backend that uses a multi-tenant architecture with dynamically created SQLite files for each association. This architecture is the source of the data loss issues.
+-   A feature-rich React Native (Expo) mobile app. Its stability is compromised by the backend's data persistence problems.
+-   A new, scaffolded Next.js web admin dashboard located in . The core structure, pages, and components are generated but not fully implemented.
+-   The agent has **begun** the PostgreSQL migration by creating new, parallel files (, , etc.) but has **not yet integrated them** into the main application.
 
 **Last working item**:
--   **Last item agent was working:** The user reported a new set of three bugs in their last message. The agent has acknowledged them but has not started investigation or implementation.
-    1.  Contribution amount input accumulates instead of being replaced.
-    2.  Create Year amount input needs UI improvement and the page needs to auto-sync data after modification.
-    3.  Imported member lists disappear over time.
--   **Status:** NOT STARTED
--   **Agent Testing Done:** N
--   **Which testing method agent to use?**
-    -   For issue 1 & 2: Frontend manual inspection and testing.
-    -   For issue 3 (disappearing members): Backend testing agent to check the import logic and data persistence. This is the most critical and complex issue.
--   **User Testing Done:** N
+-   **Last item agent was working**: Initiating the backend migration from a multi-file SQLite architecture to a single PostgreSQL database.
+-   **Status**: IN PROGRESS
+-   **Agent Testing Done**: N
+-   **Which testing method agent to use?** backend testing agent. Once the migration is complete and the backend is stable, the agent should test the API endpoints. After that, the agent can proceed to test the frontend (both mobile and web) to ensure full functionality.
+-   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
--   Issue 1: Imported member list disappears over time, reverting to an old state. (P0, Critical)
--   Issue 2: On the contribution payment page, the amount input accumulates with each entry instead of being replaced. (P1)
--   Issue 3: On the Create Year page, the amount input UI is inconsistent, and data does not sync automatically after modification. (P1)
--   Issue 4: The backend crashes if an association's database file doesn't exist. (P2)
+-   **Issue 1: Critical Data Loss Due to SQLite on Ephemeral Filesystem (P0)**
+    -   The core problem is the use of individual SQLite database files for each tenant on a hosting platform (Render) with an ephemeral filesystem. This causes all data to be lost upon server restarts or redeployments.
+    -   The fix, which is currently in progress, is to migrate the entire backend to a single, persistent PostgreSQL database.
 
 **Issues Detail:**
--   **Issue 1: Imported member list disappears over time.**
-    -   **Attempted fixes:** None. This is a new issue.
-    -   **Next debug checklist:**
-        1.  Examine  to review the file parsing and database insertion logic.
-        2.  Verify that the  database file is correctly written to and closed after the import.
-        3.  Investigate potential infrastructure issues. The error  reported by the user from their Render deployment suggests that the SQLite files might not be persisted correctly in that environment. The file system might be ephemeral.
-        4.  Confirm if this issue is reproducible in the local development environment. If not, it strongly points to a deployment/hosting issue.
-    -   **Why fix this issue and what will be achieved with the fix?** This is a critical data-loss bug that makes the member import feature unusable and untrustworthy.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y (related to the previously seen DB not found error)
-    -   **Should Test frontend/backend/both after fix?** Backend
-    -   **Blocked on other issue:** None.
-
--   **Issue 2: Contribution amount input accumulates.**
-    -   **Attempted fixes:** None.
-    -   **Next debug checklist:**
-        1.  Inspect the payment modal in .
-        2.  Check the  handler for the amount .
-        3.  Verify the state update logic (). It's likely using  instead of .
-    -   **Why fix this issue and what will be achieved with the fix?** Fixes a clear UI bug that makes recording payments difficult and error-prone.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Frontend
-    -   **Blocked on other issue:** None.
-
--   **Issue 3: Create Year UI and sync issues.**
-    -   **Attempted fixes:** None.
-    -   **Next debug checklist:**
-        1.  **UI:** Inspect the amount input in . Apply the same input component/style used for payments in  for consistency.
-        2.  **Sync:** After a year is created or modified, the app needs to trigger a data refresh. The easiest way is to ensure  is correctly implemented on pages that display year-dependent data (like  and ). The modification logic in  might need to use a shared state or context to signal that data is stale.
-    -   **Why fix this issue and what will be achieved with the fix?** Improves user experience and application consistency.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Frontend
-    -   **Blocked on other issue:** None.
-
--   **Issue 4: Backend crashes if an association's database file doesn't exist.**
-    -   **Attempted fixes:** The agent proposed a fix but was sidetracked by other user requests.
-    -   **Next debug checklist:**
-        1.  Wrap the database connection logic in  within a  block.
-        2.  Specifically, check if the  file exists before attempting to create a  instance for it.
-        3.  If the file does not exist, throw a controlled  error with a clear message (Association data not found or has been moved.), which the frontend can handle gracefully.
-    -   **Why fix this issue and what will be achieved with the fix?** Prevents the entire backend from crashing on a bad request and provides a better error-handling experience. This is related to Issue 1.
-    -   **Status:** NOT STARTED
+-   **Issue 1: Critical Data Loss**
+    -   **Attempted fixes:** The agent previously tried to prevent data loss by throwing an error if a DB file was missing, instead of recreating it from a blank template. This prevented silent data wiping but did not solve the root cause of data disappearing. The user then approved a full migration to PostgreSQL.
+    -   **Next debug checklist**: This is no longer a debugging task but a development task. See In progress Task List below.
+    -   **Why fix this issue and what will be achieved with the fix?** This will provide a stable and persistent data storage solution, making the application viable for production deployment and eliminating all data loss bugs.
+    -   **Status**: IN PROGRESS
     -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Backend
-    -   **Blocked on other issue:** None.
+    -   **Should Test frontend/backend/both after fix?** Both
+    -   **Blocked on other issue**: None.
 
 **In progress Task List**:
-- None.
+-   **Task 1: Complete the PostgreSQL Backend Migration (P0)**
+    -   **Where to resume**: The agent has created the following new files:
+        -   
+        -   
+        -   
+        The next steps are to integrate these and complete the migration:
+        1.  **Replace Schema:** Overwrite the contents of  with the new PostgreSQL schema from .
+        2.  **Update Environment:** Configure the  in the  file for the PostgreSQL connection.
+        3.  **Run Migration:** Execute Prisma schema loaded from prisma/schema.prisma to create the tables in the PostgreSQL database.
+        4.  **Refactor Middleware:** Replace the logic in  with the new logic from . The new middleware should resolve the  from the request header/body and attach the corresponding  to the  object for other routes to use.
+        5.  **Refactor All Routes:** Update all backend route files (, , , , , ) to:
+            -   Remove all dynamic Prisma Client/ instantiation.
+            -   Use a single, global Prisma client.
+            -   Add a  clause to every database query to ensure tenant data isolation.
+        6.  **Refactor Server:** Ensure  correctly initializes the single Prisma client and uses the updated middleware.
+    -   **What will be achieved with this?** A stable, production-ready backend that resolves all data persistence issues.
+    -   **Status**: IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** Both
+    -   **Blocked on something**: No.
 
 **Upcoming and Future Tasks**
-- **Upcoming Tasks:**
-    - (P2) **Part 3.2:** Add a vehiclePlate (matricule) field for members. This will require:
-        - Modifying the  model in  (and creating a migration).
-        - Adding backend API endpoints (e.g., ) to update the field.
-        - Adding a  and save button in the member's profile/details page in the frontend.
-    - (P2) **Part 3.3:** Rename the Villa label to Désignation in the frontend. This is a simple text search-and-replace in the relevant UI files (likely ).
+-   **Upcoming Tasks:**
+    -   **(P1) Implement Next.js Web Dashboard:** Once the backend migration is complete and stable, the next priority is to build out the functionality of the newly scaffolded web dashboard in . This includes implementing the login flow, data tables for associations/members, forms, and API calls for all features.
+-   **Future Tasks:**
+    -   **(P2) Data Migration Script:** Consider creating a one-time script to migrate data from the old SQLite files into the new PostgreSQL database. This would be necessary to preserve existing user data.
+    -   **(P2) Clarify Activate/Deactivate Labels Feature:** The user requested a feature for superadmins to toggle labels. This was partially implemented as a , but the user's intent might be more complex. This requires clarification.
 
 **Completed work in this session**
-- **Core Architecture Fix:** Replaced the entire buggy custom SQLite wrapper in  with a robust, dynamic Prisma Client instantiation. This resolved all issues related to new associations not working.
-- **Member Deletion:** Implemented the full feature, including the backend  endpoint and a frontend button.
-- **Captcha Removal:** Removed the numeric captcha from the login screen.
-- **Data Freshness:** Replaced  with  across all main screens (, , , ) to ensure data is always up-to-date.
-- **Token Management:** Fixed a critical bug in  where the SUPER_ADMIN token took precedence over the regular admin token, causing API failures.
-- **Keyboard Usability:** Corrected  and added / to all  components across the app for a better mobile UX.
-- **UI Redesign (per user request):**
-    - Moved statistics to the admin home page () and made the layout more compact.
-    - Completely redesigned the monthly contributions view () from a horizontal table to a vertical list of member cards with a 3x4 grid for months.
-- **UI Bug Fix:** Implemented  in the payment modal to prevent the keyboard from hiding input fields on Android.
+- **Bug Fixes:**
+    - Fixed contribution amount accumulating instead of replacing (backend logic).
+    - Fixed an identical accumulation bug on the Create Year amount input (frontend logic).
+    - Fixed a rounding issue causing incorrect amounts (e.g., 1500 displayed as 2k) in the UI.
+    - Fixed Superadmin logout flow.
+    - Fixed web authentication by using  as a fallback for .
+    - Fixed a bug where the member list would disappear on refresh by disabling caching.
+- **Critical Regressions Fixed:**
+    - Resolved an issue where the Superadmin page stopped loading associations due to an incorrect API token being used.
+    - Identified and patched the root cause of data being wiped on server restart (copying a blank SQLite template), which led to the decision to migrate to PostgreSQL.
+- **Feature Implementation:**
+    - **Vehicle Plate Management:** Implemented the full feature stack:
+        - Backend: DB schema changes, API routes ().
+        - Superadmin UI: Added toggles to enable the feature per association.
+        - Admin UI: Added a car icon and a modal in the members' screen to manage vehicle plates.
+- **New Project Scaffolding:**
+    - **Created a complete Next.js Web Admin Dashboard** in , including project structure, dependencies, and placeholder pages/components.
 
 **Earlier issues found/mentioned but not fixed**
-- **Issue 1:** The backend crashes with  if a request is made for an association whose DB file doesn't exist. The agent identified this in message 113 and proposed a fix (add a check) but was redirected by the user before implementing it. This is now part of the pending issues list (Issue 4).
+-   All major issues reported during the session were either fixed or are being addressed by the ongoing PostgreSQL migration.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
 -   **Backend:** Node.js, Express.js.
--   **Database:** SQLite.
+-   **Database:** Currently SQLite (multi-file), **migrating to PostgreSQL (single DB)**.
 -   **ORM:** Prisma.
--   **Architecture:** Multi-tenancy via dynamically instantiated Prisma clients for separate database files. This is a major improvement from the previous custom wrapper.
--   **Frontend:** React Native, Expo, Expo Router, React Context for auth.
--   **Data Fetching:** Now uses  hook from  for automatic data refreshing on screen focus.
+-   **Architecture:** Multi-tenancy. Currently via dynamic DB files, **migrating to  column in a shared DB**.
+-   **Frontend (Mobile):** React Native, Expo, Expo Router.
+-   **Frontend (Web):** Next.js, React, TailwindCSS (scaffolded).
 
 **key DB schema**
--   **Platform DB ():**
-    -   : 
--   **Association DB ():**
-    -   : 
-    -   :  (To be modified with )
-    -   , , , etc.
+The **target** PostgreSQL schema () will unify all data into a single database. Key models will include:
+-   : 
+-   :  (links to )
+-   :  (links to )
+-   :  (links to )
+-   , , , etc., will all have an  foreign key.
 
 **All files of reference**
--   **/app/backend/middleware/auth.js**: Contains the core stable logic for multi-DB connections. May need a  block for robustness.
--   **/app/backend/routes/import.js**: Suspected location of the disappearing members bug.
--   **/app/frontend/app/(tabs)/cotisations.js**: Location of the accumulating amount bug. Was heavily refactored to a 3x4 grid layout.
--   **/app/frontend/app/(tabs)/parametres.js**: Location for the Create Year UI/sync bug.
--   **/app/frontend/app/(tabs)/index.js**: Admin dashboard, now contains statistics.
--   **/app/backend/prisma/schema.prisma**: Will need to be modified to add the  field.
+-   **/app/backend/prisma/schema.prisma**: The old schema, to be replaced.
+-   **/app/backend/prisma/schema.postgresql.prisma**: The new schema to be used.
+-   **/app/backend/middleware/auth.js**: The old middleware, to be replaced.
+-   **/app/backend/middleware/auth.postgresql.js**: The new middleware logic.
+-   **All files in /app/backend/routes/**: These must all be refactored to use the new single Prisma client and .
+-   **/app/web/**: The newly created directory for the Next.js web application.
 
 **Critical Info for New Agent**
--   The highest priority is to investigate the disappearing imported members bug. This is likely a data persistence issue with the SQLite files, possibly specific to the user's deployment environment (Render), not the local one. Check how files are being written and if the file system is ephemeral.
--   The user is very hands-on with UI/UX. Be prepared for specific requests regarding layout, spacing, and component behavior (e.g., 3 rows of 4 months, make it compact).
--   The core backend architecture is now solid. Do not change the dynamic Prisma client approach in . The focus should be on frontend bugs and the new data persistence issue.
+-   **Your absolute top priority is to complete the PostgreSQL migration.** The application is not stable or production-ready until this is done. Follow the plan outlined in the In progress Task List.
+-   The user has approved this migration, so proceed with confidence.
+-   Do not get sidetracked by frontend features or bugs until the backend is migrated and stable.
+-   The Next.js web app in  is the next major task *after* the migration. It is currently just a skeleton.
+
+**documents created in this job**
+- A full Next.js project scaffold in .
+- New backend files for the PostgreSQL migration (e.g., ).
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User (Msg 352):** Reports 3 new bugs: 1) Contribution amount accumulates. 2) Create year amount input is bad and doesn't sync. 3) Imported member list disappears. (PENDING)
-2.  **User (Msg 349):** Asks which URL is the web version. (RESOLVED)
-3.  **Agent (Msg 348):** Explains how to get an APK (via EAS Build on local machine) and that the preview URL is the web version. (RESOLVED)
-4.  **User (Msg 345):** Asks for a web version of the APK. (RESOLVED)
-5.  **User (Msg 312):** Reports stats are still not showing, asks for a more compact home screen, and a 3x4 grid for the contributions table instead of horizontal scroll. (RESOLVED)
-6.  **User (Msg 297):** Reports that stats are not on the admin home page as requested. (RESOLVED)
-7.  **User (Msg 266):** Requests stats on the home page (not contributions page) and asks to start on improving the contributions table visibility (Part 3.1). (RESOLVED)
-8.  **User (Msg 225):** Provides a large multi-part feature/fix request. (PARTIALLY COMPLETED, some tasks pending)
-9.  **User (Msg 170):** Asks to remove the captcha and complains that members cannot be deleted. (RESOLVED)
-10. **User (Msg 112):** Posts an error log from a deployment environment: . (PENDING, now a higher priority issue)
+1.  **User (Msg 452):** Provided a detailed problem statement to migrate the backend from SQLite to PostgreSQL to fix data persistence issues on Render. (IN PROGRESS)
+2.  **User (Msg 442):** Asked how to test the newly created Next.js web app. (RESOLVED)
+3.  **User (Msg 411):** Provided a detailed problem statement to create a Next.js web admin dashboard. (COMPLETED - Scaffolding)
+4.  **User (Msg 380):** Provided screenshots of Database not found errors on mobile, re-surfacing the core data persistence problem. (PENDING - To be solved by PG migration)
+5.  **User (Msg 347):** Provided a problem statement to fix the members list disappearing bug. (COMPLETED)
+6.  **User (Msg 324):** Provided a problem statement to fix web vs. mobile authentication issues (AsyncStorage vs. localStorage). (COMPLETED)
+7.  **User (Msg 302):** Reported a JSX syntax error in the mobile app after the vehicle feature was added. (COMPLETED)
+8.  **User (Msg 256):** Reported that the vehicle plate feature was not visible for an admin after being enabled by a superadmin. (COMPLETED - Admin UI was then implemented)
+9.  **User (Msg 242):** Reported that the superadmin logout was not working. (COMPLETED)
+10. **User (Msg 185):** Requested the new feature for superadmins to manage association-specific features, like vehicle plates. (COMPLETED - for vehicle plates)
 
 **Project Health Check:**
--   **Broken:** The member import feature is critically broken due to a data persistence/loss issue. This is the top priority.
--   **Mocked:** None.
+-   **Broken**: The backend is in a broken state due to the half-finished migration. The entire application is non-functional until the PostgreSQL migration is complete.
+-   **Mocked**: None.
 
 **3rd Party Integrations**
 -   : For Excel file generation.
 -    & : For PDF file generation.
--   : Backend dependency for SQLite.
--   : For file selection in the frontend.
+-   : Backend dependency for SQLite (to be removed after migration).
+-   : Will be required for PostgreSQL.
+-   **Frontend (Web):** , , , , .
 
 **Testing status**
--   **Testing agent used after significant changes:** NO
--   **Troubleshoot agent used after agent stuck in loop:** NO
+-   **Testing agent used after significant changes:** NO (not since the migration started).
+-   **Troubleshoot agent used after agent stuck in loop:** NO.
 -   **Test files created:** None.
--   **Known regressions:** The member import feature is now unreliable due to data loss.
+-   **Known regressions:** The entire application is currently non-functional due to the in-progress backend migration.
 
 **Credentials to test flow:**
 -   **Role:** SUPER_ADMIN
-    -   **URL:** 
     -   **Email:** 
     -   **Password:** 
--   **Role:** ADMIN (for V1 Association)
-    -   **Association:** 
+-   **Role:** ADMIN (for SYNDIC BNI)
+    -   **Association:** SYNDIC BNI
     -   **Email:** 
     -   **Password:** 
 
 **What agent forgot to execute**
-- The agent correctly diagnosed the  error (message 113) and proposed adding a check to  to prevent a server crash. However, the agent was redirected by subsequent user requests and never implemented this robustness improvement. This unhandled error is likely related to the new critical bug of disappearing members.
-
+-   The agent correctly started the PostgreSQL migration as requested but was interrupted before it could integrate the new files and refactor the rest of the backend. The task is left half-finished.
 </analysis>

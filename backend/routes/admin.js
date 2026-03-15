@@ -1,7 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import { authenticateToken, requireAdmin, generateAccessToken } from '../middleware/auth.js';
-import platformPrisma from '../prisma/platformClient.js';
+import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -10,11 +9,14 @@ router.use(authenticateToken);
 router.use(requireAdmin);
 
 // GET /api/admin/list
-// Liste tous les ADMIN
+// Liste tous les ADMIN de l'association
 router.get('/list', async (req, res) => {
   try {
-    const admins = await req.prisma.user.findMany({
-      where: { role: 'ADMIN' },
+    const admins = await prisma.user.findMany({
+      where: { 
+        associationId: req.associationId,
+        role: 'ADMIN' 
+      },
       select: {
         id: true,
         email: true,
@@ -34,7 +36,7 @@ router.get('/list', async (req, res) => {
 });
 
 // POST /api/admin/create
-// Créer un nouvel ADMIN
+// Créer un nouvel ADMIN dans l'association
 router.post('/create', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
@@ -43,9 +45,12 @@ router.post('/create', async (req, res) => {
       return res.status(400).json({ error: 'Email et mot de passe requis' });
     }
 
-    // Vérifier si l'email existe déjà
-    const existing = await req.prisma.user.findUnique({
-      where: { email }
+    // Vérifier si l'email existe déjà dans l'association
+    const existing = await prisma.user.findFirst({
+      where: { 
+        associationId: req.associationId,
+        email 
+      }
     });
 
     if (existing) {
@@ -56,8 +61,9 @@ router.post('/create', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Créer l'ADMIN
-    const admin = await req.prisma.user.create({
+    const admin = await prisma.user.create({
       data: {
+        associationId: req.associationId,
         email,
         phone: phone || null,
         passwordHash,
@@ -91,12 +97,16 @@ router.put('/:id/deactivate', async (req, res) => {
       return res.status(400).json({ error: 'Vous ne pouvez pas vous désactiver vous-même' });
     }
 
-    const admin = await req.prisma.user.update({
-      where: { id, role: 'ADMIN' },
+    const admin = await prisma.user.updateMany({
+      where: { 
+        id, 
+        role: 'ADMIN',
+        associationId: req.associationId
+      },
       data: { active: false }
     });
 
-    res.json({ message: 'Administrateur désactivé', admin });
+    res.json({ message: 'Administrateur désactivé' });
   } catch (error) {
     console.error('Deactivate admin error:', error);
     res.status(500).json({ error: 'Erreur lors de la désactivation' });
@@ -109,12 +119,16 @@ router.put('/:id/activate', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const admin = await req.prisma.user.update({
-      where: { id, role: 'ADMIN' },
+    const admin = await prisma.user.updateMany({
+      where: { 
+        id, 
+        role: 'ADMIN',
+        associationId: req.associationId
+      },
       data: { active: true }
     });
 
-    res.json({ message: 'Administrateur réactivé', admin });
+    res.json({ message: 'Administrateur réactivé' });
   } catch (error) {
     console.error('Activate admin error:', error);
     res.status(500).json({ error: 'Erreur lors de la réactivation' });
@@ -134,8 +148,12 @@ router.post('/:id/reset-password', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
-    await req.prisma.user.update({
-      where: { id, role: 'ADMIN' },
+    await prisma.user.updateMany({
+      where: { 
+        id, 
+        role: 'ADMIN',
+        associationId: req.associationId
+      },
       data: { passwordHash }
     });
 

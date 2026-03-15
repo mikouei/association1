@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -9,17 +9,19 @@ router.use(authenticateToken);
 const CONTRIBUTION_TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'autre'];
 
 // GET /api/exceptional
-// Liste toutes les cotisations exceptionnelles
+// Liste toutes les cotisations exceptionnelles de l'association
 router.get('/', async (req, res) => {
   try {
     const { active } = req.query;
     
-    const where = {};
+    const where = {
+      associationId: req.associationId
+    };
     if (active !== undefined) {
       where.active = active === 'true';
     }
 
-    const contributions = await req.prisma.exceptionalContribution.findMany({
+    const contributions = await prisma.exceptionalContribution.findMany({
       where,
       include: {
         payments: {
@@ -60,8 +62,11 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const contribution = await req.prisma.exceptionalContribution.findUnique({
-      where: { id },
+    const contribution = await prisma.exceptionalContribution.findFirst({
+      where: { 
+        id,
+        associationId: req.associationId
+      },
       include: {
         payments: {
           include: {
@@ -110,8 +115,9 @@ router.post('/', requireAdmin, async (req, res) => {
       });
     }
 
-    const contribution = await req.prisma.exceptionalContribution.create({
+    const contribution = await prisma.exceptionalContribution.create({
       data: {
+        associationId: req.associationId,
         title,
         type,
         description: description || null,
@@ -133,6 +139,18 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { title, type, description, active } = req.body;
 
+    // Vérifier que la cotisation appartient à l'association
+    const existing = await prisma.exceptionalContribution.findFirst({
+      where: { 
+        id,
+        associationId: req.associationId
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Cotisation introuvable' });
+    }
+
     const updateData = {};
     if (title) updateData.title = title;
     if (type) {
@@ -146,7 +164,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     if (description !== undefined) updateData.description = description;
     if (active !== undefined) updateData.active = active;
 
-    const contribution = await req.prisma.exceptionalContribution.update({
+    const contribution = await prisma.exceptionalContribution.update({
       where: { id },
       data: updateData
     });
@@ -164,7 +182,19 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    await req.prisma.exceptionalContribution.delete({
+    // Vérifier que la cotisation appartient à l'association
+    const existing = await prisma.exceptionalContribution.findFirst({
+      where: { 
+        id,
+        associationId: req.associationId
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Cotisation introuvable' });
+    }
+
+    await prisma.exceptionalContribution.delete({
       where: { id }
     });
 
@@ -190,9 +220,12 @@ router.post('/:id/payments', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Montant invalide' });
     }
 
-    // Vérifier que la cotisation existe
-    const contribution = await req.prisma.exceptionalContribution.findUnique({
-      where: { id }
+    // Vérifier que la cotisation existe dans l'association
+    const contribution = await prisma.exceptionalContribution.findFirst({
+      where: { 
+        id,
+        associationId: req.associationId
+      }
     });
 
     if (!contribution) {
@@ -200,16 +233,26 @@ router.post('/:id/payments', requireAdmin, async (req, res) => {
     }
 
     // Trouver le membre (accepte userId ou memberId)
-    let member = await req.prisma.member.findUnique({ where: { id: memberId } });
+    let member = await prisma.member.findFirst({ 
+      where: { 
+        id: memberId,
+        associationId: req.associationId
+      } 
+    });
     if (!member) {
-      member = await req.prisma.member.findUnique({ where: { userId: memberId } });
+      member = await prisma.member.findFirst({ 
+        where: { 
+          userId: memberId,
+          associationId: req.associationId
+        } 
+      });
     }
 
     if (!member) {
       return res.status(404).json({ error: 'Membre introuvable' });
     }
 
-    const payment = await req.prisma.exceptionalPayment.create({
+    const payment = await prisma.exceptionalPayment.create({
       data: {
         contributionId: id,
         memberId: member.id,
@@ -243,7 +286,7 @@ router.put('/payments/:paymentId', requireAdmin, async (req, res) => {
     if (paymentDate) updateData.paymentDate = new Date(paymentDate);
     if (notes !== undefined) updateData.notes = notes;
 
-    const payment = await req.prisma.exceptionalPayment.update({
+    const payment = await prisma.exceptionalPayment.update({
       where: { id: paymentId },
       data: updateData
     });
@@ -261,7 +304,7 @@ router.delete('/payments/:paymentId', requireAdmin, async (req, res) => {
   try {
     const { paymentId } = req.params;
 
-    await req.prisma.exceptionalPayment.delete({
+    await prisma.exceptionalPayment.delete({
       where: { id: paymentId }
     });
 

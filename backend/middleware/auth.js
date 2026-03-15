@@ -1,114 +1,149 @@
+// Middleware d'authentification pour AssocManager - PostgreSQL Multi-Tenant
 import jwt from 'jsonwebtoken';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_change_this';
+// Instance Prisma unique (singleton)
+const prisma = new PrismaClient();
 
-// Client Prisma par défaut (pour V1 - assocmanager.db)
-const defaultPrisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'assocmanager-secret-key-2024';
 
-// Cache pour les clients Prisma dynamiques par association
-const prismaClients = new Map();
-
-// Créer un vrai client Prisma pour une association (même schéma, DB différente)
-export const getSqliteClientForAssociation = (dbName) => {
-  // Pour la DB par défaut, utiliser le client Prisma standard
-  if (dbName === 'assocmanager.db') {
-    return defaultPrisma;
-  }
-  
-  // Si déjà en cache, retourner
-  if (prismaClients.has(dbName)) {
-    return prismaClients.get(dbName);
-  }
-
-  const dbPath = path.join(__dirname, '../prisma', dbName);
-  
-  // IMPORTANT: Ne PAS créer de base vide si elle n'existe pas !
-  // Cela causerait une perte de données si le fichier a été temporairement inaccessible
-  if (!fs.existsSync(dbPath)) {
-    console.error(`[DB] Base de données introuvable: ${dbPath}`);
-    throw new Error(`Base de données non trouvée: ${dbName}. L'association n'existe peut-être plus.`);
-  }
-
-  // Créer un VRAI client Prisma qui pointe vers la DB de l'association
-  // Toutes les DB ont le même schéma, donc le même client généré fonctionne
-  const client = new PrismaClient({
-    datasources: {
-      db: {
-        url: `file:${dbPath}`
-      }
-    }
-  });
-  
-  prismaClients.set(dbName, client);
-  return client;
-};
-
-// Middleware pour vérifier le JWT et charger la bonne DB
+/**
+ * Middleware d'authentification principal
+ * - Vérifie le token JWT
+ * - Extrait l'associationId du token
+ * - Attache prisma, user, et associationId à la requête
+ */
 export const authenticateToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token manquant' });
+  }
+
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ error: 'Token manquant' });
-    }
-
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Charger la bonne DB selon le token
-    if (decoded.dbName) {
-      req.prisma = getSqliteClientForAssociation(decoded.dbName);
-      req.associationId = decoded.associationId;
-      req.dbName = decoded.dbName;
-    } else {
-      req.prisma = defaultPrisma;
-    }
+    // Extraire les informations du token
+    const { userId, associationId, role } = decoded;
     
-    // Vérifier que userId existe
-    if (!decoded.userId) {
-      return res.status(401).json({ error: 'Token invalide - userId manquant' });
+    if (!userId || !associationId) {
+      return res.status(401).json({ error: 'Token invalide' });
     }
-    
-    // Récupérer l'utilisateur
-    const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: { member: true }
+
+    // Vérifier que l'association existe et est active
+    const association = await prisma.association.findUnique({
+      where: { id: associationId }
     });
 
-    if (!user || !user.active) {
-      return res.status(401).json({ error: 'Utilisateur inactif ou introuvable' });
+    if (!association) {
+      return res.status(404).json({ error: 'Association non trouvée' });
     }
 
+    if (!association.active) {
+      return res.status(403).json({ error: 'Association désactivée' });
+    }
+
+    // Récupérer l'utilisateur
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        associationId: associationId
+      },
+      include: {
+        member: true
+      }
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    if (!user.active) {
+      return res.status(403).json({ error: 'Compte désactivé' });
+    }
+
+    // Attacher les informations à la requête
+    req.prisma = prisma;
     req.user = user;
+    req.associationId = associationId;
+    req.association = association;
+
     next();
   } catch (error) {
     console.error('Auth error:', error);
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expiré' });
+    }
+    
     return res.status(403).json({ error: 'Token invalide' });
   }
 };
 
-// Middleware pour vérifier le rôle ADMIN
+/**
+ * Middleware pour vérifier le rôle ADMIN
+ */
 export const requireAdmin = (req, res, next) => {
-  if (req.user.role !== 'ADMIN') {
-    return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
+  if (req.user?.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Accès administrateur requis' });
   }
   next();
 };
 
-// Générer un token JWT avec association
-export const generateToken = (userId, associationId = null, dbName = null) => {
-  const payload = { userId };
-  if (associationId) payload.associationId = associationId;
-  if (dbName) payload.dbName = dbName;
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+/**
+ * Middleware pour les routes qui n'ont pas besoin d'authentification
+ * mais qui ont besoin d'accéder à Prisma (ex: login, register)
+ */
+export const attachPrisma = (req, res, next) => {
+  req.prisma = prisma;
+  next();
 };
 
-// Générer un token d'accès simple pour les membres
+/**
+ * Résoudre l'associationId à partir du code d'association
+ * Utilisé pour le login où on n'a pas encore de token
+ */
+export const resolveAssociationByCode = async (code) => {
+  if (!code) return null;
+  
+  const association = await prisma.association.findUnique({
+    where: { code: code.toUpperCase() }
+  });
+  
+  return association;
+};
+
+/**
+ * Générer un token d'accès pour un membre
+ */
 export const generateAccessToken = () => {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15);
+};
+
+/**
+ * Générer un token JWT
+ */
+export const generateJWT = (userId, associationId, role) => {
+  return jwt.sign(
+    { userId, associationId, role },
+    JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+};
+
+/**
+ * Export du client Prisma pour usage direct
+ */
+export { prisma };
+
+export default {
+  authenticateToken,
+  requireAdmin,
+  attachPrisma,
+  resolveAssociationByCode,
+  generateAccessToken,
+  generateJWT,
+  prisma
 };

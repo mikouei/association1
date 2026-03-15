@@ -1,54 +1,99 @@
+// Script pour initialiser la base de données PostgreSQL
+// Crée le SuperAdmin et une association par défaut
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🔧 Initialisation de la base de données...');
+  console.log('🔄 Initialisation de la base de données AssocManager...');
 
-  // Vérifier si des utilisateurs existent
-  const userCount = await prisma.user.count();
+  // 1. Créer le SuperAdmin
+  const superAdminEmail = 'superadmin@platform.local';
+  const superAdminPassword = 'superadmin';
 
-  if (userCount === 0) {
-    console.log('📝 Création de l\'administrateur par défaut...');
+  const existingSuperAdmin = await prisma.superAdmin.findUnique({
+    where: { email: superAdminEmail }
+  });
 
-    // Créer l'ADMIN par défaut
-    const passwordHash = await bcrypt.hash('admin', 10);
-    const admin = await prisma.user.create({
+  if (!existingSuperAdmin) {
+    const passwordHash = await bcrypt.hash(superAdminPassword, 10);
+    await prisma.superAdmin.create({
       data: {
-        email: 'admin@assocmanager.local',
+        email: superAdminEmail,
         passwordHash,
+        name: 'Super Administrateur',
+        active: true
+      }
+    });
+    console.log('✅ SuperAdmin créé:');
+    console.log(`   Email: ${superAdminEmail}`);
+    console.log(`   Password: ${superAdminPassword}`);
+  } else {
+    console.log('ℹ️  SuperAdmin existe déjà');
+  }
+
+  // 2. Créer une association par défaut (SYNDIC BNI)
+  const defaultAssociationCode = 'SYNDIC-BNI';
+
+  const existingAssociation = await prisma.association.findUnique({
+    where: { code: defaultAssociationCode }
+  });
+
+  if (!existingAssociation) {
+    const adminEmail = 'drigo@drigo.local';
+    const adminPassword = 'drigo';
+    const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+
+    const association = await prisma.association.create({
+      data: {
+        name: 'SYNDIC BNI',
+        type: 'syndicat',
+        code: defaultAssociationCode,
+        active: true,
+        adminEmail,
+        adminName: 'Administrateur BNI',
+        memberFieldLabel: 'Villa',
+        enableVehiclePlates: true
+      }
+    });
+
+    // Créer l'admin de l'association
+    await prisma.user.create({
+      data: {
+        associationId: association.id,
+        email: adminEmail,
+        passwordHash: adminPasswordHash,
         role: 'ADMIN',
         active: true
       }
     });
 
-    console.log('✅ Administrateur créé:');
-    console.log('   Email: admin@assocmanager.local');
-    console.log('   Mot de passe: admin');
-    console.log('   ⚠️  Pensez à changer le mot de passe après la première connexion!');
+    console.log('✅ Association par défaut créée:');
+    console.log(`   Nom: ${association.name}`);
+    console.log(`   Code: ${association.code}`);
+    console.log(`   Admin Email: ${adminEmail}`);
+    console.log(`   Admin Password: ${adminPassword}`);
   } else {
-    console.log(`ℹ️  ${userCount} utilisateur(s) déjà existant(s)`);
+    console.log('ℹ️  Association par défaut existe déjà');
   }
 
-  // Vérifier la configuration de l'association
-  let config = await prisma.associationConfig.findFirst();
-
-  if (!config) {
-    console.log('📝 Création de la configuration par défaut...');
-    config = await prisma.associationConfig.create({
+  // 3. Créer la config de la plateforme
+  const existingConfig = await prisma.platformConfig.findFirst();
+  if (!existingConfig) {
+    await prisma.platformConfig.create({
       data: {
-        name: 'Mon Association',
-        type: 'Association',
-        memberFieldLabel: 'Villa'
+        name: 'AssocManager Platform',
+        version: '2.0.0'
       }
     });
-    console.log('✅ Configuration créée');
-  } else {
-    console.log('ℹ️  Configuration déjà existante');
+    console.log('✅ Configuration plateforme créée');
   }
 
-  console.log('\n✅ Initialisation terminée!');
+  console.log('\n🎉 Base de données initialisée avec succès!');
 }
 
 main()

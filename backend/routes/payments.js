@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -17,18 +17,24 @@ router.get('/year/:yearId', async (req, res) => {
   try {
     const { yearId } = req.params;
 
-    // Récupérer l'année
-    const year = await req.prisma.year.findUnique({
-      where: { id: yearId }
+    // Récupérer l'année (vérifier qu'elle appartient à l'association)
+    const year = await prisma.year.findFirst({
+      where: { 
+        id: yearId,
+        associationId: req.associationId
+      }
     });
 
     if (!year) {
       return res.status(404).json({ error: 'Année introuvable' });
     }
 
-    // Récupérer tous les membres actifs
-    const members = await req.prisma.member.findMany({
-      where: { active: true },
+    // Récupérer tous les membres actifs de l'association
+    const members = await prisma.member.findMany({
+      where: { 
+        associationId: req.associationId,
+        active: true 
+      },
       include: {
         user: true,
         payments: {
@@ -90,15 +96,18 @@ router.get('/member/:memberId/year/:yearId', async (req, res) => {
   try {
     const { memberId, yearId } = req.params;
 
-    const year = await req.prisma.year.findUnique({
-      where: { id: yearId }
+    const year = await prisma.year.findFirst({
+      where: { 
+        id: yearId,
+        associationId: req.associationId
+      }
     });
 
     if (!year) {
       return res.status(404).json({ error: 'Année introuvable' });
     }
 
-    const payments = await req.prisma.monthlyPayment.findMany({
+    const payments = await prisma.monthlyPayment.findMany({
       where: {
         memberId,
         yearId
@@ -165,16 +174,31 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Montant invalide' });
     }
 
-    // Vérifier que le membre et l'année existent
+    // Vérifier que le membre et l'année existent dans l'association
     // memberId peut être userId ou memberId direct
-    let member = await req.prisma.member.findUnique({ where: { id: memberId } });
+    let member = await prisma.member.findFirst({ 
+      where: { 
+        id: memberId,
+        associationId: req.associationId
+      } 
+    });
     
     if (!member) {
       // Essayer de trouver par userId
-      member = await req.prisma.member.findUnique({ where: { userId: memberId } });
+      member = await prisma.member.findFirst({ 
+        where: { 
+          userId: memberId,
+          associationId: req.associationId
+        } 
+      });
     }
 
-    const year = await req.prisma.year.findUnique({ where: { id: yearId } });
+    const year = await prisma.year.findFirst({ 
+      where: { 
+        id: yearId,
+        associationId: req.associationId
+      } 
+    });
 
     if (!member) {
       return res.status(404).json({ error: 'Membre introuvable' });
@@ -185,7 +209,7 @@ router.post('/', requireAdmin, async (req, res) => {
     }
 
     // Vérifier s'il existe déjà un paiement pour ce membre/année/mois
-    const existingPayment = await req.prisma.monthlyPayment.findFirst({
+    const existingPayment = await prisma.monthlyPayment.findFirst({
       where: {
         memberId: member.id,
         yearId,
@@ -197,7 +221,7 @@ router.post('/', requireAdmin, async (req, res) => {
     
     if (existingPayment) {
       // MISE À JOUR: Remplacer le montant existant (ne pas accumuler)
-      payment = await req.prisma.monthlyPayment.update({
+      payment = await prisma.monthlyPayment.update({
         where: { id: existingPayment.id },
         data: {
           amountPaid: parseFloat(amountPaid),
@@ -207,7 +231,7 @@ router.post('/', requireAdmin, async (req, res) => {
       });
     } else {
       // CRÉATION: Nouveau paiement
-      payment = await req.prisma.monthlyPayment.create({
+      payment = await prisma.monthlyPayment.create({
         data: {
           memberId: member.id,
           yearId,
@@ -242,7 +266,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     if (paymentDate) updateData.paymentDate = new Date(paymentDate);
     if (notes !== undefined) updateData.notes = notes;
 
-    const payment = await req.prisma.monthlyPayment.update({
+    const payment = await prisma.monthlyPayment.update({
       where: { id },
       data: updateData
     });
@@ -260,7 +284,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    await req.prisma.monthlyPayment.delete({
+    await prisma.monthlyPayment.delete({
       where: { id }
     });
 
@@ -277,21 +301,27 @@ router.get('/stats/year/:yearId', async (req, res) => {
   try {
     const { yearId } = req.params;
 
-    const year = await req.prisma.year.findUnique({
-      where: { id: yearId }
+    const year = await prisma.year.findFirst({
+      where: { 
+        id: yearId,
+        associationId: req.associationId
+      }
     });
 
     if (!year) {
       return res.status(404).json({ error: 'Année introuvable' });
     }
 
-    // Compter les membres actifs
-    const activeMembersCount = await req.prisma.member.count({
-      where: { active: true }
+    // Compter les membres actifs de l'association
+    const activeMembersCount = await prisma.member.count({
+      where: { 
+        associationId: req.associationId,
+        active: true 
+      }
     });
 
     // Calculer le total des paiements
-    const payments = await req.prisma.monthlyPayment.findMany({
+    const payments = await prisma.monthlyPayment.findMany({
       where: { yearId },
       include: { member: true }
     });
@@ -302,8 +332,11 @@ router.get('/stats/year/:yearId', async (req, res) => {
     const percentage = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
 
     // Compter les membres à jour (payé >= dû)
-    const membersWithPayments = await req.prisma.member.findMany({
-      where: { active: true },
+    const membersWithPayments = await prisma.member.findMany({
+      where: { 
+        associationId: req.associationId,
+        active: true 
+      },
       include: {
         payments: { where: { yearId } }
       }

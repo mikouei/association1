@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -11,8 +11,11 @@ router.use(requireAdmin);
 // Exporter les membres au format CSV
 router.get('/members', async (req, res) => {
   try {
-    const members = await req.prisma.user.findMany({
-      where: { role: 'MEMBER' },
+    const members = await prisma.user.findMany({
+      where: { 
+        associationId: req.associationId,
+        role: 'MEMBER' 
+      },
       include: { member: true },
       orderBy: { createdAt: 'asc' }
     });
@@ -41,16 +44,22 @@ router.get('/statistics/:yearId', async (req, res) => {
   try {
     const { yearId } = req.params;
 
-    const year = await req.prisma.year.findUnique({
-      where: { id: yearId }
+    const year = await prisma.year.findFirst({
+      where: { 
+        id: yearId,
+        associationId: req.associationId
+      }
     });
 
     if (!year) {
       return res.status(404).json({ error: 'Année introuvable' });
     }
 
-    const members = await req.prisma.member.findMany({
-      where: { active: true },
+    const members = await prisma.member.findMany({
+      where: { 
+        associationId: req.associationId,
+        active: true 
+      },
       include: {
         user: true,
         payments: { where: { yearId } }

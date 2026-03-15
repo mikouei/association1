@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import memberRoutes from './routes/members.js';
@@ -17,7 +17,6 @@ import vehicleRoutes from './routes/vehicles.js';
 dotenv.config();
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 8001;
 
 // Middleware
@@ -25,7 +24,8 @@ app.use(cors({
   origin: [
     "http://localhost:3000",
     "http://localhost:19006",
-    "https://assocmanager-web.onrender.com"
+    "https://assocmanager-web.onrender.com",
+    "https://db-persistence-fix.preview.emergentagent.com"
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -33,15 +33,19 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Make prisma available in req
-app.use((req, res, next) => {
-  req.prisma = prisma;
-  next();
-});
-
 // Routes
 app.get('/api', (req, res) => {
-  res.json({ message: 'AssocManager API V2', status: 'OK', version: '2.0.0' });
+  res.json({ 
+    message: 'AssocManager API V2', 
+    status: 'OK', 
+    version: '2.0.0',
+    database: 'PostgreSQL'
+  });
+});
+
+// Health check
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
 
 // Routes V1 (Association)
@@ -80,14 +84,10 @@ process.on('SIGTERM', async () => {
 });
 
 // Start server
-
-app.get('/healthz', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 AssocManager API démarrée sur le port ${PORT}`);
   console.log(`📍 http://0.0.0.0:${PORT}/api`);
+  console.log(`🗄️  Base de données: PostgreSQL`);
 });
 
 export default app;

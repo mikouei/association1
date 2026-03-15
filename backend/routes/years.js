@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -7,10 +7,11 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // GET /api/years
-// Liste toutes les années
+// Liste toutes les années de l'association
 router.get('/', async (req, res) => {
   try {
-    const years = await req.prisma.year.findMany({
+    const years = await prisma.year.findMany({
+      where: { associationId: req.associationId },
       orderBy: { year: 'desc' }
     });
     res.json(years);
@@ -21,11 +22,14 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/years/active
-// Récupérer l'année active
+// Récupérer l'année active de l'association
 router.get('/active', async (req, res) => {
   try {
-    const activeYear = await req.prisma.year.findFirst({
-      where: { active: true }
+    const activeYear = await prisma.year.findFirst({
+      where: { 
+        associationId: req.associationId,
+        active: true 
+      }
     });
     
     if (!activeYear) {
@@ -49,9 +53,12 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Année et montant mensuel requis' });
     }
 
-    // Vérifier si l'année existe déjà
-    const existing = await req.prisma.year.findUnique({
-      where: { year: parseInt(year) }
+    // Vérifier si l'année existe déjà dans l'association
+    const existing = await prisma.year.findFirst({
+      where: { 
+        associationId: req.associationId,
+        year: parseInt(year) 
+      }
     });
 
     if (existing) {
@@ -60,14 +67,18 @@ router.post('/', requireAdmin, async (req, res) => {
 
     // Si on crée une année active, désactiver les autres
     if (active) {
-      await req.prisma.year.updateMany({
-        where: { active: true },
+      await prisma.year.updateMany({
+        where: { 
+          associationId: req.associationId,
+          active: true 
+        },
         data: { active: false }
       });
     }
 
-    const newYear = await req.prisma.year.create({
+    const newYear = await prisma.year.create({
       data: {
+        associationId: req.associationId,
         year: parseInt(year),
         monthlyAmount: parseFloat(monthlyAmount),
         active: active || false
@@ -92,7 +103,19 @@ router.put('/:id', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Montant mensuel requis' });
     }
 
-    const updatedYear = await req.prisma.year.update({
+    // Vérifier que l'année appartient à l'association
+    const existing = await prisma.year.findFirst({
+      where: { 
+        id,
+        associationId: req.associationId
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Année introuvable' });
+    }
+
+    const updatedYear = await prisma.year.update({
       where: { id },
       data: { monthlyAmount: parseFloat(monthlyAmount) }
     });
@@ -110,14 +133,29 @@ router.put('/:id/activate', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Désactiver toutes les autres années
-    await req.prisma.year.updateMany({
-      where: { active: true },
+    // Vérifier que l'année appartient à l'association
+    const existing = await prisma.year.findFirst({
+      where: { 
+        id,
+        associationId: req.associationId
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Année introuvable' });
+    }
+
+    // Désactiver toutes les autres années de l'association
+    await prisma.year.updateMany({
+      where: { 
+        associationId: req.associationId,
+        active: true 
+      },
       data: { active: false }
     });
 
     // Activer l'année ciblée
-    const activatedYear = await req.prisma.year.update({
+    const activatedYear = await prisma.year.update({
       where: { id },
       data: { active: true }
     });
@@ -135,8 +173,20 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Vérifier que l'année appartient à l'association
+    const existing = await prisma.year.findFirst({
+      where: { 
+        id,
+        associationId: req.associationId
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Année introuvable' });
+    }
+
     // Vérifier si l'année a des paiements
-    const paymentsCount = await req.prisma.monthlyPayment.count({
+    const paymentsCount = await prisma.monthlyPayment.count({
       where: { yearId: id }
     });
 
@@ -146,7 +196,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
       });
     }
 
-    await req.prisma.year.delete({
+    await prisma.year.delete({
       where: { id }
     });
 

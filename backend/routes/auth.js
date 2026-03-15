@@ -1,23 +1,20 @@
+// Routes d'authentification pour AssocManager - PostgreSQL Multi-Tenant
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import { generateToken, authenticateToken, getSqliteClientForAssociation } from '../middleware/auth.js';
-import { PrismaClient as PlatformPrismaClient } from '../node_modules/.prisma/platform-client/index.js';
+import { 
+  prisma, 
+  authenticateToken, 
+  attachPrisma,
+  resolveAssociationByCode,
+  generateJWT,
+  generateAccessToken 
+} from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Client Platform pour récupérer les infos des associations
-let platformPrisma = null;
-const getPlatformPrisma = async () => {
-  if (!platformPrisma) {
-    platformPrisma = new PlatformPrismaClient();
-  }
-  return platformPrisma;
-};
-
 // GET /api/auth/associations - Liste des associations actives pour le login
-router.get('/associations', async (req, res) => {
+router.get('/associations', attachPrisma, async (req, res) => {
   try {
-    const prisma = await getPlatformPrisma();
     const associations = await prisma.association.findMany({
       where: { active: true },
       select: {
@@ -28,45 +25,45 @@ router.get('/associations', async (req, res) => {
       },
       orderBy: { name: 'asc' }
     });
+
     res.json(associations);
   } catch (error) {
-    console.error('Erreur liste associations:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Get associations error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des associations' });
   }
 });
 
 // POST /api/auth/login
-// Login avec associationCode + phone + password OU token d'accès
-router.post('/login', async (req, res) => {
+// Connexion utilisateur (ADMIN ou MEMBER)
+router.post('/login', attachPrisma, async (req, res) => {
   try {
-    const { identifier, password, accessToken, associationCode, phone } = req.body;
+    const { identifier, phone, password, associationCode, accessToken } = req.body;
 
-    // Récupérer l'association par son code
-    let association = null;
-    let associationPrisma = req.prisma; // Par défaut, la DB V1
-    
-    if (associationCode) {
-      const platform = await getPlatformPrisma();
-      association = await platform.association.findUnique({
-        where: { code: associationCode }
-      });
-      
-      if (!association) {
-        return res.status(400).json({ error: 'Association non trouvée' });
-      }
-      
-      if (!association.active) {
-        return res.status(400).json({ error: 'Cette association est désactivée' });
-      }
-      
-      // Charger le client Prisma pour cette association
-      associationPrisma = getSqliteClientForAssociation(association.dbName);
+    // Identifier peut être email ou phone
+    const loginIdentifier = phone || identifier;
+
+    if (!associationCode) {
+      return res.status(400).json({ error: 'Code association requis' });
     }
 
-    // Cas 1: Login avec token d'accès (pour les membres)
+    // Résoudre l'association par son code
+    const association = await resolveAssociationByCode(associationCode);
+    
+    if (!association) {
+      return res.status(404).json({ error: 'Association non trouvée' });
+    }
+
+    if (!association.active) {
+      return res.status(403).json({ error: 'Association désactivée' });
+    }
+
+    let user;
+
+    // Connexion par token d'accès (pour les membres)
     if (accessToken) {
-      const user = await associationPrisma.user.findFirst({
-        where: { 
+      user = await prisma.user.findFirst({
+        where: {
+          associationId: association.id,
           token: accessToken,
           active: true
         },
@@ -76,65 +73,42 @@ router.post('/login', async (req, res) => {
       if (!user) {
         return res.status(401).json({ error: 'Token d\'accès invalide' });
       }
+    } 
+    // Connexion par identifiant + mot de passe
+    else {
+      if (!loginIdentifier || !password) {
+        return res.status(400).json({ error: 'Identifiant et mot de passe requis' });
+      }
 
-      const token = generateToken(
-        user.id, 
-        association?.id || null, 
-        association?.dbName || null
-      );
-      
-      return res.json({
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          member: user.member
+      // Rechercher l'utilisateur par email ou téléphone
+      user = await prisma.user.findFirst({
+        where: {
+          associationId: association.id,
+          OR: [
+            { email: loginIdentifier },
+            { phone: loginIdentifier }
+          ]
         },
-        association: association ? {
-          id: association.id,
-          name: association.name,
-          code: association.code
-        } : null
+        include: { member: true }
       });
+
+      if (!user) {
+        return res.status(401).json({ error: 'Identifiants invalides' });
+      }
+
+      if (!user.active) {
+        return res.status(403).json({ error: 'Compte désactivé' });
+      }
+
+      // Vérifier le mot de passe
+      const validPassword = await bcrypt.compare(password, user.passwordHash);
+      if (!validPassword) {
+        return res.status(401).json({ error: 'Identifiants invalides' });
+      }
     }
 
-    // Cas 2: Login avec phone/email + password (nouvelle méthode avec association)
-    const loginIdentifier = phone || identifier;
-    
-    if (!loginIdentifier || !password) {
-      return res.status(400).json({ error: 'Identifiant et mot de passe requis' });
-    }
-
-    // Chercher par email ou téléphone
-    const user = await associationPrisma.user.findFirst({
-      where: {
-        OR: [
-          { email: loginIdentifier },
-          { phone: loginIdentifier }
-        ],
-        active: true
-      },
-      include: { member: true }
-    });
-
-    if (!user) {
-      return res.status(401).json({ error: 'Identifiants invalides' });
-    }
-
-    // Vérifier le mot de passe
-    const validPassword = await bcrypt.compare(password, user.passwordHash);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Identifiants invalides' });
-    }
-
-    // Générer le token JWT avec l'association
-    const token = generateToken(
-      user.id, 
-      association?.id || null, 
-      association?.dbName || null
-    );
+    // Générer le token JWT
+    const token = generateJWT(user.id, association.id, user.role);
 
     res.json({
       token,
@@ -145,45 +119,38 @@ router.post('/login', async (req, res) => {
         role: user.role,
         member: user.member
       },
-      association: association ? {
+      association: {
         id: association.id,
         name: association.name,
         code: association.code
-      } : null
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Erreur lors de la connexion' });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
 // GET /api/auth/me
-// Récupérer les infos de l'utilisateur connecté
+// Profil utilisateur connecté
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    // Récupérer les infos de l'association si présente
-    let associationInfo = null;
-    if (req.associationId) {
-      const platform = await getPlatformPrisma();
-      const association = await platform.association.findUnique({
-        where: { id: req.associationId }
-      });
-      if (association) {
-        associationInfo = {
-          id: association.id,
-          name: association.name,
-          code: association.code
-        };
-      }
-    }
-    
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { member: true }
+    });
+
     res.json({
-      id: req.user.id,
-      email: req.user.email,
-      phone: req.user.phone,
-      role: req.user.role,
-      member: req.user.member,
-      association: associationInfo
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      member: user.member,
+      association: {
+        id: req.association.id,
+        name: req.association.name,
+        code: req.association.code
+      }
     });
   } catch (error) {
     console.error('Get me error:', error);
@@ -192,30 +159,12 @@ router.get('/me', authenticateToken, async (req, res) => {
 });
 
 // GET /api/auth/association-settings
-// Récupérer les paramètres de l'association (enableVehiclePlates, customFieldLabel)
+// Paramètres de l'association
 router.get('/association-settings', authenticateToken, async (req, res) => {
   try {
-    // Récupérer les paramètres depuis la base platform
-    const { PrismaClient: PlatformPrismaClient } = await import('../node_modules/.prisma/platform-client/index.js');
-    const platformPrisma = new PlatformPrismaClient();
-    
-    // Trouver l'association par son dbName
-    const association = await platformPrisma.association.findFirst({
-      where: { dbName: req.dbName }
-    });
-    
-    await platformPrisma.$disconnect();
-    
-    if (!association) {
-      return res.json({
-        enableVehiclePlates: false,
-        customFieldLabel: 'Villa'
-      });
-    }
-    
     res.json({
-      enableVehiclePlates: association.enableVehiclePlates || false,
-      customFieldLabel: association.customFieldLabel || 'Villa'
+      enableVehiclePlates: req.association.enableVehiclePlates || false,
+      customFieldLabel: req.association.memberFieldLabel || 'Villa'
     });
   } catch (error) {
     console.error('Get association settings error:', error);

@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -11,7 +11,19 @@ router.get('/member/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
     
-    const vehicles = await req.prisma.vehiclePlate.findMany({
+    // Vérifier que le membre appartient à l'association
+    const member = await prisma.member.findFirst({
+      where: { 
+        id: memberId,
+        associationId: req.associationId
+      }
+    });
+
+    if (!member) {
+      return res.status(404).json({ error: 'Membre introuvable' });
+    }
+    
+    const vehicles = await prisma.vehiclePlate.findMany({
       where: { memberId },
       orderBy: { createdAt: 'desc' }
     });
@@ -32,13 +44,18 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Membre et numéro de plaque requis' });
     }
     
-    // Vérifier que le membre existe
-    const member = await req.prisma.member.findUnique({ where: { id: memberId } });
+    // Vérifier que le membre existe dans l'association
+    const member = await prisma.member.findFirst({ 
+      where: { 
+        id: memberId,
+        associationId: req.associationId
+      } 
+    });
     if (!member) {
       return res.status(404).json({ error: 'Membre introuvable' });
     }
     
-    const vehicle = await req.prisma.vehiclePlate.create({
+    const vehicle = await prisma.vehiclePlate.create({
       data: {
         memberId,
         plateNumber: plateNumber.toUpperCase().trim(),
@@ -60,7 +77,17 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { plateNumber, description, active } = req.body;
     
-    const vehicle = await req.prisma.vehiclePlate.update({
+    // Vérifier que le véhicule appartient à un membre de l'association
+    const existingVehicle = await prisma.vehiclePlate.findFirst({
+      where: { id },
+      include: { member: true }
+    });
+
+    if (!existingVehicle || existingVehicle.member.associationId !== req.associationId) {
+      return res.status(404).json({ error: 'Véhicule introuvable' });
+    }
+    
+    const vehicle = await prisma.vehiclePlate.update({
       where: { id },
       data: {
         ...(plateNumber && { plateNumber: plateNumber.toUpperCase().trim() }),
@@ -81,7 +108,17 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
-    await req.prisma.vehiclePlate.delete({ where: { id } });
+    // Vérifier que le véhicule appartient à un membre de l'association
+    const existingVehicle = await prisma.vehiclePlate.findFirst({
+      where: { id },
+      include: { member: true }
+    });
+
+    if (!existingVehicle || existingVehicle.member.associationId !== req.associationId) {
+      return res.status(404).json({ error: 'Véhicule introuvable' });
+    }
+    
+    await prisma.vehiclePlate.delete({ where: { id } });
     
     res.json({ message: 'Véhicule supprimé' });
   } catch (error) {

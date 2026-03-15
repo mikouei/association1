@@ -1,6 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import { authenticateToken, requireAdmin, generateAccessToken } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -17,12 +17,13 @@ router.use((req, res, next) => {
 });
 
 // GET /api/members
-// Liste tous les membres (avec recherche)
+// Liste tous les membres de l'association (avec recherche)
 router.get('/', async (req, res) => {
   try {
     const { search, active } = req.query;
 
     const where = {
+      associationId: req.associationId,
       role: 'MEMBER'
     };
 
@@ -34,13 +35,13 @@ router.get('/', async (req, res) => {
     // Recherche par nom ou champ personnalisé
     if (search) {
       where.OR = [
-        { member: { name: { contains: search } } },
-        { member: { customFieldValue: { contains: search } } }
+        { member: { name: { contains: search, mode: 'insensitive' } } },
+        { member: { customFieldValue: { contains: search, mode: 'insensitive' } } }
       ];
     }
 
     // Requête avec fresh data
-    const members = await req.prisma.user.findMany({
+    const members = await prisma.user.findMany({
       where,
       include: {
         member: true
@@ -83,9 +84,14 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Email ou téléphone requis' });
     }
 
-    // Vérifier unicité email
+    // Vérifier unicité email dans l'association
     if (email) {
-      const existing = await req.prisma.user.findUnique({ where: { email } });
+      const existing = await prisma.user.findFirst({ 
+        where: { 
+          associationId: req.associationId,
+          email 
+        } 
+      });
       if (existing) {
         return res.status(400).json({ error: 'Cet email est déjà utilisé' });
       }
@@ -101,15 +107,16 @@ router.post('/', requireAdmin, async (req, res) => {
     
     // S'assurer que le token est unique
     while (tokenExists) {
-      const existing = await req.prisma.user.findUnique({ where: { token: accessToken } });
+      const existing = await prisma.user.findFirst({ where: { token: accessToken } });
       if (!existing) tokenExists = false;
       else accessToken = generateAccessToken();
     }
 
     // Créer l'utilisateur et le membre en transaction
-    const result = await req.prisma.$transaction(async (prisma) => {
-      const user = await prisma.user.create({
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
         data: {
+          associationId: req.associationId,
           email: email || `member_${Date.now()}@temp.local`,
           phone: phone || null,
           passwordHash,
@@ -119,8 +126,9 @@ router.post('/', requireAdmin, async (req, res) => {
         }
       });
 
-      const member = await prisma.member.create({
+      const member = await tx.member.create({
         data: {
+          associationId: req.associationId,
           userId: user.id,
           name,
           customFieldValue,
@@ -153,8 +161,12 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await req.prisma.user.findUnique({
-      where: { id, role: 'MEMBER' },
+    const user = await prisma.user.findFirst({
+      where: { 
+        id, 
+        role: 'MEMBER',
+        associationId: req.associationId
+      },
       include: { member: true }
     });
 
@@ -186,9 +198,13 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { name, customFieldValue, email, phone } = req.body;
 
-    // Vérifier que le membre existe
-    const existing = await req.prisma.user.findUnique({
-      where: { id, role: 'MEMBER' },
+    // Vérifier que le membre existe dans l'association
+    const existing = await prisma.user.findFirst({
+      where: { 
+        id, 
+        role: 'MEMBER',
+        associationId: req.associationId
+      },
       include: { member: true }
     });
 
@@ -198,15 +214,20 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
     // Vérifier unicité email si changé
     if (email && email !== existing.email) {
-      const emailExists = await req.prisma.user.findUnique({ where: { email } });
+      const emailExists = await prisma.user.findFirst({ 
+        where: { 
+          email,
+          associationId: req.associationId
+        } 
+      });
       if (emailExists) {
         return res.status(400).json({ error: 'Cet email est déjà utilisé' });
       }
     }
 
     // Mettre à jour en transaction
-    const result = await req.prisma.$transaction(async (prisma) => {
-      const user = await prisma.user.update({
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
         where: { id },
         data: {
           email: email || existing.email,
@@ -214,7 +235,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
         }
       });
 
-      const member = await prisma.member.update({
+      const member = await tx.member.update({
         where: { userId: id },
         data: {
           name: name || existing.member.name,
@@ -246,8 +267,12 @@ router.put('/:id/deactivate', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    await req.prisma.user.update({
-      where: { id, role: 'MEMBER' },
+    await prisma.user.updateMany({
+      where: { 
+        id, 
+        role: 'MEMBER',
+        associationId: req.associationId
+      },
       data: { active: false }
     });
 
@@ -264,8 +289,12 @@ router.put('/:id/activate', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    await req.prisma.user.update({
-      where: { id, role: 'MEMBER' },
+    await prisma.user.updateMany({
+      where: { 
+        id, 
+        role: 'MEMBER',
+        associationId: req.associationId
+      },
       data: { active: true }
     });
 
@@ -289,8 +318,12 @@ router.post('/:id/reset-password', requireAdmin, async (req, res) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
-    await req.prisma.user.update({
-      where: { id, role: 'MEMBER' },
+    await prisma.user.updateMany({
+      where: { 
+        id, 
+        role: 'MEMBER',
+        associationId: req.associationId
+      },
       data: { passwordHash }
     });
 
@@ -312,13 +345,17 @@ router.post('/:id/regenerate-token', requireAdmin, async (req, res) => {
     let tokenExists = true;
     
     while (tokenExists) {
-      const existing = await req.prisma.user.findUnique({ where: { token: accessToken } });
+      const existing = await prisma.user.findFirst({ where: { token: accessToken } });
       if (!existing) tokenExists = false;
       else accessToken = generateAccessToken();
     }
 
-    await req.prisma.user.update({
-      where: { id, role: 'MEMBER' },
+    await prisma.user.updateMany({
+      where: { 
+        id, 
+        role: 'MEMBER',
+        associationId: req.associationId
+      },
       data: { token: accessToken }
     });
 
@@ -335,9 +372,12 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Trouver le membre via son userId
-    const user = await req.prisma.user.findUnique({
-      where: { id },
+    // Trouver le membre via son userId dans l'association
+    const user = await prisma.user.findFirst({
+      where: { 
+        id,
+        associationId: req.associationId
+      },
       include: { member: true }
     });
 
@@ -346,26 +386,31 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     }
 
     // Supprimer dans une transaction : paiements → membre → utilisateur
-    await req.prisma.$transaction(async (prisma) => {
+    await prisma.$transaction(async (tx) => {
       if (user.member) {
         // Supprimer les paiements mensuels du membre
-        await prisma.monthlyPayment.deleteMany({
+        await tx.monthlyPayment.deleteMany({
           where: { memberId: user.member.id }
         });
 
         // Supprimer les paiements exceptionnels du membre
-        await prisma.exceptionalPayment.deleteMany({
+        await tx.exceptionalPayment.deleteMany({
+          where: { memberId: user.member.id }
+        });
+
+        // Supprimer les véhicules du membre
+        await tx.vehiclePlate.deleteMany({
           where: { memberId: user.member.id }
         });
 
         // Supprimer le membre
-        await prisma.member.delete({
+        await tx.member.delete({
           where: { id: user.member.id }
         });
       }
 
       // Supprimer l'utilisateur
-      await prisma.user.delete({
+      await tx.user.delete({
         where: { id }
       });
     });

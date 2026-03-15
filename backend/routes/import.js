@@ -1,6 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import { authenticateToken, requireAdmin, generateAccessToken } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -58,10 +58,13 @@ router.post('/members/preview', async (req, res) => {
       // Nettoyer le numéro de téléphone (enlever espaces supplémentaires)
       const cleanPhone = phone ? phone.replace(/\s+/g, ' ').trim() : null;
 
-      // Vérifier les doublons dans la base par téléphone
+      // Vérifier les doublons dans la base par téléphone (dans l'association)
       if (cleanPhone) {
-        const existing = await req.prisma.user.findFirst({
-          where: { phone: cleanPhone },
+        const existing = await prisma.user.findFirst({
+          where: { 
+            associationId: req.associationId,
+            phone: cleanPhone 
+          },
           include: { member: true }
         });
 
@@ -122,8 +125,13 @@ router.post('/members', async (req, res) => {
           ? `${phone.replace(/[^0-9]/g, '')}@temp.local`
           : `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}@temp.local`;
 
-        // Vérifier unicité email
-        const emailExists = await req.prisma.user.findUnique({ where: { email } });
+        // Vérifier unicité email dans l'association
+        const emailExists = await prisma.user.findFirst({ 
+          where: { 
+            associationId: req.associationId,
+            email 
+          } 
+        });
         if (emailExists) {
           errors.push({
             name,
@@ -139,15 +147,16 @@ router.post('/members', async (req, res) => {
         let accessToken = generateAccessToken();
         let tokenExists = true;
         while (tokenExists) {
-          const existing = await req.prisma.user.findUnique({ where: { token: accessToken } });
+          const existing = await prisma.user.findFirst({ where: { token: accessToken } });
           if (!existing) tokenExists = false;
           else accessToken = generateAccessToken();
         }
 
         // Créer utilisateur et membre
-        const result = await req.prisma.$transaction(async (prisma) => {
-          const user = await prisma.user.create({
+        const result = await prisma.$transaction(async (tx) => {
+          const user = await tx.user.create({
             data: {
+              associationId: req.associationId,
               email,
               phone: phone || null,
               passwordHash,
@@ -157,8 +166,9 @@ router.post('/members', async (req, res) => {
             }
           });
 
-          const member = await prisma.member.create({
+          const member = await tx.member.create({
             data: {
+              associationId: req.associationId,
               userId: user.id,
               name,
               customFieldValue,

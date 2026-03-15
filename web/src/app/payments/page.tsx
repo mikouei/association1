@@ -172,7 +172,7 @@ export default function PaymentsPage() {
                                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                                   isPaid
                                     ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                                    : monthData?.amountPaid > 0
+                                    : (monthData?.amountPaid ?? 0) > 0
                                     ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
                                     : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                                 }`}
@@ -180,9 +180,9 @@ export default function PaymentsPage() {
                               >
                                 {isPaid ? (
                                   <Check className="w-4 h-4" />
-                                ) : monthData?.amountPaid > 0 ? (
+                                ) : (monthData?.amountPaid ?? 0) > 0 ? (
                                   <span className="text-xs font-medium">
-                                    {Math.round((monthData.amountPaid / 1000))}
+                                    {Math.round(((monthData?.amountPaid ?? 0) / 1000))}
                                   </span>
                                 ) : (
                                   <CreditCard className="w-4 h-4" />

@@ -14,6 +14,13 @@ import exportRoutes from './routes/export.js';
 import platformRoutes from './routes/platform.js';
 import vehicleRoutes from './routes/vehicles.js';
 
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "AssocManager API",
+    timestamp: new Date()
+  });
+});
 dotenv.config();
 
 const app = express();
@@ -89,5 +96,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📍 http://0.0.0.0:${PORT}/api`);
   console.log(`🗄️  Base de données: PostgreSQL`);
 });
+
 
 export default app;

@@ -453,6 +453,7 @@ export default function Membres() {
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -464,7 +465,11 @@ export default function Membres() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView>
+            <ScrollView 
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={styles.modalScrollContent}
+            >
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Nom complet *</Text>
                 <TextInput
@@ -827,7 +832,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
-    maxHeight: '80%',
+    maxHeight: '90%',
+  },
+  modalScrollContent: {
+    paddingBottom: 40,
   },
   modalHeader: {
     flexDirection: 'row',

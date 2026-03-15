@@ -97,6 +97,20 @@ AssocManager est une application de gestion d'associations qui permet de gérer 
 - Script de migration des données SQLite existantes
 - Clarifier fonctionnalité "Labels"
 
+## Corrections UX Mobile (15 Mars 2026)
+
+### Issue 1 - Formulaire création membre ✅
+- **Problème** : Le clavier cachait les champs de saisie en bas du formulaire
+- **Solution** : Ajout de `KeyboardAvoidingView` avec `keyboardVerticalOffset` + `ScrollView` avec `keyboardShouldPersistTaps="handled"` et `contentContainerStyle` approprié
+
+### Issue 2 - Export PDF ✅
+- **Problème** : L'export PDF ouvrait une vue d'impression au lieu de télécharger le fichier
+- **Solution** : Utilisation de `Print.printToFileAsync()` pour générer le PDF + `Sharing.shareAsync()` pour permettre le téléchargement/partage
+
+### Issue 3 - Export CSV ✅
+- **Problème** : L'export CSV ne fonctionnait pas
+- **Solution** : Génération du CSV côté client avec les données de l'API `/payments/year/:yearId` + `FileSystem.writeAsStringAsync()` + `Sharing.shareAsync()`
+
 ## Configuration PostgreSQL
 
 ### Production (Render) ✅

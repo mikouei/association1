@@ -19,6 +19,7 @@ import api from '../../utils/api';
 import { useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
 
 export default function Parametres() {
@@ -287,24 +288,53 @@ export default function Parametres() {
         return;
       }
 
-      const response = await api.get(`/export/statistics/${activeYear.id}`, {
-        responseType: 'text'
+      // Récupérer les données de paiement directement depuis l'API
+      const paymentsResponse = await api.get(`/payments/year/${activeYear.id}`);
+      const members = paymentsResponse.data.members;
+
+      // Générer le CSV manuellement avec les données
+      let csvContent = 'Membre,Identifiant,Du (FCFA),Paye (FCFA),Reste (FCFA),Pourcentage\n';
+      
+      let totalDue = 0;
+      let totalPaid = 0;
+
+      members.forEach(member => {
+        const due = activeYear.monthlyAmount * 12;
+        const paid = member.totalPaid || 0;
+        const remaining = due - paid;
+        const percentage = due > 0 ? Math.round((paid / due) * 100) : 0;
+        
+        totalDue += due;
+        totalPaid += paid;
+
+        csvContent += `${member.name},${member.customFieldValue},${due},${Math.round(paid)},${Math.round(remaining)},${percentage}%\n`;
       });
+
+      // Ajouter ligne total
+      const totalPercentage = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
+      csvContent += `TOTAL,,${totalDue},${Math.round(totalPaid)},${Math.round(totalDue - totalPaid)},${totalPercentage}%\n`;
       
       // Sur le web, on télécharge directement
       if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `statistiques_${activeYear.year}.csv`;
         link.click();
         Alert.alert('Succès', 'Fichier téléchargé');
       } else {
+        // Sur mobile, utiliser FileSystem + Sharing
         const filename = FileSystem.documentDirectory + `statistiques_${activeYear.year}.csv`;
-        await FileSystem.writeAsStringAsync(filename, response.data);
+        await FileSystem.writeAsStringAsync(filename, csvContent, {
+          encoding: FileSystem.EncodingType.UTF8
+        });
         
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(filename);
+          await Sharing.shareAsync(filename, {
+            mimeType: 'text/csv',
+            dialogTitle: 'Exporter les statistiques CSV',
+            UTI: 'public.comma-separated-values-text'
+          });
         } else {
           Alert.alert('Succès', 'Fichier enregistré: ' + filename);
         }
@@ -332,6 +362,7 @@ export default function Parametres() {
       let html = `
         <html>
           <head>
+            <meta charset="UTF-8">
             <style>
               body { font-family: Arial, sans-serif; padding: 20px; }
               h1 { color: #2196F3; text-align: center; }
@@ -366,9 +397,9 @@ export default function Parametres() {
 
       members.forEach(member => {
         const due = activeYear.monthlyAmount * 12;
-        const paid = member.totalPaid;
+        const paid = member.totalPaid || 0;
         const remaining = due - paid;
-        const percentage = Math.round((paid / due) * 100);
+        const percentage = due > 0 ? Math.round((paid / due) * 100) : 0;
         
         totalDue += due;
         totalPaid += paid;
@@ -405,7 +436,7 @@ export default function Parametres() {
       </html>
       `;
 
-      // Sur le web, ouvrir dans une nouvelle fenêtre pour impression
+      // Sur le web, ouvrir dans une nouvelle fenêtre pour impression/téléchargement
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const printWindow = window.open('', '_blank');
         if (printWindow) {
@@ -415,12 +446,25 @@ export default function Parametres() {
           Alert.alert('Succès', 'Document PDF ouvert pour impression');
         }
       } else {
-        // Sur mobile, utiliser expo-print si disponible
+        // Sur mobile, utiliser expo-print pour générer le PDF et expo-sharing pour le partager
         try {
-          const { printAsync } = await import('expo-print');
-          await printAsync({ html });
+          const { uri } = await Print.printToFileAsync({ 
+            html,
+            base64: false
+          });
+          
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(uri, {
+              mimeType: 'application/pdf',
+              dialogTitle: 'Exporter les statistiques PDF',
+              UTI: 'com.adobe.pdf'
+            });
+          } else {
+            Alert.alert('Succès', 'PDF enregistré: ' + uri);
+          }
         } catch (e) {
-          Alert.alert('Info', 'Partagez ce rapport via l\'impression système');
+          console.error('Erreur Print.printToFileAsync:', e);
+          Alert.alert('Erreur', 'Impossible de générer le PDF');
         }
       }
     } catch (error) {

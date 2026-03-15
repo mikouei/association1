@@ -1,0 +1,219 @@
+// Prisma schema pour AssocManager - PostgreSQL Multi-Tenant
+// Toutes les données sont dans une seule base avec isolation par associationId
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// PLATFORM (Super Admin & Associations)
+// ============================================
+
+// Super Administrateur de la plateforme
+model SuperAdmin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String   @default("Super Admin")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Association (tenant)
+model Association {
+  id           String   @id @default(uuid())
+  name         String   // Nom de l'association
+  type         String?  // Type (syndicat, amicale, association)
+  code         String   @unique // Code unique (ex: "SYNDIC-BNI")
+  active       Boolean  @default(true)
+  adminEmail   String?  // Email du premier admin créé
+  adminName    String?  // Nom du premier admin
+  
+  // Options de configuration
+  memberFieldLabel    String  @default("Villa") // Libellé du champ personnalisé
+  enableVehiclePlates Boolean @default(false)   // Activer les matricules de véhicules
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  users                    User[]
+  members                  Member[]
+  years                    Year[]
+  exceptionalContributions ExceptionalContribution[]
+  config                   AssociationConfig?
+  
+  @@index([code])
+}
+
+// Configuration de l'association
+model AssociationConfig {
+  id               String   @id @default(uuid())
+  associationId    String   @unique
+  name             String   // Nom affiché
+  type             String?  // Type (optionnel)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  association      Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// USERS & MEMBERS (par Association)
+// ============================================
+
+// Utilisateurs (ADMIN et MEMBER)
+model User {
+  id            String   @id @default(uuid())
+  associationId String
+  email         String
+  phone         String?
+  passwordHash  String
+  role          String   @default("MEMBER") // "ADMIN" ou "MEMBER"
+  token         String?  // Token d'accès pour les membres
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  member        Member?
+  
+  @@unique([associationId, email])
+  @@unique([associationId, phone])
+  @@index([associationId])
+  @@index([token])
+}
+
+// Informations membres (données métier)
+model Member {
+  id                  String   @id @default(uuid())
+  associationId       String
+  userId              String   @unique
+  name                String
+  customFieldValue    String?  // Villa, Groupe, Section, etc.
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  association         Association          @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments            MonthlyPayment[]
+  exceptionalPayments ExceptionalPayment[]
+  vehiclePlates       VehiclePlate[]
+  
+  @@index([associationId])
+  @@index([associationId, name])
+}
+
+// Matricules de véhicules
+model VehiclePlate {
+  id          String   @id @default(uuid())
+  memberId    String
+  plateNumber String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  @@index([memberId])
+}
+
+// ============================================
+// COTISATIONS (par Association)
+// ============================================
+
+// Année de cotisation
+model Year {
+  id            String           @id @default(uuid())
+  associationId String
+  year          Int              // 2025, 2026...
+  monthlyAmount Float            // Montant mensuel en FCFA
+  active        Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  association   Association      @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  payments      MonthlyPayment[]
+  
+  @@unique([associationId, year])
+  @@index([associationId])
+}
+
+// Paiements mensuels
+model MonthlyPayment {
+  id          String   @id @default(uuid())
+  memberId    String
+  yearId      String
+  month       Int      // 1-12
+  amountPaid  Float
+  paymentDate DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  year        Year     @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  
+  @@unique([memberId, yearId, month])
+  @@index([memberId, yearId])
+}
+
+// ============================================
+// COTISATIONS EXCEPTIONNELLES
+// ============================================
+
+// Cotisations exceptionnelles (événements ponctuels)
+model ExceptionalContribution {
+  id            String               @id @default(uuid())
+  associationId String
+  title         String               // "Décès M. Dupont", "Mariage Marie"
+  type          String               // décès, mariage, anniversaire, solidarité, autre
+  description   String?
+  active        Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  
+  association   Association          @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  payments      ExceptionalPayment[]
+  
+  @@index([associationId])
+}
+
+// Paiements pour cotisations exceptionnelles
+model ExceptionalPayment {
+  id             String                  @id @default(uuid())
+  contributionId String
+  memberId       String
+  amount         Float
+  paymentDate    DateTime                @default(now())
+  notes          String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  
+  contribution   ExceptionalContribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  member         Member                  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  @@unique([contributionId, memberId])
+  @@index([contributionId])
+  @@index([memberId])
+}
+
+// ============================================
+// PLATFORM CONFIG
+// ============================================
+
+model PlatformConfig {
+  id        String   @id @default(uuid())
+  name      String   @default("AssocManager Platform")
+  version   String   @default("2.0.0")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

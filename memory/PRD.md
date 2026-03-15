@@ -99,8 +99,13 @@ AssocManager est une application de gestion d'associations qui permet de gérer 
 
 ## Configuration PostgreSQL
 
+### Production (Render) ✅
 ```env
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
+DATABASE_URL="postgresql://assocmanager:***@dpg-d6r057dm5p6s73eb2uug-a.oregon-postgres.render.com/assocmanagerdb"
 ```
 
-Pour Render : Utilisez l'Internal Database URL pour la production.
+**Base configurée et opérationnelle :**
+- Host : `dpg-d6r057dm5p6s73eb2uug-a.oregon-postgres.render.com`
+- Database : `assocmanagerdb`
+- Migration appliquée
+- Données initiales créées (SuperAdmin + SYNDIC-BNI)

@@ -280,87 +280,50 @@ export default function Parametres() {
     }
   };
 
-  // Fonction helper pour sauvegarder dans le dossier Téléchargements (Android)
+  // Fonction helper pour sauvegarder un fichier texte et le partager
   const saveToDownloads = async (content, filename, mimeType) => {
     try {
-      if (Platform.OS === 'android') {
-        // Demander les permissions de stockage
-        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        
-        if (permissions.granted) {
-          // Créer le fichier dans le dossier choisi par l'utilisateur
-          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-            permissions.directoryUri,
-            filename,
-            mimeType
-          );
-          
-          // Écrire le contenu dans le fichier
-          await FileSystem.writeAsStringAsync(fileUri, content, {
-            encoding: FileSystem.EncodingType.UTF8
-          });
-          
-          Alert.alert('Succès', `Fichier "${filename}" téléchargé avec succès !`);
-          return true;
-        } else {
-          Alert.alert('Permission refusée', 'Impossible de sauvegarder le fichier sans permission.');
-          return false;
-        }
-      } else {
-        // iOS - utiliser le partage car pas d'accès direct au système de fichiers
-        const tempUri = FileSystem.documentDirectory + filename;
-        await FileSystem.writeAsStringAsync(tempUri, content, {
-          encoding: FileSystem.EncodingType.UTF8
+      // Écrire le fichier dans le dossier temporaire de l'app
+      const tempUri = FileSystem.documentDirectory + filename;
+      await FileSystem.writeAsStringAsync(tempUri, content, {
+        encoding: FileSystem.EncodingType.UTF8
+      });
+      
+      // Partager le fichier (permet de l'enregistrer ou de l'envoyer)
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(tempUri, {
+          mimeType: mimeType || 'text/plain',
+          dialogTitle: `Enregistrer ${filename}`
         });
-        await Sharing.shareAsync(tempUri);
         return true;
+      } else {
+        Alert.alert('Info', 'Fichier créé mais partage non disponible');
+        return false;
       }
     } catch (error) {
       console.error('Erreur saveToDownloads:', error);
-      Alert.alert('Erreur', 'Impossible de sauvegarder le fichier');
+      Alert.alert('Erreur', 'Impossible de créer le fichier');
       return false;
     }
   };
 
-  // Fonction helper pour sauvegarder un PDF dans le dossier Téléchargements (Android)
+  // Fonction helper pour sauvegarder un PDF et le partager
   const savePdfToDownloads = async (pdfUri, filename) => {
     try {
-      if (Platform.OS === 'android') {
-        // Demander les permissions de stockage
-        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        
-        if (permissions.granted) {
-          // Lire le contenu du PDF
-          const pdfContent = await FileSystem.readAsStringAsync(pdfUri, {
-            encoding: FileSystem.EncodingType.Base64
-          });
-          
-          // Créer le fichier dans le dossier choisi par l'utilisateur
-          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-            permissions.directoryUri,
-            filename,
-            'application/pdf'
-          );
-          
-          // Écrire le contenu PDF en base64
-          await FileSystem.writeAsStringAsync(fileUri, pdfContent, {
-            encoding: FileSystem.EncodingType.Base64
-          });
-          
-          Alert.alert('Succès', `Fichier "${filename}" téléchargé avec succès !`);
-          return true;
-        } else {
-          Alert.alert('Permission refusée', 'Impossible de sauvegarder le fichier sans permission.');
-          return false;
-        }
-      } else {
-        // iOS - utiliser le partage
-        await Sharing.shareAsync(pdfUri);
+      // Partager le fichier PDF directement
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Enregistrer ${filename}`
+        });
         return true;
+      } else {
+        Alert.alert('Info', 'Fichier créé mais partage non disponible');
+        return false;
       }
     } catch (error) {
       console.error('Erreur savePdfToDownloads:', error);
-      Alert.alert('Erreur', 'Impossible de sauvegarder le fichier');
+      Alert.alert('Erreur', 'Impossible de partager le fichier');
       return false;
     }
   };

@@ -257,40 +257,22 @@ export default function Exceptionnelles() {
     );
   };
 
-  // Fonction pour sauvegarder le PDF dans le dossier Téléchargements
+  // Fonction pour partager le PDF
   const savePdfToDownloads = async (pdfUri, filename) => {
     try {
-      if (Platform.OS === 'android') {
-        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        
-        if (permissions.granted) {
-          const pdfContent = await FileSystem.readAsStringAsync(pdfUri, {
-            encoding: FileSystem.EncodingType.Base64
-          });
-          
-          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-            permissions.directoryUri,
-            filename,
-            'application/pdf'
-          );
-          
-          await FileSystem.writeAsStringAsync(fileUri, pdfContent, {
-            encoding: FileSystem.EncodingType.Base64
-          });
-          
-          Alert.alert('Succès', `PDF "${filename}" téléchargé avec succès !`);
-          return true;
-        } else {
-          Alert.alert('Permission refusée', 'Impossible de sauvegarder le fichier sans permission.');
-          return false;
-        }
-      } else {
-        await Sharing.shareAsync(pdfUri);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Enregistrer ${filename}`
+        });
         return true;
+      } else {
+        Alert.alert('Info', 'Fichier créé mais partage non disponible');
+        return false;
       }
     } catch (error) {
       console.error('Erreur savePdfToDownloads:', error);
-      Alert.alert('Erreur', 'Impossible de sauvegarder le fichier');
+      Alert.alert('Erreur', 'Impossible de partager le fichier');
       return false;
     }
   };

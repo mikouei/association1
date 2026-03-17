@@ -105,6 +105,205 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// Helper pour formater les nombres avec séparateurs de milliers
+const formatNumber = (num) => {
+  return new Intl.NumberFormat('fr-FR').format(Math.round(num));
+};
+
+// GET /api/exceptional/:eventId/stats/pdf
+// Export PDF des statistiques d'un événement exceptionnel
+router.get('/:eventId/stats/pdf', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    // Récupérer l'événement avec ses paiements
+    const contribution = await prisma.exceptionalContribution.findFirst({
+      where: { 
+        id: eventId,
+        associationId: req.associationId
+      },
+      include: {
+        payments: {
+          include: {
+            member: {
+              include: {
+                user: true
+              }
+            }
+          },
+          orderBy: { paymentDate: 'desc' }
+        }
+      }
+    });
+
+    if (!contribution) {
+      return res.status(404).json({ error: 'Événement introuvable' });
+    }
+
+    // Récupérer les infos de l'association
+    const association = req.association;
+
+    // Calculer les totaux
+    const totalCollected = contribution.payments.reduce((sum, p) => sum + p.amount, 0);
+    const participantsCount = new Set(contribution.payments.map(p => p.memberId)).size;
+
+    // Mapper les types vers des icônes/couleurs
+    const typeColors = {
+      'décès': '#607D8B',
+      'mariage': '#E91E63',
+      'anniversaire': '#FF9800',
+      'solidarité': '#4CAF50',
+      'autre': '#9E9E9E'
+    };
+    const typeColor = typeColors[contribution.type] || '#2196F3';
+
+    // Générer le HTML pour le PDF
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${contribution.title}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid ${typeColor}; padding-bottom: 20px; }
+    .header h1 { color: ${typeColor}; font-size: 28px; margin-bottom: 10px; }
+    .header .type { 
+      display: inline-block;
+      background: ${typeColor}; 
+      color: white; 
+      padding: 4px 16px; 
+      border-radius: 20px;
+      font-size: 14px;
+      text-transform: capitalize;
+    }
+    .header .date { color: #666; font-size: 14px; margin-top: 10px; }
+    .description { 
+      background: #f5f5f5; 
+      padding: 15px; 
+      border-radius: 8px; 
+      margin-bottom: 20px;
+      font-style: italic;
+      color: #666;
+    }
+    .stats-row { 
+      display: flex; 
+      justify-content: center; 
+      gap: 40px; 
+      margin-bottom: 30px; 
+    }
+    .stat-box { 
+      text-align: center; 
+      padding: 20px 40px; 
+      background: #E3F2FD; 
+      border-radius: 12px; 
+    }
+    .stat-box.highlight { background: #E8F5E9; }
+    .stat-value { font-size: 32px; font-weight: bold; color: #1976D2; }
+    .stat-box.highlight .stat-value { color: #388E3C; }
+    .stat-label { font-size: 14px; color: #666; margin-top: 5px; }
+    .section-title { 
+      font-size: 18px; 
+      font-weight: bold; 
+      color: #333; 
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { 
+      background: ${typeColor}; 
+      color: white; 
+      padding: 12px 8px; 
+      text-align: left; 
+      font-weight: 600; 
+    }
+    td { padding: 12px 8px; border-bottom: 1px solid #e0e0e0; }
+    tr:nth-child(even) { background: #fafafa; }
+    tr:hover { background: #f0f7ff; }
+    .amount { font-weight: bold; color: #388E3C; text-align: right; }
+    .date-col { color: #666; font-size: 13px; }
+    .footer { 
+      margin-top: 30px; 
+      text-align: center; 
+      color: #999; 
+      font-size: 11px; 
+      padding-top: 20px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .no-payments { 
+      text-align: center; 
+      padding: 40px; 
+      color: #999; 
+      font-style: italic; 
+    }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${contribution.title}</h1>
+    <span class="type">${contribution.type}</span>
+    <div class="date">Créé le ${new Date(contribution.createdAt).toLocaleDateString('fr-FR', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric' 
+    })}</div>
+  </div>
+  
+  ${contribution.description ? `<div class="description">${contribution.description}</div>` : ''}
+
+  <div class="stats-row">
+    <div class="stat-box highlight">
+      <div class="stat-value">${formatNumber(totalCollected)}</div>
+      <div class="stat-label">FCFA collectés</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value">${participantsCount}</div>
+      <div class="stat-label">Participants</div>
+    </div>
+  </div>
+
+  <div class="section-title">Liste des paiements</div>
+  
+  ${contribution.payments.length > 0 ? `
+    <table>
+      <thead>
+        <tr>
+          <th>Membre</th>
+          <th>Date</th>
+          <th style="text-align: right;">Montant</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${contribution.payments.map(payment => `
+          <tr>
+            <td>${payment.member?.name || 'Inconnu'}</td>
+            <td class="date-col">${new Date(payment.paymentDate).toLocaleDateString('fr-FR')}</td>
+            <td class="amount">${formatNumber(payment.amount)} FCFA</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : '<div class="no-payments">Aucun paiement enregistré</div>'}
+
+  <div class="footer">
+    <p>${association?.name || 'Association'}</p>
+    <p>Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+  </div>
+</body>
+</html>
+    `;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (error) {
+    console.error('Export exceptional PDF error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
+  }
+});
+
 // GET /api/exceptional/:id
 // Détail d'une cotisation exceptionnelle
 router.get('/:id', async (req, res) => {

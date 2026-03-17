@@ -19,6 +19,9 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber } from '../../utils/format';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
 
 const TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'autre'];
 
@@ -52,6 +55,7 @@ export default function Exceptionnelles() {
   });
   const [saving, setSaving] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Recharger les données à chaque fois que l'onglet est affiché
   useFocusEffect(
@@ -251,6 +255,86 @@ export default function Exceptionnelles() {
         }
       ]
     );
+  };
+
+  // Fonction pour sauvegarder le PDF dans le dossier Téléchargements
+  const savePdfToDownloads = async (pdfUri, filename) => {
+    try {
+      if (Platform.OS === 'android') {
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        
+        if (permissions.granted) {
+          const pdfContent = await FileSystem.readAsStringAsync(pdfUri, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          
+          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            filename,
+            'application/pdf'
+          );
+          
+          await FileSystem.writeAsStringAsync(fileUri, pdfContent, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          
+          Alert.alert('Succès', `PDF "${filename}" téléchargé avec succès !`);
+          return true;
+        } else {
+          Alert.alert('Permission refusée', 'Impossible de sauvegarder le fichier sans permission.');
+          return false;
+        }
+      } else {
+        await Sharing.shareAsync(pdfUri);
+        return true;
+      }
+    } catch (error) {
+      console.error('Erreur savePdfToDownloads:', error);
+      Alert.alert('Erreur', 'Impossible de sauvegarder le fichier');
+      return false;
+    }
+  };
+
+  // Télécharger les statistiques PDF de l'événement
+  const handleDownloadPdf = async () => {
+    if (!selectedContribution) return;
+    
+    setDownloadingPdf(true);
+    try {
+      // Récupérer le HTML depuis l'API
+      const response = await api.get(`/exceptional/${selectedContribution.id}/stats/pdf`, { 
+        responseType: 'text' 
+      });
+      const html = response.data;
+      
+      // Générer le nom du fichier
+      const safeTitle = selectedContribution.title.replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `statistiques_${safeTitle}.pdf`;
+
+      // Sur le web, ouvrir dans une nouvelle fenêtre
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.print();
+        }
+        Alert.alert('Succès', 'Document ouvert pour impression');
+      } else {
+        // Sur mobile, générer le PDF et le télécharger
+        const { uri } = await Print.printToFileAsync({ 
+          html,
+          base64: false
+        });
+        
+        await savePdfToDownloads(uri, filename);
+      }
+    } catch (error) {
+      console.error('Erreur téléchargement PDF:', error);
+      Alert.alert('Erreur', 'Impossible de générer le PDF');
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   const getTypeIcon = (type) => {
@@ -482,6 +566,22 @@ export default function Exceptionnelles() {
                     </TouchableOpacity>
                   </View>
                 )}
+
+                {/* Bouton Télécharger PDF (visible pour tous) */}
+                <TouchableOpacity
+                  style={[styles.downloadPdfButton, downloadingPdf && styles.downloadPdfButtonDisabled]}
+                  onPress={handleDownloadPdf}
+                  disabled={downloadingPdf}
+                >
+                  {downloadingPdf ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="download" size={20} color="#fff" />
+                      <Text style={styles.downloadPdfText}>Télécharger statistiques (PDF)</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
 
                 <View style={styles.paymentsSection}>
                   <View style={styles.paymentsSectionHeader}>
@@ -1045,5 +1145,25 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     paddingVertical: 24,
+  },
+  // Styles pour le bouton télécharger PDF
+  downloadPdfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginVertical: 16,
+    gap: 10,
+  },
+  downloadPdfButtonDisabled: {
+    opacity: 0.6,
+  },
+  downloadPdfText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

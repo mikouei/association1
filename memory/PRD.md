@@ -142,7 +142,16 @@ AssocManager est une application de gestion d'associations qui permet de gérer 
 - **Dashboard (index.js)** : Montants formatés avec séparateurs de milliers
 - **Cotisations (cotisations.js)** : Montant mensuel, montants dans les modals
 - **Paramètres (parametres.js)** : Montants des années affichés avec formatage
+- **Exceptionnelles (exceptionnelles.js)** : Montants collectés et paiements
 - Utilitaire centralisé : `/app/frontend/utils/format.js`
+
+### 7. Export PDF pour événements exceptionnels ✅
+- **GET /api/exceptional/:eventId/stats/pdf** : Génère un PDF avec :
+  - Nom de l'événement, type, date de création
+  - Total collecté, nombre de participants
+  - Liste des paiements (nom membre, date, montant)
+- **Frontend** : Bouton "Télécharger statistiques (PDF)" dans le détail de chaque événement
+- Téléchargement direct sur Android via StorageAccessFramework
 
 ## Configuration PostgreSQL
 

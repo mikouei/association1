@@ -21,6 +21,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
+import { formatNumber, formatCurrency } from '../../utils/format';
 
 export default function Parametres() {
   const { user, logout } = useAuth();
@@ -364,7 +365,7 @@ export default function Parametres() {
     }
   };
 
-  // Export Stats CSV
+  // Export Stats CSV - Utilise la nouvelle API backend
   const handleExportStats = async () => {
     try {
       const activeYear = years.find(y => y.active);
@@ -373,37 +374,14 @@ export default function Parametres() {
         return;
       }
 
-      // Récupérer les données de paiement directement depuis l'API
-      const paymentsResponse = await api.get(`/payments/year/${activeYear.id}`);
-      const members = paymentsResponse.data.members;
-
-      // Générer le CSV manuellement avec les données
-      let csvContent = 'Membre,Identifiant,Du (FCFA),Paye (FCFA),Reste (FCFA),Pourcentage\n';
-      
-      let totalDue = 0;
-      let totalPaid = 0;
-
-      members.forEach(member => {
-        const due = activeYear.monthlyAmount * 12;
-        const paid = member.totalPaid || 0;
-        const remaining = due - paid;
-        const percentage = due > 0 ? Math.round((paid / due) * 100) : 0;
-        
-        totalDue += due;
-        totalPaid += paid;
-
-        csvContent += `${member.name},${member.customFieldValue},${due},${Math.round(paid)},${Math.round(remaining)},${percentage}%\n`;
-      });
-
-      // Ajouter ligne total
-      const totalPercentage = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
-      csvContent += `TOTAL,,${totalDue},${Math.round(totalPaid)},${Math.round(totalDue - totalPaid)},${totalPercentage}%\n`;
-      
-      const filename = `statistiques_${activeYear.year}.csv`;
+      // Récupérer le fichier TXT depuis l'API
+      const response = await api.get('/export/stats/csv', { responseType: 'text' });
+      const content = response.data;
+      const filename = `statistiques_${activeYear.year}.txt`;
 
       // Sur le web, on télécharge directement
       if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = filename;
@@ -411,7 +389,7 @@ export default function Parametres() {
         Alert.alert('Succès', 'Fichier téléchargé');
       } else {
         // Sur mobile, sauvegarder directement dans Téléchargements
-        await saveToDownloads(csvContent, filename, 'text/csv');
+        await saveToDownloads(content, filename, 'text/plain');
       }
     } catch (error) {
       console.error('Erreur export stats:', error);
@@ -419,7 +397,7 @@ export default function Parametres() {
     }
   };
 
-  // Export Stats PDF
+  // Export Stats PDF - Utilise la nouvelle API backend
   const handleExportStatsPDF = async () => {
     try {
       const activeYear = years.find(y => y.active);
@@ -428,88 +406,9 @@ export default function Parametres() {
         return;
       }
 
-      // Récupérer les données de paiement
-      const response = await api.get(`/payments/year/${activeYear.id}`);
-      const members = response.data.members;
-
-      // Générer le contenu HTML pour le PDF
-      let html = `
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              h1 { color: #2196F3; text-align: center; }
-              h2 { color: #666; text-align: center; margin-bottom: 20px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-              th { background-color: #2196F3; color: white; }
-              tr:nth-child(even) { background-color: #f2f2f2; }
-              .paid { color: #4CAF50; font-weight: bold; }
-              .partial { color: #FF9800; font-weight: bold; }
-              .unpaid { color: #F44336; font-weight: bold; }
-              .total { font-weight: bold; background-color: #E3F2FD; }
-            </style>
-          </head>
-          <body>
-            <h1>${config?.name || 'Association'}</h1>
-            <h2>Statistiques des cotisations - Année ${activeYear.year}</h2>
-            <p><strong>Montant mensuel:</strong> ${activeYear.monthlyAmount} FCFA</p>
-            <table>
-              <tr>
-                <th>Membre</th>
-                <th>Identifiant</th>
-                <th>Dû (FCFA)</th>
-                <th>Payé (FCFA)</th>
-                <th>Reste (FCFA)</th>
-                <th>%</th>
-              </tr>
-      `;
-
-      let totalDue = 0;
-      let totalPaid = 0;
-
-      members.forEach(member => {
-        const due = activeYear.monthlyAmount * 12;
-        const paid = member.totalPaid || 0;
-        const remaining = due - paid;
-        const percentage = due > 0 ? Math.round((paid / due) * 100) : 0;
-        
-        totalDue += due;
-        totalPaid += paid;
-
-        const statusClass = percentage >= 100 ? 'paid' : percentage > 0 ? 'partial' : 'unpaid';
-        
-        html += `
-          <tr>
-            <td>${member.name}</td>
-            <td>${member.customFieldValue}</td>
-            <td>${due}</td>
-            <td class="${statusClass}">${Math.round(paid)}</td>
-            <td>${Math.round(remaining)}</td>
-            <td class="${statusClass}">${percentage}%</td>
-          </tr>
-        `;
-      });
-
-      // Ligne total
-      const totalPercentage = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
-      html += `
-          <tr class="total">
-            <td colspan="2">TOTAL</td>
-            <td>${totalDue}</td>
-            <td>${Math.round(totalPaid)}</td>
-            <td>${Math.round(totalDue - totalPaid)}</td>
-            <td>${totalPercentage}%</td>
-          </tr>
-        </table>
-        <p style="margin-top: 20px; text-align: center; color: #666;">
-          Généré le ${new Date().toLocaleDateString('fr-FR')}
-        </p>
-      </body>
-      </html>
-      `;
-
+      // Récupérer le HTML depuis l'API backend
+      const response = await api.get('/export/stats/pdf', { responseType: 'text' });
+      const html = response.data;
       const filename = `statistiques_${activeYear.year}.pdf`;
 
       // Sur le web, ouvrir dans une nouvelle fenêtre pour impression/téléchargement

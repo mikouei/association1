@@ -56,6 +56,55 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/exceptional/stats
+// Statistiques des cotisations exceptionnelles
+// IMPORTANT: Cette route doit être AVANT /:id pour éviter le conflit
+router.get('/stats', async (req, res) => {
+  try {
+    const contributions = await prisma.exceptionalContribution.findMany({
+      where: { 
+        associationId: req.associationId 
+      },
+      include: {
+        payments: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const stats = contributions.map(contrib => {
+      const totalAmount = contrib.payments.reduce((sum, p) => sum + p.amount, 0);
+      const participants = new Set(contrib.payments.map(p => p.memberId)).size;
+      
+      return {
+        id: contrib.id,
+        eventName: contrib.title,
+        type: contrib.type,
+        participants,
+        totalAmount,
+        active: contrib.active,
+        createdAt: contrib.createdAt
+      };
+    });
+
+    // Calculer les totaux globaux
+    const totalEvents = contributions.length;
+    const totalCollected = stats.reduce((sum, s) => sum + s.totalAmount, 0);
+    const totalParticipations = stats.reduce((sum, s) => sum + s.participants, 0);
+
+    res.json({
+      events: stats,
+      summary: {
+        totalEvents,
+        totalCollected,
+        totalParticipations
+      }
+    });
+  } catch (error) {
+    console.error('Get exceptional stats error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' });
+  }
+});
+
 // GET /api/exceptional/:id
 // Détail d'une cotisation exceptionnelle
 router.get('/:id', async (req, res) => {

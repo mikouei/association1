@@ -111,6 +111,26 @@ AssocManager est une application de gestion d'associations qui permet de gérer 
 - **Problème** : L'export CSV ne fonctionnait pas
 - **Solution** : Génération du CSV côté client avec les données de l'API `/payments/year/:yearId` + `FileSystem.writeAsStringAsync()` + `Sharing.shareAsync()`
 
+## Nouvelles fonctionnalités (15 Mars 2026)
+
+### 1. Export statistiques amélioré ✅
+- **GET /api/export/stats/csv** : Export en fichier TXT avec séparateurs de milliers
+- **GET /api/export/stats/pdf** : Export HTML pour génération PDF
+
+### 2. Format des montants avec séparateurs ✅
+- Tous les montants utilisent `Intl.NumberFormat('fr-FR')`
+- Exemple : 15000 → "15 000", 2500000 → "2 500 000"
+- Utilitaire créé : `/app/frontend/utils/format.js`
+
+### 3. Suppression multiple de membres ✅
+- **DELETE /api/members/bulk-delete** : Supprime plusieurs membres
+- Body: `{ ids: ["id1", "id2", "id3"] }`
+- Utilise Prisma `deleteMany` en transaction
+
+### 4. Statistiques événements exceptionnels ✅
+- **GET /api/exceptional/stats** : Statistiques des cotisations exceptionnelles
+- Réponse: `{ events: [{ eventName, participants, totalAmount }], summary: { totalEvents, totalCollected, totalParticipations } }`
+
 ## Configuration PostgreSQL
 
 ### Production (Render) ✅

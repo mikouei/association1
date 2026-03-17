@@ -422,4 +422,70 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// DELETE /api/members/bulk-delete
+// Suppression multiple de membres (ADMIN uniquement)
+router.delete('/bulk-delete', requireAdmin, async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Liste des IDs requise' });
+    }
+
+    // Récupérer tous les utilisateurs à supprimer
+    const users = await prisma.user.findMany({
+      where: { 
+        id: { in: ids },
+        associationId: req.associationId,
+        role: 'MEMBER'
+      },
+      include: { member: true }
+    });
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'Aucun membre trouvé' });
+    }
+
+    // Supprimer en transaction
+    await prisma.$transaction(async (tx) => {
+      for (const user of users) {
+        if (user.member) {
+          // Supprimer les paiements mensuels
+          await tx.monthlyPayment.deleteMany({
+            where: { memberId: user.member.id }
+          });
+
+          // Supprimer les paiements exceptionnels
+          await tx.exceptionalPayment.deleteMany({
+            where: { memberId: user.member.id }
+          });
+
+          // Supprimer les véhicules
+          await tx.vehiclePlate.deleteMany({
+            where: { memberId: user.member.id }
+          });
+
+          // Supprimer le membre
+          await tx.member.delete({
+            where: { id: user.member.id }
+          });
+        }
+
+        // Supprimer l'utilisateur
+        await tx.user.delete({
+          where: { id: user.id }
+        });
+      }
+    });
+
+    res.json({ 
+      message: `${users.length} membre(s) supprimé(s) avec succès`,
+      deletedCount: users.length
+    });
+  } catch (error) {
+    console.error('Bulk delete members error:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression des membres' });
+  }
+});
+
 export default router;

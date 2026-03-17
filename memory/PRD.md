@@ -131,6 +131,13 @@ AssocManager est une application de gestion d'associations qui permet de gérer 
 - **GET /api/exceptional/stats** : Statistiques des cotisations exceptionnelles
 - Réponse: `{ events: [{ eventName, participants, totalAmount }], summary: { totalEvents, totalCollected, totalParticipations } }`
 
+### 5. Sélection multiple de membres ✅ (UI)
+- Bouton "Sélection multiple" dans la liste des membres
+- Checkboxes pour sélectionner/désélectionner des membres
+- Bouton "Tout sélectionner"
+- Bouton "Supprimer" pour suppression groupée
+- Appui long sur un membre active le mode sélection
+
 ## Configuration PostgreSQL
 
 ### Production (Render) ✅

@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
+import { formatNumber, formatCurrency } from '../../utils/format';
 
 export default function Membres() {
   const { user, association } = useAuth();
@@ -40,6 +41,11 @@ export default function Membres() {
     password: ''
   });
   const [saving, setSaving] = useState(false);
+  
+  // Selection mode for bulk delete
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [deletingBulk, setDeletingBulk] = useState(false);
   
   // Reset password modal
   const [resetPasswordModal, setResetPasswordModal] = useState(false);
@@ -284,6 +290,76 @@ export default function Membres() {
     );
   };
 
+  // ========== GESTION SÉLECTION MULTIPLE ==========
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      // Quitter le mode sélection
+      setSelectionMode(false);
+      setSelectedMembers([]);
+    } else {
+      // Activer le mode sélection
+      setSelectionMode(true);
+      setSelectedMembers([]);
+    }
+  };
+
+  const toggleMemberSelection = (memberId) => {
+    setSelectedMembers(prev => {
+      if (prev.includes(memberId)) {
+        return prev.filter(id => id !== memberId);
+      } else {
+        return [...prev, memberId];
+      }
+    });
+  };
+
+  const selectAllMembers = () => {
+    if (selectedMembers.length === filteredMembers.length) {
+      // Désélectionner tout
+      setSelectedMembers([]);
+    } else {
+      // Sélectionner tout
+      setSelectedMembers(filteredMembers.map(m => m.id));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedMembers.length === 0) {
+      Alert.alert('Info', 'Aucun membre sélectionné');
+      return;
+    }
+
+    Alert.alert(
+      'Supprimer les membres sélectionnés',
+      `Voulez-vous vraiment supprimer ${selectedMembers.length} membre(s) ?\n\nCette action supprimera aussi tous leurs paiements et ne peut pas être annulée.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingBulk(true);
+            try {
+              await api.delete('/members/bulk-delete', { 
+                data: { ids: selectedMembers } 
+              });
+              Alert.alert('Succès', `${selectedMembers.length} membre(s) supprimé(s)`);
+              setSelectionMode(false);
+              setSelectedMembers([]);
+              await refreshMembers();
+            } catch (error) {
+              console.error('Erreur suppression multiple:', error);
+              Alert.alert('Erreur', error.response?.data?.error || 'Impossible de supprimer les membres');
+            } finally {
+              setDeletingBulk(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+  // ========== FIN GESTION SÉLECTION MULTIPLE ==========
+
   // ========== GESTION DES MATRICULES ==========
   const openVehicleModal = async (member) => {
     setSelectedMemberForVehicle(member);
@@ -352,52 +428,86 @@ export default function Membres() {
   };
   // ========== FIN GESTION DES MATRICULES ==========
 
-  const renderMember = ({ item }) => (
-    <TouchableOpacity
-      style={styles.memberCard}
-      onPress={() => isAdmin && handleEditMember(item)}
-      onLongPress={() => isAdmin && handleToggleActive(item)}
-    >
-      <View style={styles.memberHeader}>
-        <View style={styles.memberIcon}>
-          <Ionicons name="person" size={24} color="#2196F3" />
+  const renderMember = ({ item }) => {
+    const isSelected = selectedMembers.includes(item.id);
+    
+    return (
+      <TouchableOpacity
+        style={[styles.memberCard, isSelected && styles.memberCardSelected]}
+        onPress={() => {
+          if (selectionMode) {
+            toggleMemberSelection(item.id);
+          } else if (isAdmin) {
+            handleEditMember(item);
+          }
+        }}
+        onLongPress={() => {
+          if (!selectionMode && isAdmin) {
+            setSelectionMode(true);
+            setSelectedMembers([item.id]);
+          }
+        }}
+      >
+        <View style={styles.memberHeader}>
+          {/* Checkbox en mode sélection */}
+          {selectionMode && (
+            <TouchableOpacity
+              style={styles.checkboxContainer}
+              onPress={() => toggleMemberSelection(item.id)}
+            >
+              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
+              </View>
+            </TouchableOpacity>
+          )}
+          
+          <View style={styles.memberIcon}>
+            <Ionicons name="person" size={24} color="#2196F3" />
+          </View>
+          <View style={styles.memberInfo}>
+            <Text style={styles.memberName}>{item.name}</Text>
+            <Text style={styles.memberField}>
+              {config?.memberFieldLabel || associationSettings?.customFieldLabel || 'Villa'}: {item.customFieldValue}
+            </Text>
+            {item.phone && <Text style={styles.memberPhone}>{item.phone}</Text>}
+          </View>
+          
+          {/* Actions (cachées en mode sélection) */}
+          {!selectionMode && (
+            <>
+              {/* Bouton Matricules (visible si activé) */}
+              {isAdmin && associationSettings?.enableVehiclePlates && (
+                <TouchableOpacity
+                  style={styles.vehicleButton}
+                  onPress={() => openVehicleModal(item)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="car" size={20} color="#9C27B0" />
+                </TouchableOpacity>
+              )}
+              {isAdmin && (
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteMember(item)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#FF5252" />
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+          
+          <View style={styles.memberStatus}>
+            <Ionicons
+              name={item.active ? 'checkmark-circle' : 'close-circle'}
+              size={24}
+              color={item.active ? '#4CAF50' : '#FF5252'}
+            />
+          </View>
         </View>
-        <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>{item.name}</Text>
-          <Text style={styles.memberField}>
-            {config?.memberFieldLabel || associationSettings?.customFieldLabel || 'Villa'}: {item.customFieldValue}
-          </Text>
-          {item.phone && <Text style={styles.memberPhone}>{item.phone}</Text>}
-        </View>
-        {/* Bouton Matricules (visible si activé) */}
-        {isAdmin && associationSettings?.enableVehiclePlates && (
-          <TouchableOpacity
-            style={styles.vehicleButton}
-            onPress={() => openVehicleModal(item)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="car" size={20} color="#9C27B0" />
-          </TouchableOpacity>
-        )}
-        {isAdmin && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDeleteMember(item)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="trash-outline" size={20} color="#FF5252" />
-          </TouchableOpacity>
-        )}
-        <View style={styles.memberStatus}>
-          <Ionicons
-            name={item.active ? 'checkmark-circle' : 'close-circle'}
-            size={24}
-            color={item.active ? '#4CAF50' : '#FF5252'}
-          />
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -409,6 +519,50 @@ export default function Membres() {
 
   return (
     <View style={styles.container}>
+      {/* Barre de sélection (visible en mode sélection) */}
+      {selectionMode && (
+        <View style={styles.selectionBar}>
+          <TouchableOpacity style={styles.selectionButton} onPress={toggleSelectionMode}>
+            <Ionicons name="close" size={24} color="#666" />
+          </TouchableOpacity>
+          <Text style={styles.selectionText}>
+            {selectedMembers.length} sélectionné(s)
+          </Text>
+          <TouchableOpacity style={styles.selectionButton} onPress={selectAllMembers}>
+            <Ionicons 
+              name={selectedMembers.length === filteredMembers.length ? "checkbox" : "square-outline"} 
+              size={24} 
+              color="#2196F3" 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.deleteSelectionButton, selectedMembers.length === 0 && styles.deleteSelectionButtonDisabled]}
+            onPress={handleBulkDelete}
+            disabled={selectedMembers.length === 0 || deletingBulk}
+          >
+            {deletingBulk ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="trash" size={18} color="#fff" />
+                <Text style={styles.deleteSelectionText}>Supprimer</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Bouton pour activer le mode sélection (Admin uniquement) */}
+      {isAdmin && !selectionMode && (
+        <View style={styles.actionBar}>
+          <TouchableOpacity style={styles.selectModeButton} onPress={toggleSelectionMode}>
+            <Ionicons name="checkbox-outline" size={20} color="#2196F3" />
+            <Text style={styles.selectModeText}>Sélection multiple</Text>
+          </TouchableOpacity>
+          <Text style={styles.memberCount}>{filteredMembers.length} membre(s)</Text>
+        </View>
+      )}
+
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
         <TextInput
@@ -437,7 +591,7 @@ export default function Membres() {
         )}
       />
 
-      {isAdmin && (
+      {isAdmin && !selectionMode && (
         <TouchableOpacity style={styles.fab} onPress={handleAddMember}>
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
@@ -1034,5 +1188,86 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  // Styles pour la sélection multiple
+  selectionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BBDEFB',
+  },
+  selectionButton: {
+    padding: 8,
+  },
+  selectionText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1976D2',
+    marginLeft: 8,
+  },
+  deleteSelectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F44336',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    gap: 6,
+  },
+  deleteSelectionButtonDisabled: {
+    opacity: 0.5,
+  },
+  deleteSelectionText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  actionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f5f5f5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  selectModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectModeText: {
+    fontSize: 14,
+    color: '#2196F3',
+    fontWeight: '500',
+  },
+  memberCount: {
+    fontSize: 14,
+    color: '#666',
+  },
+  memberCardSelected: {
+    backgroundColor: '#E3F2FD',
+    borderColor: '#2196F3',
+  },
+  checkboxContainer: {
+    marginRight: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#9E9E9E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
   },
 });

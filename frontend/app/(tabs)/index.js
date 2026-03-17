@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
+import { formatNumber, formatCurrency } from '../../utils/format';
 
 export default function Dashboard() {
   const { user, association } = useAuth();
@@ -100,10 +101,9 @@ export default function Dashboard() {
     loadData();
   };
 
+  // Utiliser formatNumber pour les grands nombres
   const formatAmount = (amount) => {
-    if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
-    if (amount >= 1000) return Math.round(amount / 1000) + 'k';
-    return amount.toString();
+    return formatNumber(amount);
   };
 
   if (loading) {

@@ -138,6 +138,12 @@ AssocManager est une application de gestion d'associations qui permet de gérer 
 - Bouton "Supprimer" pour suppression groupée
 - Appui long sur un membre active le mode sélection
 
+### 6. formatNumber appliqué partout ✅
+- **Dashboard (index.js)** : Montants formatés avec séparateurs de milliers
+- **Cotisations (cotisations.js)** : Montant mensuel, montants dans les modals
+- **Paramètres (parametres.js)** : Montants des années affichés avec formatage
+- Utilitaire centralisé : `/app/frontend/utils/format.js`
+
 ## Configuration PostgreSQL
 
 ### Production (Render) ✅

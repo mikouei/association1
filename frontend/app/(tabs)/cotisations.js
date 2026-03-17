@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
+import { formatNumber, formatCurrency } from '../../utils/format';
 
 const MONTHS = [
   'J', 'F', 'M', 'A', 'M', 'J',
@@ -208,7 +209,7 @@ export default function Cotisations() {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.headerTitle}>Année {selectedYear.year}</Text>
-            <Text style={styles.headerSubtitle}>Montant mensuel: {selectedYear.monthlyAmount} FCFA</Text>
+            <Text style={styles.headerSubtitle}>Montant mensuel: {formatNumber(selectedYear.monthlyAmount)} FCFA</Text>
           </View>
           <View style={styles.yearSelectorButton}>
             <Ionicons name="chevron-down" size={24} color="#fff" />
@@ -354,7 +355,7 @@ export default function Cotisations() {
                       <Text style={styles.label}>Montant (FCFA)</Text>
                       <TextInput
                         style={styles.input}
-                        placeholder={`${selectedYear.monthlyAmount}`}
+                        placeholder={`${formatNumber(selectedYear.monthlyAmount)}`}
                         value={paymentAmount}
                         onChangeText={(text) => {
                           // Nettoyer le texte pour n'accepter que les chiffres
@@ -433,7 +434,7 @@ export default function Cotisations() {
                       {item.year}
                     </Text>
                     <Text style={styles.yearItemAmount}>
-                      {item.monthlyAmount} FCFA/mois
+                      {formatNumber(item.monthlyAmount)} FCFA/mois
                     </Text>
                   </View>
                   {item.active && (

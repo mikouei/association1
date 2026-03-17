@@ -619,7 +619,7 @@ export default function Parametres() {
                 <View key={year.id} style={styles.yearItem}>
                   <View style={styles.yearInfo}>
                     <Text style={styles.yearText}>Année {year.year}</Text>
-                    <Text style={styles.yearAmount}>{year.monthlyAmount} FCFA/mois</Text>
+                    <Text style={styles.yearAmount}>{formatNumber(year.monthlyAmount)} FCFA/mois</Text>
                   </View>
                   <View style={styles.yearActions}>
                     {year.active ? (

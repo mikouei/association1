@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
+import { formatNumber } from '../../utils/format';
 
 const TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'autre'];
 
@@ -230,7 +231,7 @@ export default function Exceptionnelles() {
   const handleDeletePayment = (payment) => {
     Alert.alert(
       'Supprimer le paiement',
-      `Supprimer le paiement de ${payment.member.name} (${Math.round(payment.amount)} FCFA) ?`,
+      `Supprimer le paiement de ${payment.member.name} (${formatNumber(payment.amount)} FCFA) ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -284,7 +285,7 @@ export default function Exceptionnelles() {
 
       <View style={styles.cardStats}>
         <View style={styles.stat}>
-          <Text style={styles.statValue}>{Math.round(item.totalCollected)} FCFA</Text>
+          <Text style={styles.statValue}>{formatNumber(item.totalCollected)} FCFA</Text>
           <Text style={styles.statLabel}>Collecté</Text>
         </View>
         <View style={styles.stat}>
@@ -452,7 +453,7 @@ export default function Exceptionnelles() {
 
                 <View style={styles.statsRow}>
                   <View style={styles.statBox}>
-                    <Text style={styles.statBoxValue}>{Math.round(selectedContribution.totalCollected)}</Text>
+                    <Text style={styles.statBoxValue}>{formatNumber(selectedContribution.totalCollected)}</Text>
                     <Text style={styles.statBoxLabel}>FCFA collectés</Text>
                   </View>
                   <View style={styles.statBox}>
@@ -506,7 +507,7 @@ export default function Exceptionnelles() {
                           </Text>
                         </View>
                         <View style={styles.paymentRight}>
-                          <Text style={styles.paymentAmount}>{Math.round(payment.amount)} FCFA</Text>
+                          <Text style={styles.paymentAmount}>{formatNumber(payment.amount)} FCFA</Text>
                           {isAdmin && (
                             <TouchableOpacity
                               onPress={() => handleDeletePayment(payment)}

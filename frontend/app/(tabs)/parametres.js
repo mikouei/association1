@@ -679,66 +679,84 @@ export default function Parametres() {
         transparent={true}
         onRequestClose={() => setYearModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingYear ? 'Modifier montant' : 'Nouvelle année'}
-              </Text>
-              <TouchableOpacity onPress={() => setYearModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#333" />
-              </TouchableOpacity>
-            </View>
+        <TouchableOpacity 
+          style={styles.yearModalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setYearModalVisible(false)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.yearModalKeyboardView}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.yearModalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>
+                    {editingYear ? 'Modifier montant' : 'Nouvelle année'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setYearModalVisible(false)}>
+                    <Ionicons name="close" size={28} color="#333" />
+                  </TouchableOpacity>
+                </View>
 
-            {!editingYear && (
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Année *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: 2026"
-                  value={yearFormData.year}
-                  onChangeText={(text) => {
-                    // Nettoyer le texte pour n'accepter que les chiffres
-                    const cleanedText = text.replace(/[^0-9]/g, '');
-                    setYearFormData(prev => ({ ...prev, year: cleanedText }));
-                  }}
-                  keyboardType="numeric"
-                  selectTextOnFocus={true}
-                />
+                <ScrollView 
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 40 }}
+                  bounces={false}
+                >
+                  {!editingYear && (
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>Année *</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Ex: 2026"
+                        value={yearFormData.year}
+                        onChangeText={(text) => {
+                          // Nettoyer le texte pour n'accepter que les chiffres
+                          const cleanedText = text.replace(/[^0-9]/g, '');
+                          setYearFormData(prev => ({ ...prev, year: cleanedText }));
+                        }}
+                        keyboardType="numeric"
+                        selectTextOnFocus={true}
+                      />
+                    </View>
+                  )}
+
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Montant mensuel (FCFA) *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ex: 5000"
+                      value={yearFormData.monthlyAmount}
+                      onChangeText={(text) => {
+                        // Nettoyer le texte pour n'accepter que les chiffres
+                        const cleanedText = text.replace(/[^0-9]/g, '');
+                        setYearFormData(prev => ({ ...prev, monthlyAmount: cleanedText }));
+                      }}
+                      keyboardType="numeric"
+                      selectTextOnFocus={true}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+                    onPress={handleSaveYear}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.submitButtonText}>
+                        {editingYear ? 'Modifier' : 'Créer'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </ScrollView>
               </View>
-            )}
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Montant mensuel (FCFA) *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: 5000"
-                value={yearFormData.monthlyAmount}
-                onChangeText={(text) => {
-                  // Nettoyer le texte pour n'accepter que les chiffres
-                  const cleanedText = text.replace(/[^0-9]/g, '');
-                  setYearFormData(prev => ({ ...prev, monthlyAmount: cleanedText }));
-                }}
-                keyboardType="numeric"
-                selectTextOnFocus={true}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.submitButton, saving && styles.submitButtonDisabled]}
-              onPress={handleSaveYear}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>
-                  {editingYear ? 'Modifier' : 'Créer'}
-                </Text>
-              )}
             </TouchableOpacity>
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </TouchableOpacity>
       </Modal>
 
       {/* Modal Import */}
@@ -1120,6 +1138,24 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 24,
     maxHeight: '70%',
+  },
+  yearModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  yearModalKeyboardView: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  yearModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
   },
   modalHeader: {
     flexDirection: 'row',

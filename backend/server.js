@@ -32,7 +32,7 @@ app.use(
       "http://localhost:19006",
       "https://web-bx1a.onrender.com",
       "https://assocmanager-web.onrender.com",
-      "https://db-persistence-fix.preview.emergentagent.com",
+      "https://mobile-bug-crush-1.preview.emergentagent.com",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [

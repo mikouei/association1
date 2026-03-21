@@ -283,26 +283,30 @@ export default function Parametres() {
   // Fonction helper pour sauvegarder un fichier texte et le partager
   const saveToDownloads = async (content, filename, mimeType) => {
     try {
-      // Écrire le fichier dans le dossier temporaire de l'app
-      const tempUri = FileSystem.documentDirectory + filename;
+      // Écrire le fichier dans le cache de l'app
+      const tempUri = FileSystem.cacheDirectory + filename;
       await FileSystem.writeAsStringAsync(tempUri, content, {
         encoding: FileSystem.EncodingType.UTF8
       });
       
-      // Partager le fichier (permet de l'enregistrer ou de l'envoyer)
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(tempUri, {
-          mimeType: mimeType || 'text/plain',
-          dialogTitle: `Enregistrer ${filename}`
-        });
-        return true;
-      } else {
-        Alert.alert('Info', 'Fichier créé mais partage non disponible');
+      // Vérifier si le partage est disponible
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Erreur', 'Le partage de fichiers n\'est pas disponible sur cet appareil');
         return false;
       }
+      
+      // Partager le fichier
+      await Sharing.shareAsync(tempUri, {
+        mimeType: mimeType || 'text/plain',
+        dialogTitle: `Enregistrer ${filename}`,
+        UTI: mimeType === 'application/pdf' ? 'com.adobe.pdf' : 'public.plain-text'
+      });
+      
+      return true;
     } catch (error) {
       console.error('Erreur saveToDownloads:', error);
-      Alert.alert('Erreur', 'Impossible de créer le fichier');
+      Alert.alert('Erreur', `Impossible de créer le fichier: ${error.message}`);
       return false;
     }
   };
@@ -310,20 +314,24 @@ export default function Parametres() {
   // Fonction helper pour sauvegarder un PDF et le partager
   const savePdfToDownloads = async (pdfUri, filename) => {
     try {
-      // Partager le fichier PDF directement
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(pdfUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Enregistrer ${filename}`
-        });
-        return true;
-      } else {
-        Alert.alert('Info', 'Fichier créé mais partage non disponible');
+      // Vérifier si le partage est disponible
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Erreur', 'Le partage de fichiers n\'est pas disponible sur cet appareil');
         return false;
       }
+      
+      // Partager le fichier PDF
+      await Sharing.shareAsync(pdfUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `Enregistrer ${filename}`,
+        UTI: 'com.adobe.pdf'
+      });
+      
+      return true;
     } catch (error) {
       console.error('Erreur savePdfToDownloads:', error);
-      Alert.alert('Erreur', 'Impossible de partager le fichier');
+      Alert.alert('Erreur', `Impossible de partager le fichier: ${error.message}`);
       return false;
     }
   };

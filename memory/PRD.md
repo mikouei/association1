@@ -151,7 +151,22 @@ AssocManager est une application de gestion d'associations qui permet de gérer 
   - Total collecté, nombre de participants
   - Liste des paiements (nom membre, date, montant)
 - **Frontend** : Bouton "Télécharger statistiques (PDF)" dans le détail de chaque événement
-- Téléchargement direct sur Android via StorageAccessFramework
+- Téléchargement via dialogue de partage Android/iOS
+
+## Corrections du 15 Décembre 2025
+
+### Bug #1 - Clavier cache inputs "Nouvelle année" ✅
+- **Problème** : Le clavier cachait les champs de saisie dans le modal de création d'année
+- **Solution** : Refonte du modal avec un design centré + `KeyboardAvoidingView` optimisé
+
+### Bug #2 - Formatage des nombres ✅
+- **Statut** : Vérifié - le formatage `formatNumber()` est correctement appliqué partout
+- Les cellules de cotisations utilisent intentionnellement une notation `k` (ex: `30k`) pour l'espace
+
+### Bug #3 - Téléchargements PDF/CSV ✅
+- **Amélioration** : Utilisation de `Sharing.shareAsync()` avec meilleure gestion des erreurs
+- **Note** : Sur Android moderne, le dialogue de partage est la méthode standard et la plus fiable
+- L'utilisateur doit choisir "Enregistrer dans les fichiers" depuis le dialogue
 
 ## Configuration PostgreSQL
 

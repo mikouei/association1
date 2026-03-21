@@ -265,29 +265,32 @@ export default function Parametres() {
         link.click();
         Alert.alert('Succès', 'Fichier téléchargé');
       } else {
-        const filename = FileSystem.documentDirectory + 'membres.csv';
+        // Sur mobile, utiliser cacheDirectory et partage
+        const filename = FileSystem.cacheDirectory + 'membres.csv';
         await FileSystem.writeAsStringAsync(filename, response.data);
         
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(filename);
+          await Sharing.shareAsync(filename, {
+            mimeType: 'text/csv',
+            dialogTitle: 'Enregistrer membres.csv',
+            UTI: 'public.comma-separated-values-text'
+          });
         } else {
-          Alert.alert('Succès', 'Fichier enregistré: ' + filename);
+          Alert.alert('Info', 'Partage non disponible sur cet appareil');
         }
       }
     } catch (error) {
       console.error('Erreur export:', error);
-      Alert.alert('Erreur', 'Impossible d\'exporter les membres');
+      Alert.alert('Erreur', `Impossible d'exporter les membres: ${error.message || 'Erreur inconnue'}`);
     }
   };
 
   // Fonction helper pour sauvegarder un fichier texte et le partager
   const saveToDownloads = async (content, filename, mimeType) => {
     try {
-      // Écrire le fichier dans le cache de l'app
+      // Écrire le fichier dans le cache de l'app (sans encodage explicite, UTF8 est par défaut)
       const tempUri = FileSystem.cacheDirectory + filename;
-      await FileSystem.writeAsStringAsync(tempUri, content, {
-        encoding: FileSystem.EncodingType.UTF8
-      });
+      await FileSystem.writeAsStringAsync(tempUri, content);
       
       // Vérifier si le partage est disponible
       const isAvailable = await Sharing.isAvailableAsync();
@@ -306,7 +309,7 @@ export default function Parametres() {
       return true;
     } catch (error) {
       console.error('Erreur saveToDownloads:', error);
-      Alert.alert('Erreur', `Impossible de créer le fichier: ${error.message}`);
+      Alert.alert('Erreur', `Impossible de créer le fichier: ${error.message || 'Erreur inconnue'}`);
       return false;
     }
   };

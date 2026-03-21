@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber } from '../../utils/format';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystemLegacy from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 

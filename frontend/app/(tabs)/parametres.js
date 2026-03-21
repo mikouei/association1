@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../utils/api';
 import { useRouter } from 'expo-router';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystemLegacy from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
@@ -182,7 +182,7 @@ export default function Parametres() {
         Alert.alert('Succès', `Fichier "${file.name}" chargé`);
       } else {
         // Sur mobile, utiliser FileSystem
-        const content = await FileSystem.readAsStringAsync(file.uri);
+        const content = await FileSystemLegacy.readAsStringAsync(file.uri);
         setImportContent(content);
         Alert.alert('Succès', `Fichier "${file.name}" chargé`);
       }
@@ -266,8 +266,8 @@ export default function Parametres() {
         Alert.alert('Succès', 'Fichier téléchargé');
       } else {
         // Sur mobile, utiliser cacheDirectory et partage
-        const filename = FileSystem.cacheDirectory + 'membres.csv';
-        await FileSystem.writeAsStringAsync(filename, response.data);
+        const filename = FileSystemLegacy.cacheDirectory + 'membres.csv';
+        await FileSystemLegacy.writeAsStringAsync(filename, response.data);
         
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(filename, {
@@ -289,8 +289,8 @@ export default function Parametres() {
   const saveToDownloads = async (content, filename, mimeType) => {
     try {
       // Écrire le fichier dans le cache de l'app (sans encodage explicite, UTF8 est par défaut)
-      const tempUri = FileSystem.cacheDirectory + filename;
-      await FileSystem.writeAsStringAsync(tempUri, content);
+      const tempUri = FileSystemLegacy.cacheDirectory + filename;
+      await FileSystemLegacy.writeAsStringAsync(tempUri, content);
       
       // Vérifier si le partage est disponible
       const isAvailable = await Sharing.isAvailableAsync();

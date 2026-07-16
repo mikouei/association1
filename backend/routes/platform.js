@@ -7,7 +7,12 @@ import { prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'assocmanager-secret-key-2024';
+// JWT_SECRET est obligatoire - le serveur ne doit pas démarrer sans
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ ERREUR FATALE: JWT_SECRET doit être défini dans les variables d\'environnement');
+  process.exit(1);
+}
 
 // Middleware pour vérifier le token SUPER_ADMIN
 const authenticateSuperAdmin = async (req, res, next) => {

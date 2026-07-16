@@ -1,17 +1,18 @@
 // Script d'initialisation de la Platform (SUPER_ADMIN)
-import { PrismaClient } from '../node_modules/.prisma/platform-client/index.js';
+// Utilise le client Prisma unifié (PostgreSQL)
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const platformPrisma = new PrismaClient();
+const prisma = new PrismaClient();
 
 async function initPlatform() {
-  console.log('🚀 Initialisation de la Platform V2...');
+  console.log('🚀 Initialisation de la Platform V2 (PostgreSQL)...');
 
   try {
     // Créer la configuration de la plateforme
-    const existingConfig = await platformPrisma.platformConfig.findFirst();
+    const existingConfig = await prisma.platformConfig.findFirst();
     if (!existingConfig) {
-      await platformPrisma.platformConfig.create({
+      await prisma.platformConfig.create({
         data: {
           name: 'AssocManager Platform',
           version: '2.0.0'
@@ -23,13 +24,13 @@ async function initPlatform() {
     }
 
     // Créer le SUPER_ADMIN par défaut
-    const existingSuperAdmin = await platformPrisma.superAdmin.findUnique({
+    const existingSuperAdmin = await prisma.superAdmin.findUnique({
       where: { email: 'superadmin@platform.local' }
     });
 
     if (!existingSuperAdmin) {
       const passwordHash = await bcrypt.hash('superadmin', 10);
-      await platformPrisma.superAdmin.create({
+      await prisma.superAdmin.create({
         data: {
           email: 'superadmin@platform.local',
           passwordHash,
@@ -42,24 +43,13 @@ async function initPlatform() {
       console.log('ℹ️  SUPER_ADMIN existant');
     }
 
-    // Migrer l'association V1 existante si elle existe
-    const existingAssociation = await platformPrisma.association.findFirst();
+    // Vérifier s'il existe des associations
+    const existingAssociation = await prisma.association.findFirst();
     if (!existingAssociation) {
-      // Créer une entrée pour l'association V1 existante
-      await platformPrisma.association.create({
-        data: {
-          name: 'Association V1 (Migration)',
-          type: 'association',
-          code: 'V1-DEFAULT',
-          dbName: 'assocmanager.db',
-          active: true,
-          adminEmail: 'admin@assocmanager.local',
-          adminName: 'Administrateur V1'
-        }
-      });
-      console.log('✅ Association V1 migrée vers la Platform');
+      console.log('ℹ️  Aucune association existante - la plateforme est prête pour créer des associations');
     } else {
-      console.log('ℹ️  Associations existantes dans la Platform');
+      const associationCount = await prisma.association.count();
+      console.log(`ℹ️  ${associationCount} association(s) existante(s) dans la Platform`);
     }
 
     console.log('\n✅ Platform V2 initialisée avec succès!');
@@ -72,7 +62,7 @@ async function initPlatform() {
     console.error('❌ Erreur initialisation Platform:', error);
     throw error;
   } finally {
-    await platformPrisma.$disconnect();
+    await prisma.$disconnect();
   }
 }
 

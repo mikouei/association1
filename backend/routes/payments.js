@@ -261,6 +261,25 @@ router.put('/:id', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Montant invalide' });
     }
 
+    // Vérifier que le paiement appartient à l'association via le membre ou l'année
+    const existingPayment = await prisma.monthlyPayment.findFirst({
+      where: { id },
+      include: {
+        member: true,
+        year: true
+      }
+    });
+
+    if (!existingPayment) {
+      return res.status(404).json({ error: 'Paiement introuvable' });
+    }
+
+    // Vérifier l'appartenance à l'association
+    if (existingPayment.member?.associationId !== req.associationId && 
+        existingPayment.year?.associationId !== req.associationId) {
+      return res.status(404).json({ error: 'Paiement introuvable' });
+    }
+
     const updateData = {};
     if (amountPaid !== undefined) updateData.amountPaid = parseFloat(amountPaid);
     if (paymentDate) updateData.paymentDate = new Date(paymentDate);
@@ -283,6 +302,25 @@ router.put('/:id', requireAdmin, async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Vérifier que le paiement appartient à l'association via le membre ou l'année
+    const existingPayment = await prisma.monthlyPayment.findFirst({
+      where: { id },
+      include: {
+        member: true,
+        year: true
+      }
+    });
+
+    if (!existingPayment) {
+      return res.status(404).json({ error: 'Paiement introuvable' });
+    }
+
+    // Vérifier l'appartenance à l'association
+    if (existingPayment.member?.associationId !== req.associationId && 
+        existingPayment.year?.associationId !== req.associationId) {
+      return res.status(404).json({ error: 'Paiement introuvable' });
+    }
 
     await prisma.monthlyPayment.delete({
       where: { id }

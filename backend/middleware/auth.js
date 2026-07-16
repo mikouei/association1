@@ -5,7 +5,12 @@ import { PrismaClient } from '@prisma/client';
 // Instance Prisma unique (singleton)
 const prisma = new PrismaClient();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'assocmanager-secret-key-2024';
+// JWT_SECRET est obligatoire - le serveur ne doit pas démarrer sans
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ ERREUR FATALE: JWT_SECRET doit être défini dans les variables d\'environnement');
+  process.exit(1);
+}
 
 /**
  * Middleware d'authentification principal

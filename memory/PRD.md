@@ -180,3 +180,37 @@ DATABASE_URL="postgresql://assocmanager:***@dpg-d6r057dm5p6s73eb2uug-a.oregon-po
 - Database : `assocmanagerdb`
 - Migration appliquée
 - Données initiales créées (SuperAdmin + SYNDIC-BNI)
+
+## Correctifs Sécurité & Maintenance - 16 Décembre 2025
+
+### Correctif 1 - Faille d'isolation multi-tenant (HAUTE PRIORITÉ) ✅
+- **Problème** : Les routes PUT/DELETE sur MonthlyPayment et ExceptionalPayment ne vérifiaient pas l'appartenance à l'association
+- **Fichiers corrigés** : 
+  - `/app/backend/routes/payments.js` (PUT /:id, DELETE /:id)
+  - `/app/backend/routes/exceptional.js` (PUT /payments/:paymentId, DELETE /payments/:paymentId)
+- **Solution** : Ajout de vérification via jointure sur member/year/contribution avant update/delete
+- **Amélioration** : Utilisation de `||` (OU) au lieu de `&&` (ET) pour la défense en profondeur
+
+### Correctif 2 - Fichier .env dans Git (HAUTE PRIORITÉ) ✅
+- **Problème** : backend/.env avec vraies credentials était suivi par Git
+- **Solution** : 
+  - Nettoyage du .gitignore (doublons supprimés)
+  - backend/.env.example mis à jour avec valeurs factices
+  - Note : L'utilisateur doit régénérer DATABASE_URL chez l'hébergeur
+
+### Correctif 3 - Script init-platform.js obsolète (MOYENNE) ✅
+- **Problème** : Utilisait un client Prisma séparé et le champ `dbName` inexistant
+- **Solution** : Réécrit pour utiliser `@prisma/client` unifié
+
+### Correctif 4 - Export CSV mobile (MOYENNE) ✅
+- **Problème** : expo-file-system v19 API dépréciée
+- **Solution** : Import depuis `expo-file-system/legacy` (déjà appliqué)
+
+### Correctif 5 - Nettoyage fichiers SQLite (BASSE) ✅
+- **Supprimé** : 8 fichiers .db dans /app/backend/prisma/
+- **Supprimé** : Dépendance `better-sqlite3` de package.json
+
+### Correctif 6 - Secret JWT par défaut (BASSE) ✅
+- **Problème** : Valeur par défaut faible si JWT_SECRET non défini
+- **Solution** : Le serveur refuse de démarrer sans JWT_SECRET défini
+- **Fichiers** : middleware/auth.js, routes/platform.js

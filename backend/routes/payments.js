@@ -274,8 +274,8 @@ router.put('/:id', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Paiement introuvable' });
     }
 
-    // Vérifier l'appartenance à l'association
-    if (existingPayment.member?.associationId !== req.associationId && 
+    // Vérifier l'appartenance à l'association (défense en profondeur: rejeter si l'un OU l'autre diffère)
+    if (existingPayment.member?.associationId !== req.associationId || 
         existingPayment.year?.associationId !== req.associationId) {
       return res.status(404).json({ error: 'Paiement introuvable' });
     }
@@ -316,8 +316,8 @@ router.delete('/:id', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Paiement introuvable' });
     }
 
-    // Vérifier l'appartenance à l'association
-    if (existingPayment.member?.associationId !== req.associationId && 
+    // Vérifier l'appartenance à l'association (défense en profondeur: rejeter si l'un OU l'autre diffère)
+    if (existingPayment.member?.associationId !== req.associationId || 
         existingPayment.year?.associationId !== req.associationId) {
       return res.status(404).json({ error: 'Paiement introuvable' });
     }

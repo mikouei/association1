@@ -105,6 +105,47 @@ router.get('/me', authenticateSuperAdmin, async (req, res) => {
   });
 });
 
+// PUT /api/platform/me/password - Changer le mot de passe SUPER_ADMIN
+router.put('/me/password', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Mot de passe actuel et nouveau mot de passe requis' });
+    }
+
+    if (newPassword.length < 4) {
+      return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 4 caractères' });
+    }
+
+    // Vérifier le mot de passe actuel
+    const superAdmin = await prisma.superAdmin.findUnique({
+      where: { id: req.superAdmin.id }
+    });
+
+    if (!superAdmin) {
+      return res.status(401).json({ error: 'Compte introuvable' });
+    }
+
+    const validPassword = await bcrypt.compare(currentPassword, superAdmin.passwordHash);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
+    }
+
+    // Mettre à jour le mot de passe
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.superAdmin.update({
+      where: { id: req.superAdmin.id },
+      data: { passwordHash: newPasswordHash }
+    });
+
+    res.json({ message: 'Mot de passe modifié avec succès' });
+  } catch (error) {
+    console.error('Erreur changement mot de passe SUPER_ADMIN:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // ============ GESTION DES ASSOCIATIONS ============
 
 // GET /api/platform/associations - Liste des associations

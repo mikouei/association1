@@ -146,6 +146,115 @@ router.put('/me/password', authenticateSuperAdmin, async (req, res) => {
   }
 });
 
+// ============ GESTION DES SUPER ADMINS ============
+
+// GET /api/platform/superadmins - Liste des Super Admins
+router.get('/superadmins', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const superAdmins = await prisma.superAdmin.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        active: true,
+        createdAt: true
+      }
+    });
+
+    res.json(superAdmins);
+  } catch (error) {
+    console.error('Erreur liste Super Admins:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/platform/superadmins - Créer un nouveau Super Admin
+router.post('/superadmins', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et mot de passe requis' });
+    }
+
+    if (password.length < 4) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 4 caractères' });
+    }
+
+    // Vérifier que l'email n'existe pas déjà
+    const existingSuperAdmin = await prisma.superAdmin.findUnique({
+      where: { email }
+    });
+
+    if (existingSuperAdmin) {
+      return res.status(400).json({ error: 'Un Super Admin avec cet email existe déjà' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const superAdmin = await prisma.superAdmin.create({
+      data: {
+        email,
+        passwordHash,
+        name: name || 'Super Admin',
+        active: true
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        active: true,
+        createdAt: true
+      }
+    });
+
+    res.status(201).json(superAdmin);
+  } catch (error) {
+    console.error('Erreur création Super Admin:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /api/platform/superadmins/:id - Supprimer un Super Admin
+router.delete('/superadmins/:id', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier qu'il reste au moins un autre Super Admin actif
+    const superAdminCount = await prisma.superAdmin.count({
+      where: { active: true }
+    });
+
+    if (superAdminCount <= 1) {
+      return res.status(400).json({ error: 'Impossible de supprimer le dernier Super Admin' });
+    }
+
+    // Vérifier que le Super Admin existe
+    const superAdmin = await prisma.superAdmin.findUnique({
+      where: { id }
+    });
+
+    if (!superAdmin) {
+      return res.status(404).json({ error: 'Super Admin introuvable' });
+    }
+
+    // Empêcher de se supprimer soi-même
+    if (id === req.superAdmin.id) {
+      return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
+    }
+
+    await prisma.superAdmin.delete({
+      where: { id }
+    });
+
+    res.json({ message: 'Super Admin supprimé avec succès' });
+  } catch (error) {
+    console.error('Erreur suppression Super Admin:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // ============ GESTION DES ASSOCIATIONS ============
 
 // GET /api/platform/associations - Liste des associations

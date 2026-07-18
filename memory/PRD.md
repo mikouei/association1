@@ -194,8 +194,9 @@ DATABASE_URL="postgresql://assocmanager:***@dpg-d6r057dm5p6s73eb2uug-a.oregon-po
 ### Correctif 2 - Fichier .env dans Git (HAUTE PRIORITÉ) ✅
 - **Problème** : backend/.env avec vraies credentials était suivi par Git
 - **Solution** : 
-  - Nettoyage du .gitignore (doublons supprimés)
-  - backend/.env.example mis à jour avec valeurs factices
+  - `git rm --cached backend/.env` exécuté
+  - `.gitignore` nettoyé et complet
+  - `backend/.env.example` avec valeurs factices
   - Note : L'utilisateur doit régénérer DATABASE_URL chez l'hébergeur
 
 ### Correctif 3 - Script init-platform.js obsolète (MOYENNE) ✅
@@ -214,3 +215,15 @@ DATABASE_URL="postgresql://assocmanager:***@dpg-d6r057dm5p6s73eb2uug-a.oregon-po
 - **Problème** : Valeur par défaut faible si JWT_SECRET non défini
 - **Solution** : Le serveur refuse de démarrer sans JWT_SECRET défini
 - **Fichiers** : middleware/auth.js, routes/platform.js
+
+## Nouvelles Fonctionnalités - 16 Décembre 2025
+
+### Changement mot de passe Super Admin ✅
+- Route `PUT /api/platform/me/password`
+- Page `/platform/settings` avec formulaire
+
+### Gestion des Super Admins multiples ✅
+- Route `GET /api/platform/superadmins` - Liste des Super Admins
+- Route `POST /api/platform/superadmins` - Créer un Super Admin
+- Route `DELETE /api/platform/superadmins/:id` - Supprimer (sauf dernier et soi-même)
+- Interface dans `/platform/settings` avec liste et formulaire de création

@@ -57,7 +57,7 @@ class TestAssociationCRUD:
         """Test creating association with existing code fails"""
         response = superadmin_client.post(f"{BASE_URL}/api/platform/associations", json={
             "name": "Duplicate Test",
-            "code": "SYNDIC-BNI",  # Already exists
+            "code": "TEST-NEW-DB",  # Already exists
             "adminEmail": "dup@test.local",
             "adminPassword": "testpass123"
         })

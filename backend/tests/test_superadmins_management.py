@@ -32,9 +32,9 @@ class TestSuperAdminsList:
         assert r.status_code == 200, r.text
         data = r.json()
         assert isinstance(data, list)
-        # Must contain at least the default superadmin@platform.local
+        # Must contain at least the default drigo@drigo.local
         emails = [sa.get("email") for sa in data]
-        assert "superadmin@platform.local" in emails
+        assert "drigo@drigo.local" in emails
         # Verify shape (no passwordHash leaked)
         for sa in data:
             assert set(sa.keys()) >= {"id", "email", "name", "active", "createdAt"}
@@ -91,7 +91,7 @@ class TestSuperAdminsCreate:
 
     def test_create_duplicate_email_rejected(self, superadmin_client):
         r = superadmin_client.post(f"{BASE_URL}/api/platform/superadmins", json={
-            "email": "superadmin@platform.local",
+            "email": "drigo@drigo.local",
             "password": "whatever"
         })
         assert r.status_code == 400

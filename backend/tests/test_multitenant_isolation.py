@@ -24,8 +24,8 @@ BASE_URL = (
     or 'https://mobile-bug-crush-1.preview.emergentagent.com'
 ).rstrip('/')
 
-SUPERADMIN_EMAIL = "superadmin@platform.local"
-SUPERADMIN_PASSWORD = "superadmin"
+SUPERADMIN_EMAIL = "drigo@drigo.local"
+SUPERADMIN_PASSWORD = "drigo123"
 
 
 def _rand(n=6):

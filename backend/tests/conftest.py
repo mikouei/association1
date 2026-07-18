@@ -13,12 +13,12 @@ BASE_URL = (
     or 'https://mobile-bug-crush-1.preview.emergentagent.com'
 ).rstrip('/')
 
-# Test credentials
-SUPERADMIN_EMAIL = "superadmin@platform.local"
-SUPERADMIN_PASSWORD = "superadmin"
-ADMIN_EMAIL = "drigo@drigo.local"
-ADMIN_PASSWORD = "drigo"
-ASSOCIATION_CODE = "SYNDIC-BNI"
+# Test credentials (new PostgreSQL Render DB - Jan 2026)
+SUPERADMIN_EMAIL = "drigo@drigo.local"
+SUPERADMIN_PASSWORD = "drigo123"
+ADMIN_EMAIL = "admin@test-new-db.local"
+ADMIN_PASSWORD = "admin123"
+ASSOCIATION_CODE = "TEST-NEW-DB"
 
 
 @pytest.fixture

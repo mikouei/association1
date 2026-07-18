@@ -217,11 +217,11 @@ class TestMultiTenantIsolation:
             
             assert create_member.status_code == 201
             
-            # Login as SYNDIC-BNI admin and get their members
+            # Login as TEST-NEW-DB admin and get their members
             syndic_login = requests.post(f"{BASE_URL}/api/auth/login", json={
-                "identifier": "drigo@drigo.local",
-                "password": "drigo",
-                "associationCode": "SYNDIC-BNI"
+                "identifier": "admin@test-new-db.local",
+                "password": "admin123",
+                "associationCode": "TEST-NEW-DB"
             }, headers={"Content-Type": "application/json"})
             
             assert syndic_login.status_code == 200
@@ -232,7 +232,7 @@ class TestMultiTenantIsolation:
             )
             syndic_member_names = [m["name"] for m in syndic_members.json()]
             
-            # Isolated member should NOT appear in SYNDIC-BNI member list
+            # Isolated member should NOT appear in TEST-NEW-DB member list
             assert f"Isolated Member {unique_id}" not in syndic_member_names
         finally:
             # Cleanup - delete association (cascades to members)

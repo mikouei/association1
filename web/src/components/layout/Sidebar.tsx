@@ -16,12 +16,13 @@ import {
   SignOut,
   Trash,
 } from '@phosphor-icons/react';
+import type { Icon } from '@phosphor-icons/react';
 import { useState } from 'react';
 
 interface NavItem {
   href: string;
   label: string;
-  icon: React.ComponentType<{ size?: number; weight?: string; className?: string }>;
+  icon: Icon;
 }
 
 const platformNavItems: NavItem[] = [

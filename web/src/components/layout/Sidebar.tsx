@@ -5,38 +5,38 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard,
+  SquaresFour,
   Users,
-  CreditCard,
-  Settings,
-  Building2,
-  UserCog,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Trash2,
-} from 'lucide-react';
+  Wallet,
+  Gear,
+  Buildings,
+  UserCircleGear,
+  CaretLeft,
+  CaretRight,
+  SignOut,
+  Trash,
+} from '@phosphor-icons/react';
 import { useState } from 'react';
 
 interface NavItem {
   href: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ size?: number; weight?: string; className?: string }>;
 }
 
 const platformNavItems: NavItem[] = [
-  { href: '/platform/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-  { href: '/platform/associations', label: 'Associations', icon: Building2 },
-  { href: '/platform/deletion-requests', label: 'Suppressions', icon: Trash2 },
-  { href: '/platform/settings', label: 'Paramètres', icon: Settings },
+  { href: '/platform/dashboard', label: 'Tableau de bord', icon: SquaresFour },
+  { href: '/platform/associations', label: 'Associations', icon: Buildings },
+  { href: '/platform/deletion-requests', label: 'Suppressions', icon: Trash },
+  { href: '/platform/settings', label: 'Paramètres', icon: Gear },
 ];
 
 const adminNavItems: NavItem[] = [
-  { href: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Tableau de bord', icon: SquaresFour },
   { href: '/members', label: 'Membres', icon: Users },
-  { href: '/payments', label: 'Cotisations', icon: CreditCard },
-  { href: '/admins', label: 'Administrateurs', icon: UserCog },
-  { href: '/settings', label: 'Paramètres', icon: Settings },
+  { href: '/payments', label: 'Cotisations', icon: Wallet },
+  { href: '/admins', label: 'Administrateurs', icon: UserCircleGear },
+  { href: '/settings', label: 'Paramètres', icon: Gear },
 ];
 
 export function Sidebar() {
@@ -51,15 +51,15 @@ export function Sidebar() {
     <aside
       className={cn(
         'h-screen flex flex-col transition-all duration-300',
-        'bg-[#1F4E79] text-white',
+        'bg-[var(--color-secondary)] text-white',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-[#2A5F94]">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-[var(--color-secondary-pressed)]">
         {!collapsed && (
           <div>
-            <h1 className="text-lg font-bold font-[Poppins]">Kotiz</h1>
+            <h1 className="text-lg font-bold font-[var(--font-heading)]">Kotiz</h1>
             {selectedAssociation && (
               <p className="text-xs text-white/70 truncate">{selectedAssociation.name}</p>
             )}
@@ -67,12 +67,12 @@ export function Sidebar() {
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1 rounded hover:bg-[#2A5F94] transition-colors"
+          className="p-1 rounded hover:bg-[var(--color-secondary-pressed)] transition-colors"
         >
           {collapsed ? (
-            <ChevronRight className="w-5 h-5" />
+            <CaretRight size={20} weight="bold" />
           ) : (
-            <ChevronLeft className="w-5 h-5" />
+            <CaretLeft size={20} weight="bold" />
           )}
         </button>
       </div>
@@ -88,13 +88,13 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                'flex items-center gap-3 px-3 py-2 rounded-[var(--radius-button)] transition-colors',
                 isActive
-                  ? 'bg-[#F5A623] text-[#1F2937] font-semibold'
-                  : 'text-white/80 hover:bg-[#2A5F94] hover:text-white'
+                  ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)] font-semibold'
+                  : 'text-white/80 hover:bg-[var(--color-secondary-pressed)] hover:text-white'
               )}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
+              <Icon size={20} weight={isActive ? 'fill' : 'regular'} className="flex-shrink-0" />
               {!collapsed && <span>{item.label}</span>}
             </Link>
           );
@@ -102,7 +102,7 @@ export function Sidebar() {
       </nav>
 
       {/* User info & Logout */}
-      <div className="p-4 border-t border-[#2A5F94]">
+      <div className="p-4 border-t border-[var(--color-secondary-pressed)]">
         {!collapsed && user && (
           <div className="mb-3">
             <p className="text-sm font-medium truncate">{user.email || user.name}</p>
@@ -113,9 +113,9 @@ export function Sidebar() {
         )}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2 text-white/80 hover:bg-[#2A5F94] hover:text-white rounded-lg transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2 text-white/80 hover:bg-[var(--color-secondary-pressed)] hover:text-white rounded-[var(--radius-button)] transition-colors"
         >
-          <LogOut className="w-5 h-5" />
+          <SignOut size={20} weight="regular" />
           {!collapsed && <span>Déconnexion</span>}
         </button>
       </div>

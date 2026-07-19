@@ -313,21 +313,37 @@ Tous les écrans ont été mis à jour avec le Design System :
 
 ### Web Next.js
 - `/app/web/src/app/globals.css` - Variables CSS du Design System
-- `/app/web/src/app/dashboard/page.tsx` - Dashboard avec Phosphor Icons
+- `/app/web/src/app/dashboard/page.tsx` - Dashboard avec Phosphor Icons + Stats Events
 - `/app/web/src/app/login/page.tsx` - Login harmonisé avec couleurs DS
 - `/app/web/src/components/ui/Card.tsx` - Utilise variables CSS
 - `/app/web/src/components/ui/Badge.tsx` - Utilise variables CSS
-- `/app/web/src/components/layout/Sidebar.tsx` - Navy/Gold pour navigation
+- `/app/web/src/components/layout/Sidebar.tsx` - Phosphor Icons + Navy/Gold
 
 ### Fichiers de thème
 - `/app/frontend/utils/theme.js` - Tokens mobile (colors, spacing, borderRadius, typography)
 - `/app/web/src/app/globals.css` - Variables CSS web (--color-*, --radius-*, --spacing-*)
 
-## Tâches à venir
+## Rebranding AssocManager → Kotiz - 19 Juillet 2026 ✅
 
-### P1 - Afficher stats événements exceptionnels (Backend prêt)
-- API `GET /api/exceptional/stats` déjà implémentée
-- Créer composant UI pour afficher les statistiques sur le frontend
+### Fichiers mis à jour
+- `/app/frontend/app/login.js` - Titre "Kotiz"
+- `/app/frontend/app/(tabs)/parametres.js` - Footer "Kotiz v1.0.0"
+- `/app/web/src/app/layout.tsx` - Metadata title
+- `/app/web/src/app/privacy/page.tsx` - Politique de confidentialité
+- `/app/web/src/app/data-safety/page.tsx` - Data Safety
+- `/app/web/src/app/delete-account/page.tsx` - Formulaire suppression
+- `/app/web/src/types/index.ts` - Commentaire
+- `/app/web/src/components/layout/Sidebar.tsx` - Logo "Kotiz"
+
+## Stats Événements Exceptionnels UI - 19 Juillet 2026 ✅
+
+### Dashboard Web
+- Section "Événements exceptionnels" ajoutée au dashboard
+- Affiche le résumé global (total événements, collecté, participations)
+- Liste les 5 événements récents avec icônes par type
+- API utilisée : `GET /api/exceptional/stats`
+
+## Tâches à venir
 
 ### P2 - Clarifier fonctionnalité "Labels"
 - Comprendre les besoins pour activer/désactiver les labels Superadmin

@@ -107,7 +107,7 @@ export default function DeleteAccountPage() {
               Demande de suppression de compte
             </h1>
             <p className="text-gray-600">
-              Remplissez ce formulaire pour demander la suppression de votre compte AssocManager.
+              Remplissez ce formulaire pour demander la suppression de votre compte Kotiz.
             </p>
           </div>
 

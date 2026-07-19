@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Politique de confidentialité - AssocManager',
-  description: 'Politique de confidentialité et gestion des données personnelles de l\'application AssocManager',
+  title: 'Politique de confidentialité - Kotiz',
+  description: 'Politique de confidentialité et gestion des données personnelles de l\'application Kotiz',
 };
 
 export default function PrivacyPolicyPage() {
@@ -16,7 +16,7 @@ export default function PrivacyPolicyPage() {
           <div className="prose prose-gray max-w-none">
             <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">1. Introduction</h2>
             <p className="text-gray-700 mb-4">
-              AssocManager est une application de gestion de cotisations pour associations et syndicats de copropriétés. 
+              Kotiz est une application de gestion de cotisations pour associations et syndicats de copropriétés. 
               Cette politique de confidentialité décrit comment nous collectons, utilisons et protégeons vos données personnelles.
             </p>
 

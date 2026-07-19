@@ -6,7 +6,7 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AssocManager - Tableau de bord",
+  title: "Kotiz - Tableau de bord",
   description: "Gestion des associations et des cotisations",
 };
 

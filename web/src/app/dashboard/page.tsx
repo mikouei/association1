@@ -5,8 +5,36 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, LoadingSpinner } from '@/components/ui';
 import { api } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Wallet, TrendUp, WarningCircle } from '@phosphor-icons/react';
+import { Users, Wallet, TrendUp, WarningCircle, Heart, Gift, HandHeart, Star, SmileyMeh } from '@phosphor-icons/react';
 import { formatCurrency } from '@/lib/utils';
+
+interface ExceptionalEvent {
+  id: string;
+  title: string;
+  type: string;
+  totalCollected: number;
+  participantsCount: number;
+}
+
+interface ExceptionalStats {
+  events: ExceptionalEvent[];
+  summary: {
+    totalEvents: number;
+    totalCollected: number;
+    totalParticipations: number;
+  };
+}
+
+const getTypeIcon = (type: string) => {
+  const props = { size: 20, weight: 'duotone' as const, className: 'text-[var(--color-primary)]' };
+  switch (type) {
+    case 'décès': return <SmileyMeh {...props} />;
+    case 'mariage': return <Heart {...props} />;
+    case 'anniversaire': return <Gift {...props} />;
+    case 'solidarité': return <HandHeart {...props} />;
+    default: return <Star {...props} />;
+  }
+};
 
 export default function DashboardPage() {
   const { selectedAssociation } = useAuth();
@@ -39,6 +67,15 @@ export default function DashboardPage() {
     enabled: !!activeYear,
   });
 
+  // Fetch exceptional events stats
+  const { data: exceptionalStats, isLoading: loadingExceptional } = useQuery<ExceptionalStats>({
+    queryKey: ['exceptional-stats'],
+    queryFn: async () => {
+      const response = await api.get('/exceptional/stats');
+      return response.data;
+    },
+  });
+
   const stats = {
     totalMembers: members?.length || 0,
     activeMembers: members?.filter((m: { active: boolean }) => m.active).length || 0,
@@ -63,7 +100,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Statistiques */}
+        {/* Statistiques principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>
             <CardContent className="p-6">
@@ -130,7 +167,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Année active */}
+        {/* Année active et Progression */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
@@ -191,6 +228,74 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Statistiques des événements exceptionnels */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Événements exceptionnels</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingExceptional ? (
+              <LoadingSpinner />
+            ) : exceptionalStats && exceptionalStats.events.length > 0 ? (
+              <div className="space-y-4">
+                {/* Résumé global */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="text-center p-4 bg-[var(--color-warning-bg)] rounded-[var(--radius-card)]">
+                    <p className="text-2xl font-bold text-[var(--color-primary)]">
+                      {exceptionalStats.summary.totalEvents}
+                    </p>
+                    <p className="text-sm text-[var(--color-text-muted)]">Événements</p>
+                  </div>
+                  <div className="text-center p-4 bg-[var(--color-success-bg)] rounded-[var(--radius-card)]">
+                    <p className="text-2xl font-bold text-[var(--color-success)]">
+                      {formatCurrency(exceptionalStats.summary.totalCollected)}
+                    </p>
+                    <p className="text-sm text-[var(--color-text-muted)]">Collecté</p>
+                  </div>
+                  <div className="text-center p-4 bg-[#E0F2FE] rounded-[var(--radius-card)]">
+                    <p className="text-2xl font-bold text-[var(--color-secondary)]">
+                      {exceptionalStats.summary.totalParticipations}
+                    </p>
+                    <p className="text-sm text-[var(--color-text-muted)]">Participations</p>
+                  </div>
+                </div>
+
+                {/* Liste des événements récents */}
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-[var(--color-text-muted)]">Événements récents</p>
+                  {exceptionalStats.events.slice(0, 5).map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-center justify-between p-3 bg-[var(--color-background)] rounded-[var(--radius-input)]"
+                    >
+                      <div className="flex items-center gap-3">
+                        {getTypeIcon(event.type)}
+                        <div>
+                          <p className="font-medium text-[var(--color-text)]">{event.title}</p>
+                          <p className="text-xs text-[var(--color-text-muted)] capitalize">{event.type}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-[var(--color-primary)]">
+                          {formatCurrency(event.totalCollected)}
+                        </p>
+                        <p className="text-xs text-[var(--color-text-muted)]">
+                          {event.participantsCount} participant{event.participantsCount > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-[var(--color-text-muted)]">
+                <Gift size={48} weight="duotone" className="mx-auto mb-2 text-[var(--color-border)]" />
+                <p>Aucun événement exceptionnel</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

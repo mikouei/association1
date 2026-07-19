@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Data Safety - AssocManager',
+  title: 'Data Safety - Kotiz',
   description: 'Informations sur la collecte et la gestion des données pour Google Play Store',
 };
 
@@ -11,7 +11,7 @@ export default function DataSafetyPage() {
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Data Safety</h1>
-          <p className="text-gray-500 mb-8">Informations pour Google Play Store - AssocManager</p>
+          <p className="text-gray-500 mb-8">Informations pour Google Play Store - Kotiz</p>
 
           <div className="space-y-8">
             {/* Section 1: Collecte des données */}

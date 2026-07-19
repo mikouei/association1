@@ -1,4 +1,4 @@
-// Types pour l'application AssocManager
+// Types pour l'application Kotiz
 
 export interface User {
   id: string;

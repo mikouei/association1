@@ -153,7 +153,7 @@ export default function Login() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <UsersThree size={80} color={colors.primary} weight="fill" />
-          <Text style={styles.title}>AssocManager</Text>
+          <Text style={styles.title}>Kotiz</Text>
           <Text style={styles.subtitle}>Gestion de cotisations</Text>
         </View>
 

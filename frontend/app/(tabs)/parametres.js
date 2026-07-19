@@ -740,7 +740,7 @@ export default function Parametres() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>AssocManager v1.0.0</Text>
+          <Text style={styles.footerText}>Kotiz v1.0.0</Text>
           <Text style={styles.footerText}>Toutes phases implémentées</Text>
         </View>
       </ScrollView>

@@ -14,8 +14,17 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  ShieldCheck, 
+  CheckCircle, 
+  XCircle, 
+  Plus, 
+  X, 
+  Key, 
+  Prohibit 
+} from 'phosphor-react-native';
 import api from '../../utils/api';
+import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 export default function Admin() {
   const [admins, setAdmins] = useState([]);
@@ -128,7 +137,7 @@ export default function Admin() {
     <View style={styles.adminCard}>
       <View style={styles.adminHeader}>
         <View style={styles.adminIcon}>
-          <Ionicons name="shield" size={24} color="#2196F3" />
+          <ShieldCheck size={24} color={colors.primary} weight="fill" />
         </View>
         <View style={styles.adminInfo}>
           <Text style={styles.adminEmail}>{item.email}</Text>
@@ -138,30 +147,34 @@ export default function Admin() {
           </Text>
         </View>
         <View style={styles.adminStatus}>
-          <Ionicons
-            name={item.active ? 'checkmark-circle' : 'close-circle'}
-            size={24}
-            color={item.active ? '#4CAF50' : '#FF5252'}
-          />
+          {item.active ? (
+            <CheckCircle size={24} color={colors.success} weight="fill" />
+          ) : (
+            <XCircle size={24} color={colors.error} weight="fill" />
+          )}
         </View>
       </View>
 
       <View style={styles.adminActions}>
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: item.active ? '#FF9800' : '#4CAF50' }]}
+          style={[styles.actionButton, { backgroundColor: item.active ? colors.warning : colors.success }]}
           onPress={() => handleToggleActive(item)}
         >
-          <Ionicons name={item.active ? 'ban' : 'checkmark'} size={16} color="#fff" />
+          {item.active ? (
+            <Prohibit size={16} color={colors.textOnSecondary} />
+          ) : (
+            <CheckCircle size={16} color={colors.textOnSecondary} weight="fill" />
+          )}
           <Text style={styles.actionButtonText}>
             {item.active ? 'Désactiver' : 'Activer'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
+          style={[styles.actionButton, { backgroundColor: colors.secondary }]}
           onPress={() => handleResetPassword(item)}
         >
-          <Ionicons name="key" size={16} color="#fff" />
+          <Key size={16} color={colors.textOnSecondary} weight="fill" />
           <Text style={styles.actionButtonText}>Reset mot de passe</Text>
         </TouchableOpacity>
       </View>
@@ -171,7 +184,7 @@ export default function Admin() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -184,18 +197,23 @@ export default function Admin() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Ionicons name="shield-outline" size={64} color="#ccc" />
+            <ShieldCheck size={64} color={colors.border} />
             <Text style={styles.emptyText}>Aucun administrateur</Text>
           </View>
         )}
       />
 
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
-        <Ionicons name="add" size={28} color="#fff" />
+        <Plus size={28} color={colors.textOnPrimary} weight="bold" />
       </TouchableOpacity>
 
       <Modal
@@ -212,7 +230,7 @@ export default function Admin() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nouvel administrateur</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -222,6 +240,7 @@ export default function Admin() {
                 <TextInput
                   style={styles.input}
                   placeholder="email@exemple.com"
+                  placeholderTextColor={colors.textMuted}
                   value={newAdmin.email}
                   onChangeText={(text) => setNewAdmin({ ...newAdmin, email: text })}
                   autoCapitalize="none"
@@ -234,6 +253,7 @@ export default function Admin() {
                 <TextInput
                   style={styles.input}
                   placeholder="+237 6XX XX XX XX"
+                  placeholderTextColor={colors.textMuted}
                   value={newAdmin.phone}
                   onChangeText={(text) => setNewAdmin({ ...newAdmin, phone: text })}
                   keyboardType="phone-pad"
@@ -245,6 +265,7 @@ export default function Admin() {
                 <TextInput
                   style={styles.input}
                   placeholder="Minimum 4 caractères"
+                  placeholderTextColor={colors.textMuted}
                   value={newAdmin.password}
                   onChangeText={(text) => setNewAdmin({ ...newAdmin, password: text })}
                   secureTextEntry
@@ -257,7 +278,7 @@ export default function Admin() {
                 disabled={creating}
               >
                 {creating ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={colors.textOnPrimary} />
                 ) : (
                   <Text style={styles.submitButtonText}>Créer l'administrateur</Text>
                 )}
@@ -273,103 +294,104 @@ export default function Admin() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background,
   },
   listContent: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 80,
   },
   adminCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   adminHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   adminIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.warningBg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   adminInfo: {
     flex: 1,
   },
   adminEmail: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   adminPhone: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
     marginTop: 2,
   },
   adminDate: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   adminStatus: {
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
   adminActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 6,
-    gap: 4,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.button,
+    gap: spacing.xs,
   },
   actionButtonText: {
-    color: '#fff',
-    fontSize: 12,
+    color: colors.textOnSecondary,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 64,
+    paddingVertical: spacing.xxl * 2,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
-    marginTop: 16,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.lg,
   },
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: spacing.lg,
+    bottom: spacing.lg,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -380,53 +402,55 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
+    backgroundColor: colors.backgroundWhite,
+    borderTopLeftRadius: borderRadius.card,
+    borderTopRightRadius: borderRadius.card,
+    padding: spacing.xl,
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
+    fontFamily: typography.fontFamilyHeading,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 14,
+    fontSize: typography.caption.fontSize + 1,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    backgroundColor: colors.borderLight,
+    borderRadius: borderRadius.input,
+    padding: spacing.md,
+    fontSize: typography.body.fontSize,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
+    color: colors.text,
   },
   submitButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
 });

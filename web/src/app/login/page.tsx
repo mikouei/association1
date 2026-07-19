@@ -87,7 +87,7 @@ export default function LoginPage() {
                 <div className="text-center py-8 text-gray-500">Chargement...</div>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {associations.filter(a => a.active).map((assoc) => (
+                  {associations.filter(a => a.active !== false).map((assoc) => (
                     <button
                       key={assoc.id}
                       onClick={() => handleSelectAssociation(assoc)}

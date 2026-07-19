@@ -12,8 +12,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { ShieldCheck, Envelope, Lock, Eye, EyeSlash, SignIn, ArrowLeft } from 'phosphor-react-native';
 import { usePlatformAuth } from '../../context/PlatformAuthContext';
+import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 export default function PlatformLogin() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function PlatformLogin() {
   if (authLoading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#9C27B0" />
+        <ActivityIndicator size="large" color={colors.secondary} />
       </View>
     );
   }
@@ -66,18 +67,19 @@ export default function PlatformLogin() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <Ionicons name="shield-checkmark" size={64} color="#9C27B0" />
+            <ShieldCheck size={64} color={colors.secondary} weight="duotone" />
           </View>
-          <Text style={styles.title}>AssocManager</Text>
+          <Text style={styles.title}>Kotiz</Text>
           <Text style={styles.subtitle}>Platform Admin</Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <Ionicons name="mail" size={20} color="#666" style={styles.inputIcon} />
+            <Envelope size={20} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Email SUPER_ADMIN"
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -87,21 +89,22 @@ export default function PlatformLogin() {
           </View>
 
           <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed" size={20} color="#666" style={styles.inputIcon} />
+            <Lock size={20} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Mot de passe"
+              placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               editable={!loading}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons 
-                name={showPassword ? 'eye-off' : 'eye'} 
-                size={20} 
-                color="#666" 
-              />
+              {showPassword ? (
+                <EyeSlash size={20} color={colors.textMuted} />
+              ) : (
+                <Eye size={20} color={colors.textMuted} />
+              )}
             </TouchableOpacity>
           </View>
 
@@ -111,10 +114,10 @@ export default function PlatformLogin() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textOnSecondary} />
             ) : (
               <>
-                <Ionicons name="log-in" size={20} color="#fff" />
+                <SignIn size={20} color={colors.textOnSecondary} />
                 <Text style={styles.loginButtonText}>Connexion Platform</Text>
               </>
             )}
@@ -124,7 +127,7 @@ export default function PlatformLogin() {
             style={styles.backButton}
             onPress={() => router.replace('/login')}
           >
-            <Ionicons name="arrow-back" size={20} color="#9C27B0" />
+            <ArrowLeft size={20} color={colors.secondary} />
             <Text style={styles.backButtonText}>Retour à l'application</Text>
           </TouchableOpacity>
         </View>
@@ -140,12 +143,12 @@ export default function PlatformLogin() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: spacing.xl,
   },
   header: {
     alignItems: 'center',
@@ -155,25 +158,27 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#F3E5F5',
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    borderColor: colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#9C27B0',
+    color: colors.secondary,
   },
   subtitle: {
     fontSize: 18,
-    color: '#666',
-    marginTop: 8,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
   form: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.xl,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -183,55 +188,56 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.input,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   input: {
     flex: 1,
     height: 50,
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
   },
   loginButton: {
     flexDirection: 'row',
-    backgroundColor: '#9C27B0',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.secondary,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   loginButtonDisabled: {
     opacity: 0.6,
   },
   loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
-    gap: 8,
+    marginTop: spacing.xl,
+    gap: spacing.sm,
   },
   backButtonText: {
-    color: '#9C27B0',
-    fontSize: 14,
+    color: colors.secondary,
+    fontSize: typography.body.fontSize,
   },
   footer: {
-    marginTop: 32,
+    marginTop: spacing.xxl,
     alignItems: 'center',
   },
   footerText: {
-    color: '#999',
-    fontSize: 12,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
     textAlign: 'center',
   },
 });

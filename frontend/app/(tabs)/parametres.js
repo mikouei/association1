@@ -14,7 +14,11 @@ import {
   FlatList,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  User, Envelope, Phone, UserCircle, Pencil, CheckCircle, Plus, X, 
+  ArrowLeft, FolderOpen, Eye, CloudArrowUp, Download, File, FileText,
+  SignOut, Trash, Warning, CaretForward
+} from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useRouter } from 'expo-router';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
@@ -22,6 +26,7 @@ import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
 import { formatNumber, formatCurrency } from '../../utils/format';
+import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 export default function Parametres() {
   const { user, logout } = useAuth();
@@ -478,7 +483,7 @@ export default function Parametres() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -494,7 +499,7 @@ export default function Parametres() {
           <Text style={styles.sectionTitle}>Profil</Text>
           <View style={styles.card}>
             <View style={styles.profileRow}>
-              <Ionicons name="person" size={20} color="#666" />
+              <User size={20} color={colors.textMuted} />
               <View style={styles.profileInfo}>
                 <Text style={styles.profileLabel}>Rôle</Text>
                 <Text style={styles.profileValue}>
@@ -504,7 +509,7 @@ export default function Parametres() {
             </View>
 
             <View style={styles.profileRow}>
-              <Ionicons name="mail" size={20} color="#666" />
+              <Envelope size={20} color={colors.textMuted} />
               <View style={styles.profileInfo}>
                 <Text style={styles.profileLabel}>Email</Text>
                 <Text style={styles.profileValue}>{user?.email}</Text>
@@ -513,7 +518,7 @@ export default function Parametres() {
 
             {user?.phone && (
               <View style={styles.profileRow}>
-                <Ionicons name="call" size={20} color="#666" />
+                <Phone size={20} color={colors.textMuted} />
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileLabel}>Téléphone</Text>
                   <Text style={styles.profileValue}>{user.phone}</Text>
@@ -523,7 +528,7 @@ export default function Parametres() {
 
             {user?.member && (
               <View style={styles.profileRow}>
-                <Ionicons name="person-circle" size={20} color="#666" />
+                <UserCircle size={20} color={colors.textMuted} />
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileLabel}>Nom</Text>
                   <Text style={styles.profileValue}>{user.member.name}</Text>
@@ -540,7 +545,7 @@ export default function Parametres() {
               <Text style={styles.sectionTitle}>Configuration de l'association</Text>
               {!editing && (
                 <TouchableOpacity onPress={() => setEditing(true)}>
-                  <Ionicons name="pencil" size={20} color="#2196F3" />
+                  <Pencil size={20} color={colors.primary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -552,6 +557,7 @@ export default function Parametres() {
                   <TextInput
                     style={styles.input}
                     placeholder="Ex: Association des Villas"
+                    placeholderTextColor={colors.textMuted}
                     value={formData.name}
                     onChangeText={(text) => setFormData({ ...formData, name: text })}
                   />
@@ -562,6 +568,7 @@ export default function Parametres() {
                   <TextInput
                     style={styles.input}
                     placeholder="Ex: Syndic, Tontine, ONG..."
+                    placeholderTextColor={colors.textMuted}
                     value={formData.type}
                     onChangeText={(text) => setFormData({ ...formData, type: text })}
                   />
@@ -572,6 +579,7 @@ export default function Parametres() {
                   <TextInput
                     style={styles.input}
                     placeholder="Ex: Villa, Groupe, Section..."
+                    placeholderTextColor={colors.textMuted}
                     value={formData.memberFieldLabel}
                     onChangeText={(text) => setFormData({ ...formData, memberFieldLabel: text })}
                   />
@@ -598,7 +606,7 @@ export default function Parametres() {
                     disabled={saving}
                   >
                     {saving ? (
-                      <ActivityIndicator color="#fff" size="small" />
+                      <ActivityIndicator color={colors.textOnPrimary} size="small" />
                     ) : (
                       <Text style={styles.saveButtonText}>Enregistrer</Text>
                     )}
@@ -640,7 +648,7 @@ export default function Parametres() {
                   <View style={styles.yearActions}>
                     {year.active ? (
                       <View style={styles.activeBadge}>
-                        <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                        <CheckCircle size={16} color={colors.success} weight="fill" />
                         <Text style={styles.activeBadgeText}>Active</Text>
                       </View>
                     ) : (
@@ -652,14 +660,14 @@ export default function Parametres() {
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity onPress={() => handleEditYear(year)}>
-                      <Ionicons name="pencil" size={20} color="#2196F3" />
+                      <Pencil size={20} color={colors.primary} />
                     </TouchableOpacity>
                   </View>
                 </View>
               ))}
               
               <TouchableOpacity style={styles.addButton} onPress={handleAddYear}>
-                <Ionicons name="add" size={20} color="#fff" />
+                <Plus size={20} color={colors.textOnPrimary} />
                 <Text style={styles.addButtonText}>Créer une année</Text>
               </TouchableOpacity>
             </View>
@@ -675,36 +683,36 @@ export default function Parametres() {
                 style={styles.optionButton}
                 onPress={() => setImportModalVisible(true)}
               >
-                <Ionicons name="cloud-upload" size={24} color="#2196F3" />
+                <CloudArrowUp size={24} color={colors.primary} />
                 <Text style={styles.optionText}>Importer membres (TXT/CSV)</Text>
-                <Ionicons name="chevron-forward" size={20} color="#999" />
+                <CaretForward size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.optionButton}
                 onPress={handleExportMembers}
               >
-                <Ionicons name="download" size={24} color="#4CAF50" />
+                <Download size={24} color={colors.success} />
                 <Text style={styles.optionText}>Exporter membres (CSV)</Text>
-                <Ionicons name="chevron-forward" size={20} color="#999" />
+                <CaretForward size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.optionButton}
                 onPress={handleExportStats}
               >
-                <Ionicons name="document" size={24} color="#FF9800" />
+                <File size={24} color={colors.warning} />
                 <Text style={styles.optionText}>Exporter statistiques (CSV)</Text>
-                <Ionicons name="chevron-forward" size={20} color="#999" />
+                <CaretForward size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
               <TouchableOpacity 
                 style={styles.optionButton} 
                 onPress={handleExportStatsPDF}
               >
-                <Ionicons name="document-text" size={24} color="#F44336" />
+                <FileText size={24} color={colors.error} />
                 <Text style={styles.optionText}>Exporter statistiques (PDF)</Text>
-                <Ionicons name="chevron-forward" size={20} color="#999" />
+                <CaretForward size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
@@ -714,7 +722,7 @@ export default function Parametres() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Actions</Text>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out" size={20} color="#fff" />
+            <SignOut size={20} color={colors.textOnSecondary} />
             <Text style={styles.logoutButtonText}>Déconnexion</Text>
           </TouchableOpacity>
         </View>
@@ -726,7 +734,7 @@ export default function Parametres() {
             style={styles.deleteAccountButton} 
             onPress={() => setDeleteAccountModalVisible(true)}
           >
-            <Ionicons name="trash" size={20} color="#fff" />
+            <Trash size={20} color={colors.textOnSecondary} />
             <Text style={styles.deleteAccountButtonText}>Supprimer mon compte</Text>
           </TouchableOpacity>
         </View>
@@ -760,7 +768,7 @@ export default function Parametres() {
                     {editingYear ? 'Modifier l\'année' : 'Nouvelle année'}
                   </Text>
                   <TouchableOpacity onPress={() => setYearModalVisible(false)}>
-                    <Ionicons name="close" size={28} color="#333" />
+                    <X size={28} color={colors.text} />
                   </TouchableOpacity>
                 </View>
 
@@ -775,6 +783,7 @@ export default function Parametres() {
                     <TextInput
                       style={styles.input}
                       placeholder="Ex: 2026"
+                      placeholderTextColor={colors.textMuted}
                       value={yearFormData.year}
                       onChangeText={(text) => {
                         // Nettoyer le texte pour n'accepter que les chiffres
@@ -796,6 +805,7 @@ export default function Parametres() {
                     <TextInput
                       style={styles.input}
                       placeholder="Ex: 5000"
+                      placeholderTextColor={colors.textMuted}
                       value={yearFormData.monthlyAmount}
                       onChangeText={(text) => {
                         // Nettoyer le texte pour n'accepter que les chiffres
@@ -813,7 +823,7 @@ export default function Parametres() {
                     disabled={saving}
                   >
                     {saving ? (
-                      <ActivityIndicator color="#fff" />
+                      <ActivityIndicator color={colors.textOnPrimary} />
                     ) : (
                       <Text style={styles.submitButtonText}>
                         {editingYear ? 'Modifier' : 'Créer'}
@@ -844,7 +854,7 @@ export default function Parametres() {
                 setImportPreview(null);
               }}
             >
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <ArrowLeft size={24} color={colors.textOnSecondary} />
               <Text style={styles.backButtonText}>Retour</Text>
             </TouchableOpacity>
             <Text style={styles.fullModalTitle}>Importer membres</Text>
@@ -864,7 +874,7 @@ export default function Parametres() {
               style={styles.filePickerButton}
               onPress={handlePickFile}
             >
-              <Ionicons name="folder-open" size={20} color="#2196F3" />
+              <FolderOpen size={20} color={colors.primary} />
               <Text style={styles.filePickerText}>Charger un fichier (TXT/CSV)</Text>
             </TouchableOpacity>
 
@@ -873,6 +883,7 @@ export default function Parametres() {
             <TextInput
               style={styles.importTextArea}
               placeholder="Coller le contenu ici..."
+              placeholderTextColor={colors.textMuted}
               value={importContent}
               onChangeText={setImportContent}
               multiline
@@ -886,10 +897,10 @@ export default function Parametres() {
               disabled={importing}
             >
               {importing ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.textOnSecondary} />
               ) : (
                 <>
-                  <Ionicons name="eye" size={20} color="#fff" />
+                  <Eye size={20} color={colors.textOnSecondary} />
                   <Text style={styles.previewButtonText}>Prévisualiser</Text>
                 </>
               )}
@@ -904,13 +915,13 @@ export default function Parametres() {
                     <Text style={styles.previewStatLabel}>Valides</Text>
                   </View>
                   <View style={styles.previewStat}>
-                    <Text style={[styles.previewStatValue, { color: '#FF9800' }]}>
+                    <Text style={[styles.previewStatValue, { color: colors.warning }]}>
                       {typeof importPreview.duplicates === 'number' ? importPreview.duplicates : (importPreview.duplicates?.length || 0)}
                     </Text>
                     <Text style={styles.previewStatLabel}>Doublons</Text>
                   </View>
                   <View style={styles.previewStat}>
-                    <Text style={[styles.previewStatValue, { color: '#F44336' }]}>
+                    <Text style={[styles.previewStatValue, { color: colors.error }]}>
                       {typeof importPreview.errors === 'number' ? importPreview.errors : (importPreview.errors?.length || 0)}
                     </Text>
                     <Text style={styles.previewStatLabel}>Erreurs</Text>
@@ -924,7 +935,7 @@ export default function Parametres() {
                     disabled={importing}
                   >
                     {importing ? (
-                      <ActivityIndicator color="#fff" />
+                      <ActivityIndicator color={colors.textOnSecondary} />
                     ) : (
                       <Text style={styles.confirmButtonText}>Confirmer l'import</Text>
                     )}
@@ -945,7 +956,7 @@ export default function Parametres() {
       >
         <View style={styles.logoutModalOverlay}>
           <View style={styles.logoutModalContent}>
-            <Ionicons name="log-out" size={48} color="#F44336" style={{ marginBottom: 16 }} />
+            <SignOut size={48} color={colors.error} style={{ marginBottom: spacing.lg }} />
             <Text style={styles.logoutModalTitle}>Déconnexion</Text>
             <Text style={styles.logoutModalText}>
               Êtes-vous sûr de vouloir vous déconnecter ?
@@ -978,7 +989,7 @@ export default function Parametres() {
         <View style={styles.deleteAccountModalOverlay}>
           <View style={styles.deleteAccountModalContent}>
             <View style={styles.deleteAccountModalHeader}>
-              <Ionicons name="warning" size={48} color="#DC2626" />
+              <Warning size={48} color={colors.error} weight="fill" />
               <Text style={styles.deleteAccountModalTitle}>Supprimer mon compte</Text>
             </View>
             
@@ -998,6 +1009,7 @@ export default function Parametres() {
               <TextInput
                 style={styles.deleteAccountPasswordInput}
                 placeholder="Mot de passe"
+                placeholderTextColor={colors.textMuted}
                 secureTextEntry
                 value={deletePassword}
                 onChangeText={setDeletePassword}
@@ -1020,7 +1032,7 @@ export default function Parametres() {
                 disabled={deleting}
               >
                 {deleting ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={colors.textOnSecondary} size="small" />
                 ) : (
                   <Text style={styles.deleteAccountConfirmText}>Supprimer</Text>
                 )}
@@ -1036,7 +1048,7 @@ export default function Parametres() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -1044,27 +1056,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    color: colors.text,
+    marginBottom: spacing.md,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1074,81 +1086,82 @@ const styles = StyleSheet.create({
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.borderLight,
   },
   profileInfo: {
-    marginLeft: 12,
+    marginLeft: spacing.md,
     flex: 1,
   },
   profileLabel: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   profileValue: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: typography.body.fontSize,
+    color: colors.text,
     fontWeight: '500',
     marginTop: 2,
   },
   configRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.borderLight,
   },
   configLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
   },
   configValue: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.input,
+    padding: spacing.md,
+    fontSize: typography.body.fontSize,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
+    color: colors.text,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   button: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
+    color: colors.textMuted,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.primary,
   },
   saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnPrimary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   buttonDisabled: {
@@ -1158,104 +1171,104 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.borderLight,
   },
   yearInfo: {
     flex: 1,
   },
   yearText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   yearAmount: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   yearActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   activeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    backgroundColor: colors.successBg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.badge,
+    gap: spacing.xs,
   },
   activeBadgeText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
-    color: '#4CAF50',
+    color: colors.success,
   },
   activateButton: {
-    backgroundColor: '#2196F3',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.badge,
   },
   activateButtonText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textOnPrimary,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2196F3',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 12,
-    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.button,
+    marginTop: spacing.md,
+    gap: spacing.sm,
   },
   addButtonText: {
-    color: '#fff',
-    fontSize: 14,
+    color: colors.textOnPrimary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    gap: 12,
+    borderBottomColor: colors.borderLight,
+    gap: spacing.md,
   },
   optionText: {
     flex: 1,
-    fontSize: 14,
-    color: '#333',
+    fontSize: typography.body.fontSize,
+    color: colors.text,
     fontWeight: '500',
   },
   logoutButton: {
     flexDirection: 'row',
-    backgroundColor: '#F44336',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.error,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoutButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
   footer: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: spacing.xl,
   },
   footerText: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   modalContainer: {
     flex: 1,
@@ -1263,10 +1276,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.backgroundWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
+    padding: spacing.xl,
     maxHeight: '70%',
   },
   yearModalOverlay: {
@@ -1281,9 +1294,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   yearModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.xl,
     width: '90%',
     maxWidth: 400,
   },
@@ -1291,135 +1304,136 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
   },
   submitButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
   fullModalContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.backgroundWhite,
   },
   fullModalHeader: {
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.secondary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: spacing.lg,
     paddingTop: 48,
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    gap: 4,
+    padding: spacing.sm,
+    gap: spacing.xs,
   },
   backButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
     fontWeight: '500',
   },
   fullModalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.textOnSecondary,
   },
   fullModalContent: {
     flex: 1,
-    padding: 16,
+    padding: spacing.lg,
   },
   importInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
   importExample: {
-    fontSize: 12,
-    color: '#999',
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: borderRadius.input,
+    marginBottom: spacing.lg,
   },
   filePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E3F2FD',
-    paddingVertical: 16,
+    backgroundColor: colors.warningBg,
+    paddingVertical: spacing.lg,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: borderRadius.button,
     borderWidth: 2,
-    borderColor: '#2196F3',
+    borderColor: colors.primary,
     borderStyle: 'dashed',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   filePickerText: {
-    color: '#2196F3',
-    fontSize: 16,
+    color: colors.primary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   orText: {
     textAlign: 'center',
-    color: '#999',
-    fontSize: 14,
-    marginBottom: 12,
+    color: colors.textMuted,
+    fontSize: typography.body.fontSize,
+    marginBottom: spacing.md,
   },
   importTextArea: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.input,
+    padding: spacing.md,
+    fontSize: typography.body.fontSize,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
     minHeight: 200,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
+    color: colors.text,
   },
   previewButton: {
     flexDirection: 'row',
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.secondary,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   previewButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   previewContainer: {
-    marginTop: 24,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 16,
+    marginTop: spacing.xl,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
   },
   previewTitle: {
-    fontSize: 16,
+    fontSize: typography.h3.fontSize,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    color: colors.text,
+    marginBottom: spacing.lg,
   },
   previewStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   previewStat: {
     alignItems: 'center',
@@ -1427,22 +1441,22 @@ const styles = StyleSheet.create({
   previewStatValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: colors.success,
   },
   previewStatLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   confirmButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.success,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
   },
   confirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   submitButtonDisabled: {
@@ -1455,58 +1469,58 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   logoutModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.xl,
     width: '85%',
     maxWidth: 340,
     alignItems: 'center',
   },
   logoutModalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   logoutModalText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   logoutModalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     width: '100%',
   },
   logoutCancelButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.background,
     alignItems: 'center',
   },
   logoutCancelText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textMuted,
   },
   logoutConfirmButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#F44336',
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.error,
     alignItems: 'center',
   },
   logoutConfirmText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textOnSecondary,
   },
   helperText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
     fontStyle: 'italic',
   },
   // Styles suppression de compte
@@ -1514,14 +1528,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    backgroundColor: '#DC2626',
-    borderRadius: 12,
-    gap: 8,
+    padding: spacing.lg,
+    backgroundColor: colors.error,
+    borderRadius: borderRadius.card,
+    gap: spacing.sm,
   },
   deleteAccountButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   deleteAccountModalOverlay: {
@@ -1532,80 +1546,81 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   deleteAccountModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.xl,
     width: '100%',
     maxWidth: 400,
   },
   deleteAccountModalHeader: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   deleteAccountModalTitle: {
-    fontSize: 20,
+    fontSize: typography.h2.fontSize,
     fontWeight: '700',
-    color: '#DC2626',
-    marginTop: 12,
+    color: colors.error,
+    marginTop: spacing.md,
   },
   deleteAccountModalBody: {
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   deleteAccountWarningText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#DC2626',
+    color: colors.error,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   deleteAccountInfoText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
     lineHeight: 22,
     marginBottom: 20,
   },
   deleteAccountPasswordLabel: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   deleteAccountPasswordInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderColor: colors.border,
+    borderRadius: borderRadius.input,
+    padding: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
   },
   deleteAccountModalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   deleteAccountCancelButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.background,
     alignItems: 'center',
   },
   deleteAccountCancelText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textMuted,
   },
   deleteAccountConfirmButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#DC2626',
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.error,
     alignItems: 'center',
   },
   deleteAccountConfirmButtonDisabled: {
     opacity: 0.7,
   },
   deleteAccountConfirmText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textOnSecondary,
   },
 });

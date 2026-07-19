@@ -15,10 +15,18 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  Calendar, 
+  CaretDown, 
+  MagnifyingGlass, 
+  XCircle, 
+  X, 
+  CheckCircle 
+} from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency } from '../../utils/format';
+import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 const MONTHS = [
   'J', 'F', 'M', 'A', 'M', 'J',
@@ -48,7 +56,6 @@ export default function Cotisations() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Recharger les données à chaque fois que l'onglet Cotisations est affiché
   useFocusEffect(
     useCallback(() => {
       if (selectedYear) {
@@ -59,7 +66,6 @@ export default function Cotisations() {
     }, [selectedYear?.id])
   );
 
-  // Filtrer les membres quand la recherche change
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredMembers(membersData);
@@ -79,13 +85,11 @@ export default function Cotisations() {
       const yearsRes = await api.get('/years');
       setYears(yearsRes.data);
       
-      // Sélectionner l'année active par défaut
       const activeYear = yearsRes.data.find(y => y.active);
       if (activeYear) {
         setSelectedYear(activeYear);
         await loadPayments(activeYear.id);
       } else if (yearsRes.data.length > 0) {
-        // Si pas d'année active, prendre la première
         setSelectedYear(yearsRes.data[0]);
         await loadPayments(yearsRes.data[0].id);
       }
@@ -101,7 +105,6 @@ export default function Cotisations() {
       const paymentsRes = await api.get(`/payments/year/${yearId}`);
       let members = paymentsRes.data.members;
       
-      // Si l'utilisateur n'est pas admin, filtrer pour ne montrer que sa propre ligne
       if (user?.role !== 'ADMIN' && user?.member) {
         members = members.filter(m => m.id === user.member.id || m.userId === user.id);
       }
@@ -139,13 +142,6 @@ export default function Cotisations() {
     setPaymentModal(true);
   };
 
-  const handleAddMember = () => {
-    Alert.alert(
-      'Ajouter un membre',
-      'Utilisez l\'onglet "Membres" puis cliquez sur le bouton + en bas à droite pour ajouter un nouveau membre.'
-    );
-  };
-
   const handleSavePayment = async () => {
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
       Alert.alert('Erreur', 'Montant invalide');
@@ -175,17 +171,17 @@ export default function Cotisations() {
 
   const getCellColor = (monthData, monthlyAmount) => {
     if (monthData.amountPaid >= monthlyAmount) {
-      return '#4CAF50'; // Vert: payé
+      return colors.success;
     } else if (monthData.amountPaid > 0) {
-      return '#FF9800'; // Orange: partiel
+      return colors.warning;
     }
-    return '#F44336'; // Rouge: non payé
+    return colors.error;
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -193,7 +189,7 @@ export default function Cotisations() {
   if (!selectedYear) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="calendar-outline" size={64} color="#ccc" />
+        <Calendar size={64} color={colors.border} />
         <Text style={styles.emptyText}>Aucune année disponible</Text>
         <Text style={styles.emptySubtext}>Créez une année dans les paramètres</Text>
       </View>
@@ -212,7 +208,7 @@ export default function Cotisations() {
             <Text style={styles.headerSubtitle}>Montant mensuel: {formatNumber(selectedYear.monthlyAmount)} FCFA</Text>
           </View>
           <View style={styles.yearSelectorButton}>
-            <Ionicons name="chevron-down" size={24} color="#fff" />
+            <CaretDown size={24} color={colors.textOnSecondary} weight="bold" />
           </View>
         </View>
         {selectedYear.active && (
@@ -222,22 +218,21 @@ export default function Cotisations() {
         )}
       </TouchableOpacity>
 
-      {/* Barre de recherche */}
       {isAdmin && (
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666" />
+          <MagnifyingGlass size={20} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Rechercher par nom, villa, téléphone..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#999" />
+              <XCircle size={20} color={colors.textMuted} weight="fill" />
             </TouchableOpacity>
           )}
         </View>
@@ -246,13 +241,16 @@ export default function Cotisations() {
       <ScrollView
         style={styles.scrollContainer}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
         }
       >
-        {/* Cartes membres avec 3 lignes de 4 mois */}
         {filteredMembers.map((member, idx) => (
           <View key={member.id} style={styles.memberCard}>
-            {/* En-tête membre */}
             <View style={styles.memberCardHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.memberCardName}>{member.name}</Text>
@@ -268,7 +266,6 @@ export default function Cotisations() {
               </View>
             </View>
 
-            {/* Grille 3x4 mois */}
             {[[1,2,3,4],[5,6,7,8],[9,10,11,12]].map((row, rowIdx) => (
               <View key={rowIdx} style={styles.monthRow}>
                 {row.map((month) => {
@@ -308,18 +305,17 @@ export default function Cotisations() {
         )}
       </ScrollView>
 
-      {/* Légende */}
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: '#4CAF50' }]} />
+          <View style={[styles.legendColor, { backgroundColor: colors.success }]} />
           <Text style={styles.legendText}>Payé</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: '#FF9800' }]} />
+          <View style={[styles.legendColor, { backgroundColor: colors.warning }]} />
           <Text style={styles.legendText}>Partiel</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: '#F44336' }]} />
+          <View style={[styles.legendColor, { backgroundColor: colors.error }]} />
           <Text style={styles.legendText}>Non payé</Text>
         </View>
       </View>
@@ -341,7 +337,7 @@ export default function Cotisations() {
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Enregistrer un paiement</Text>
                   <TouchableOpacity onPress={() => setPaymentModal(false)}>
-                    <Ionicons name="close" size={28} color="#333" />
+                    <X size={28} color={colors.text} />
                   </TouchableOpacity>
                 </View>
 
@@ -356,9 +352,9 @@ export default function Cotisations() {
                       <TextInput
                         style={styles.input}
                         placeholder={`${formatNumber(selectedYear.monthlyAmount)}`}
+                        placeholderTextColor={colors.textMuted}
                         value={paymentAmount}
                         onChangeText={(text) => {
-                          // Nettoyer le texte pour n'accepter que les chiffres
                           const cleanedText = text.replace(/[^0-9]/g, '');
                           setPaymentAmount(cleanedText);
                         }}
@@ -372,6 +368,7 @@ export default function Cotisations() {
                       <TextInput
                         style={[styles.input, styles.textArea]}
                         placeholder="Ajouter une note..."
+                        placeholderTextColor={colors.textMuted}
                         value={paymentNotes}
                         onChangeText={setPaymentNotes}
                         multiline
@@ -385,7 +382,7 @@ export default function Cotisations() {
                       disabled={saving}
                     >
                       {saving ? (
-                        <ActivityIndicator color="#fff" />
+                        <ActivityIndicator color={colors.textOnPrimary} />
                       ) : (
                         <Text style={styles.saveButtonText}>Enregistrer</Text>
                       )}
@@ -411,7 +408,7 @@ export default function Cotisations() {
             <View style={styles.yearModalHeader}>
               <Text style={styles.yearModalTitle}>Sélectionner une année</Text>
               <TouchableOpacity onPress={() => setYearSelectorModal(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
             
@@ -443,7 +440,7 @@ export default function Cotisations() {
                     </View>
                   )}
                   {selectedYear?.id === item.id && (
-                    <Ionicons name="checkmark-circle" size={24} color="#2196F3" />
+                    <CheckCircle size={24} color={colors.primary} weight="fill" />
                   )}
                 </TouchableOpacity>
               )}
@@ -458,33 +455,35 @@ export default function Cotisations() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.xl,
+    backgroundColor: colors.background,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: typography.h3.fontSize + 2,
     fontWeight: '600',
-    color: '#666',
-    marginTop: 16,
+    color: colors.textMuted,
+    marginTop: spacing.lg,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
   header: {
-    backgroundColor: '#2196F3',
-    padding: 16,
+    backgroundColor: colors.secondary,
+    padding: spacing.lg,
   },
   headerContent: {
     flexDirection: 'row',
@@ -492,105 +491,106 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.textOnSecondary,
+    fontFamily: typography.fontFamilyHeading,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#fff',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textOnSecondary,
+    marginTop: spacing.xs,
     opacity: 0.9,
   },
   yearSelectorButton: {
-    padding: 4,
+    padding: spacing.xs,
   },
   activeBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.badge,
+    marginTop: spacing.sm,
     alignSelf: 'flex-start',
   },
   activeBadgeText: {
-    color: '#fff',
-    fontSize: 12,
+    color: colors.textOnSecondary,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    margin: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: colors.backgroundWhite,
+    margin: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.input,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#333',
+    marginLeft: spacing.sm,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
   },
   memberCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 12,
-    marginBottom: 10,
-    borderRadius: 10,
-    padding: 12,
-    elevation: 1,
+    backgroundColor: colors.backgroundWhite,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.card,
+    padding: spacing.md,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   memberCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingBottom: 8,
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.borderLight,
   },
   memberCardName: {
-    fontSize: 15,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
-    color: '#222',
+    color: colors.text,
   },
   memberCardField: {
-    fontSize: 12,
-    color: '#777',
-    marginTop: 1,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   memberCardTotal: {
-    backgroundColor: '#E3F2FD',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    backgroundColor: colors.warningBg,
+    borderRadius: borderRadius.button,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   memberCardTotalLabel: {
     fontSize: 9,
-    color: '#1565C0',
+    color: colors.primary,
     fontWeight: '600',
   },
   memberCardTotalValue: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize + 1,
     fontWeight: 'bold',
-    color: '#1565C0',
+    color: colors.primary,
   },
   monthRow: {
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 6,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   monthCard: {
     flex: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
+    borderRadius: borderRadius.button,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
@@ -601,49 +601,44 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
   },
   monthCardValue: {
-    fontSize: 14,
+    fontSize: typography.caption.fontSize + 2,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.textOnSecondary,
     marginTop: 2,
   },
   scrollContainer: {
     flex: 1,
   },
-  percentageText: {
-    fontSize: 11,
-    color: '#666',
-    marginTop: 2,
-  },
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
-    padding: 12,
-    backgroundColor: '#fff',
+    padding: spacing.md,
+    backgroundColor: colors.backgroundWhite,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: colors.border,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 12,
+    marginHorizontal: spacing.md,
   },
   legendColor: {
     width: 16,
     height: 16,
     borderRadius: 4,
-    marginRight: 6,
+    marginRight: spacing.sm,
   },
   legendText: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   noResults: {
-    padding: 32,
+    padding: spacing.xxl,
     alignItems: 'center',
   },
   noResultsText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
     textAlign: 'center',
   },
   modalContainer: {
@@ -652,64 +647,66 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
+    backgroundColor: colors.backgroundWhite,
+    borderTopLeftRadius: borderRadius.card,
+    borderTopRightRadius: borderRadius.card,
+    padding: spacing.xl,
     maxHeight: '70%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
+    fontFamily: typography.fontFamilyHeading,
   },
   modalInfo: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginBottom: spacing.xl,
     textAlign: 'center',
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 14,
+    fontSize: typography.caption.fontSize + 1,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    backgroundColor: colors.borderLight,
+    borderRadius: borderRadius.input,
+    padding: spacing.md,
+    fontSize: typography.body.fontSize,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
+    color: colors.text,
   },
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
   saveButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   saveButtonDisabled: {
     opacity: 0.6,
   },
   saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
   yearModalContainer: {
     flex: 1,
@@ -717,63 +714,64 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   yearModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
+    backgroundColor: colors.backgroundWhite,
+    borderTopLeftRadius: borderRadius.card,
+    borderTopRightRadius: borderRadius.card,
+    padding: spacing.xl,
     maxHeight: '60%',
   },
   yearModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   yearModalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
+    fontFamily: typography.fontFamilyHeading,
   },
   yearItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#f5f5f5',
-    marginBottom: 8,
+    padding: spacing.lg,
+    borderRadius: borderRadius.card,
+    backgroundColor: colors.borderLight,
+    marginBottom: spacing.sm,
   },
   yearItemSelected: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.warningBg,
     borderWidth: 2,
-    borderColor: '#2196F3',
+    borderColor: colors.primary,
   },
   yearItemInfo: {
     flex: 1,
   },
   yearItemYear: {
-    fontSize: 18,
+    fontSize: typography.h3.fontSize + 2,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   yearItemYearSelected: {
-    color: '#2196F3',
+    color: colors.primary,
   },
   yearItemAmount: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   yearActiveBadge: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginRight: 12,
+    backgroundColor: colors.success,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.button,
+    marginRight: spacing.md,
   },
   yearActiveBadgeText: {
-    color: '#fff',
-    fontSize: 12,
+    color: colors.textOnSecondary,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
 });

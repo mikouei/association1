@@ -30,6 +30,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
+      "http://localhost:3002",
       "http://localhost:19006",
       "https://web-bx1a.onrender.com",
       "https://assocmanager-web.onrender.com",

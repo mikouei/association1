@@ -15,13 +15,14 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Heart, Gift, HandHeart, Star, SmileyMeh, Plus, X, Pencil, Trash, Download, CaretDown, CaretRight, MagnifyingGlass, User } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber } from '../../utils/format';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
+import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 const TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'autre'];
 
@@ -325,12 +326,13 @@ export default function Exceptionnelles() {
   };
 
   const getTypeIcon = (type) => {
+    const iconProps = { size: 32, color: colors.primary, weight: 'duotone' };
     switch (type) {
-      case 'décès': return 'sad-outline';
-      case 'mariage': return 'heart';
-      case 'anniversaire': return 'gift';
-      case 'solidarité': return 'hand-left';
-      default: return 'star';
+      case 'décès': return <SmileyMeh {...iconProps} />;
+      case 'mariage': return <Heart {...iconProps} />;
+      case 'anniversaire': return <Gift {...iconProps} />;
+      case 'solidarité': return <HandHeart {...iconProps} />;
+      default: return <Star {...iconProps} />;
     }
   };
 
@@ -343,10 +345,11 @@ export default function Exceptionnelles() {
     <TouchableOpacity
       style={styles.card}
       onPress={() => handleShowDetail(item)}
+      data-testid={`exceptional-card-${item.id}`}
     >
       <View style={styles.cardHeader}>
         <View style={styles.iconContainer}>
-          <Ionicons name={getTypeIcon(item.type)} size={32} color="#2196F3" />
+          {getTypeIcon(item.type)}
         </View>
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle}>{item.title}</Text>
@@ -370,7 +373,7 @@ export default function Exceptionnelles() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -383,11 +386,11 @@ export default function Exceptionnelles() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Ionicons name="gift-outline" size={64} color="#ccc" />
+            <Gift size={64} color={colors.border} weight="duotone" />
             <Text style={styles.emptyText}>Aucune cotisation exceptionnelle</Text>
           </View>
         )}
@@ -397,8 +400,9 @@ export default function Exceptionnelles() {
         <TouchableOpacity
           style={styles.fab}
           onPress={handleOpenCreateModal}
+          data-testid="add-exceptional-btn"
         >
-          <Ionicons name="add" size={28} color="#fff" />
+          <Plus size={28} color={colors.textOnPrimary} weight="bold" />
         </TouchableOpacity>
       )}
 
@@ -419,7 +423,7 @@ export default function Exceptionnelles() {
                 {editingContribution ? 'Modifier cotisation' : 'Nouvelle cotisation'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -429,6 +433,7 @@ export default function Exceptionnelles() {
                 <TextInput
                   style={styles.input}
                   placeholder="Ex: Décès M. Kamga"
+                  placeholderTextColor={colors.textMuted}
                   value={formData.title}
                   onChangeText={(text) => setFormData({ ...formData, title: text })}
                   autoCapitalize="sentences"
@@ -465,6 +470,7 @@ export default function Exceptionnelles() {
                 <TextInput
                   style={[styles.input, styles.textArea]}
                   placeholder="Description..."
+                  placeholderTextColor={colors.textMuted}
                   value={formData.description}
                   onChangeText={(text) => setFormData({ ...formData, description: text })}
                   multiline
@@ -478,7 +484,7 @@ export default function Exceptionnelles() {
                 disabled={saving}
               >
                 {saving ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={colors.textOnPrimary} />
                 ) : (
                   <Text style={styles.submitButtonText}>
                     {editingContribution ? 'Modifier' : 'Créer'}
@@ -502,7 +508,7 @@ export default function Exceptionnelles() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Détails</Text>
               <TouchableOpacity onPress={() => setDetailModal(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -510,7 +516,7 @@ export default function Exceptionnelles() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.detailHeader}>
                   <View style={styles.detailIconContainer}>
-                    <Ionicons name={getTypeIcon(selectedContribution.type)} size={40} color="#2196F3" />
+                    {React.cloneElement(getTypeIcon(selectedContribution.type), { size: 40 })}
                   </View>
                   <View style={styles.detailInfo}>
                     <Text style={styles.detailTitle}>{selectedContribution.title}</Text>
@@ -540,7 +546,7 @@ export default function Exceptionnelles() {
                       style={styles.actionButton}
                       onPress={() => handleOpenEditModal(selectedContribution)}
                     >
-                      <Ionicons name="pencil" size={20} color="#2196F3" />
+                      <Pencil size={20} color={colors.secondary} />
                       <Text style={styles.actionButtonText}>Modifier</Text>
                     </TouchableOpacity>
 
@@ -548,8 +554,8 @@ export default function Exceptionnelles() {
                       style={[styles.actionButton, styles.deleteButton]}
                       onPress={() => handleDelete(selectedContribution)}
                     >
-                      <Ionicons name="trash" size={20} color="#F44336" />
-                      <Text style={[styles.actionButtonText, { color: '#F44336' }]}>Supprimer</Text>
+                      <Trash size={20} color={colors.error} />
+                      <Text style={[styles.actionButtonText, { color: colors.error }]}>Supprimer</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -561,10 +567,10 @@ export default function Exceptionnelles() {
                   disabled={downloadingPdf}
                 >
                   {downloadingPdf ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={colors.textOnSecondary} />
                   ) : (
                     <>
-                      <Ionicons name="download" size={20} color="#fff" />
+                      <Download size={20} color={colors.textOnSecondary} />
                       <Text style={styles.downloadPdfText}>Télécharger statistiques (PDF)</Text>
                     </>
                   )}
@@ -578,7 +584,7 @@ export default function Exceptionnelles() {
                         style={styles.addPaymentButton}
                         onPress={handleOpenPaymentModal}
                       >
-                        <Ionicons name="add" size={20} color="#fff" />
+                        <Plus size={20} color={colors.textOnSecondary} />
                         <Text style={styles.addPaymentText}>Ajouter</Text>
                       </TouchableOpacity>
                     )}
@@ -600,7 +606,7 @@ export default function Exceptionnelles() {
                               onPress={() => handleDeletePayment(payment)}
                               style={styles.paymentDeleteButton}
                             >
-                              <Ionicons name="trash-outline" size={18} color="#F44336" />
+                              <Trash size={18} color={colors.error} />
                             </TouchableOpacity>
                           )}
                         </View>
@@ -631,7 +637,7 @@ export default function Exceptionnelles() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nouveau paiement</Text>
               <TouchableOpacity onPress={() => setPaymentModal(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -644,7 +650,7 @@ export default function Exceptionnelles() {
                 <Text style={paymentData.memberName ? styles.memberSelectorText : styles.memberSelectorPlaceholder}>
                   {paymentData.memberName || 'Sélectionner un membre'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#666" />
+                <CaretDown size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -653,6 +659,7 @@ export default function Exceptionnelles() {
               <TextInput
                 style={styles.input}
                 placeholder="Ex: 5000"
+                placeholderTextColor={colors.textMuted}
                 value={paymentData.amount}
                 onChangeText={(text) => setPaymentData({ ...paymentData, amount: text })}
                 keyboardType="numeric"
@@ -665,7 +672,7 @@ export default function Exceptionnelles() {
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.textOnPrimary} />
               ) : (
                 <Text style={styles.submitButtonText}>Enregistrer</Text>
               )}
@@ -686,15 +693,16 @@ export default function Exceptionnelles() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Sélectionner un membre</Text>
               <TouchableOpacity onPress={() => setMemberSelectModal(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color="#666" />
+              <MagnifyingGlass size={20} color={colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Rechercher..."
+                placeholderTextColor={colors.textMuted}
                 value={memberSearch}
                 onChangeText={setMemberSearch}
                 autoCapitalize="none"
@@ -711,13 +719,13 @@ export default function Exceptionnelles() {
                   onPress={() => handleSelectMember(item)}
                 >
                   <View style={styles.memberItemIcon}>
-                    <Ionicons name="person" size={20} color="#2196F3" />
+                    <User size={20} color={colors.primary} />
                   </View>
                   <View style={styles.memberItemInfo}>
                     <Text style={styles.memberItemName}>{item.name}</Text>
                     <Text style={styles.memberItemField}>{item.customFieldValue}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                  <CaretRight size={20} color={colors.border} />
                 </TouchableOpacity>
               )}
               ListEmptyComponent={() => (
@@ -734,7 +742,7 @@ export default function Exceptionnelles() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -742,14 +750,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 80,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -759,37 +767,37 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   iconContainer: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.warningBg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   cardInfo: {
     flex: 1,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: typography.h3.fontSize,
+    fontWeight: typography.h3.fontWeight,
+    color: colors.text,
   },
   cardType: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
     textTransform: 'capitalize',
   },
   cardStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingTop: 12,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: colors.borderLight,
   },
   stat: {
     alignItems: 'center',
@@ -797,12 +805,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: colors.primary,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -810,18 +818,18 @@ const styles = StyleSheet.create({
     paddingVertical: 64,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
-    marginTop: 16,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.lg,
   },
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: spacing.lg,
+    bottom: spacing.lg,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
@@ -836,39 +844,40 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.backgroundWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
+    padding: spacing.xl,
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.input,
+    padding: spacing.md,
+    fontSize: typography.body.fontSize,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
+    color: colors.text,
   },
   textArea: {
     height: 100,
@@ -879,278 +888,279 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   typeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     borderRadius: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    marginRight: 8,
-    marginBottom: 8,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
+    marginBottom: spacing.sm,
   },
   typeButtonActive: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   typeText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
     textTransform: 'capitalize',
   },
   typeTextActive: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
   detailHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   detailIconContainer: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.warningBg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
   detailInfo: {
     flex: 1,
   },
   detailTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
   },
   detailType: {
-    fontSize: 16,
-    color: '#2196F3',
+    fontSize: typography.body.fontSize,
+    color: colors.primary,
     textTransform: 'capitalize',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   detailDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginBottom: spacing.lg,
     lineHeight: 20,
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: borderRadius.input,
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#E3F2FD',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.warningBg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.card,
     alignItems: 'center',
   },
   statBoxValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: colors.primary,
   },
   statBoxLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#E3F2FD',
-    gap: 8,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.background,
+    gap: spacing.sm,
   },
   deleteButton: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: colors.errorBg,
   },
   actionButtonText: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#2196F3',
+    color: colors.secondary,
   },
   paymentsSection: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   paymentsSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   addPaymentButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: colors.success,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 20,
-    gap: 4,
+    gap: spacing.xs,
   },
   addPaymentText: {
-    color: '#fff',
-    fontSize: 14,
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   paymentItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.borderLight,
   },
   paymentInfo: {
     flex: 1,
   },
   paymentName: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '500',
-    color: '#333',
+    color: colors.text,
   },
   paymentDate: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
     marginTop: 2,
   },
   paymentRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   paymentAmount: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#2196F3',
+    color: colors.primary,
   },
   paymentDeleteButton: {
-    padding: 4,
+    padding: spacing.xs,
   },
   noPayments: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
     textAlign: 'center',
-    paddingVertical: 24,
+    paddingVertical: spacing.xl,
   },
   memberSelector: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.input,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
   },
   memberSelectorText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: typography.body.fontSize,
+    color: colors.text,
   },
   memberSelectorPlaceholder: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.input,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    fontSize: 16,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
   },
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.borderLight,
   },
   memberItemIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.warningBg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   memberItemInfo: {
     flex: 1,
   },
   memberItemName: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '500',
-    color: '#333',
+    color: colors.text,
   },
   memberItemField: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
     marginTop: 2,
   },
   noMembers: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
     textAlign: 'center',
-    paddingVertical: 24,
+    paddingVertical: spacing.xl,
   },
   // Styles pour le bouton télécharger PDF
   downloadPdfButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.secondary,
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 12,
-    marginVertical: 16,
+    borderRadius: borderRadius.card,
+    marginVertical: spacing.lg,
     gap: 10,
   },
   downloadPdfButtonDisabled: {
     opacity: 0.6,
   },
   downloadPdfText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
 });

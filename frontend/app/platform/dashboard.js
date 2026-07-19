@@ -15,9 +15,13 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  User, Pencil, Trash, Buildings, Plus, Play, Pause, X, Key, UserCircle,
+  UsersThree, SignOut, ShieldCheck, PlusCircle, CheckCircle, Car
+} from 'phosphor-react-native';
 import { usePlatformAuth } from '../../context/PlatformAuthContext';
 import api from '../../utils/api';
+import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 export default function PlatformDashboard() {
   const router = useRouter();
@@ -297,7 +301,7 @@ export default function PlatformDashboard() {
   const renderAssociation = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={[styles.statusDot, { backgroundColor: item.active ? '#4CAF50' : '#F44336' }]} />
+        <View style={[styles.statusDot, { backgroundColor: item.active ? colors.success : colors.error }]} />
         <Text style={styles.cardTitle}>{item.name}</Text>
       </View>
       
@@ -307,7 +311,7 @@ export default function PlatformDashboard() {
       </View>
       
       <View style={styles.cardAdmin}>
-        <Ionicons name="person" size={14} color="#666" />
+        <User size={14} color={colors.textMuted} />
         <Text style={styles.adminText}>{item.adminEmail || 'Pas d\'admin'}</Text>
       </View>
 
@@ -318,7 +322,7 @@ export default function PlatformDashboard() {
           onPress={() => openEditModal(item)}
           activeOpacity={0.7}
         >
-          <Ionicons name="pencil" size={18} color="#fff" />
+          <Pencil size={18} color={colors.textOnSecondary} />
         </TouchableOpacity>
 
         {/* Bouton Gérer Admins */}
@@ -327,7 +331,7 @@ export default function PlatformDashboard() {
           onPress={() => openAdminsModal(item)}
           activeOpacity={0.7}
         >
-          <Ionicons name="people" size={18} color="#fff" />
+          <UsersThree size={18} color={colors.textOnSecondary} />
         </TouchableOpacity>
 
         {/* Bouton Activer/Désactiver */}
@@ -336,7 +340,11 @@ export default function PlatformDashboard() {
           onPress={() => handleToggleAssociation(item)}
           activeOpacity={0.7}
         >
-          <Ionicons name={item.active ? "pause" : "play"} size={18} color="#fff" />
+          {item.active ? (
+            <Pause size={18} color={colors.textOnSecondary} />
+          ) : (
+            <Play size={18} color={colors.textOnSecondary} />
+          )}
         </TouchableOpacity>
 
         {/* Bouton Supprimer (pas pour V1-DEFAULT) */}
@@ -346,7 +354,7 @@ export default function PlatformDashboard() {
             onPress={() => handleDeleteAssociation(item)}
             activeOpacity={0.7}
           >
-            <Ionicons name="trash" size={18} color="#fff" />
+            <Trash size={18} color={colors.textOnSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -356,7 +364,7 @@ export default function PlatformDashboard() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#9C27B0" />
+        <ActivityIndicator size="large" color={colors.secondary} />
         <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
@@ -371,7 +379,7 @@ export default function PlatformDashboard() {
           <Text style={styles.headerSubtitle}>{superAdmin?.name || superAdmin?.email}</Text>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Ionicons name="log-out" size={24} color="#F44336" />
+          <SignOut size={24} color={colors.error} />
         </TouchableOpacity>
       </View>
 
@@ -382,12 +390,12 @@ export default function PlatformDashboard() {
             <Text style={styles.statNumber}>{stats.totalAssociations}</Text>
             <Text style={styles.statLabel}>Total</Text>
           </View>
-          <View style={[styles.statBox, { backgroundColor: '#E8F5E9' }]}>
-            <Text style={[styles.statNumber, { color: '#4CAF50' }]}>{stats.activeAssociations}</Text>
+          <View style={[styles.statBox, { backgroundColor: colors.successBg }]}>
+            <Text style={[styles.statNumber, { color: colors.success }]}>{stats.activeAssociations}</Text>
             <Text style={styles.statLabel}>Actives</Text>
           </View>
-          <View style={[styles.statBox, { backgroundColor: '#FFEBEE' }]}>
-            <Text style={[styles.statNumber, { color: '#F44336' }]}>{stats.inactiveAssociations}</Text>
+          <View style={[styles.statBox, { backgroundColor: colors.errorBg }]}>
+            <Text style={[styles.statNumber, { color: colors.error }]}>{stats.inactiveAssociations}</Text>
             <Text style={styles.statLabel}>Inactives</Text>
           </View>
         </View>
@@ -399,7 +407,7 @@ export default function PlatformDashboard() {
         onPress={() => setCreateModalVisible(true)}
         activeOpacity={0.7}
       >
-        <Ionicons name="add-circle" size={24} color="#fff" />
+        <PlusCircle size={24} color={colors.textOnPrimary} weight="fill" />
         <Text style={styles.createBtnText}>Nouvelle Association</Text>
       </TouchableOpacity>
 
@@ -410,11 +418,11 @@ export default function PlatformDashboard() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#9C27B0']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.secondary]} />
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Ionicons name="business-outline" size={64} color="#ccc" />
+            <Buildings size={64} color={colors.border} weight="duotone" />
             <Text style={styles.emptyText}>Aucune association</Text>
           </View>
         )}
@@ -435,7 +443,7 @@ export default function PlatformDashboard() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nouvelle Association</Text>
               <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -444,6 +452,7 @@ export default function PlatformDashboard() {
               <TextInput
                 style={styles.input}
                 placeholder="Ex: Mon Association"
+                placeholderTextColor={colors.textMuted}
                 value={formData.name}
                 onChangeText={(text) => setFormData({ ...formData, name: text })}
                 autoCapitalize="words"
@@ -453,6 +462,7 @@ export default function PlatformDashboard() {
               <TextInput
                 style={styles.input}
                 placeholder="Ex: MON-ASSOC"
+                placeholderTextColor={colors.textMuted}
                 value={formData.code}
                 onChangeText={(text) => setFormData({ ...formData, code: text.toUpperCase() })}
                 autoCapitalize="characters"
@@ -481,6 +491,7 @@ export default function PlatformDashboard() {
               <TextInput
                 style={styles.input}
                 placeholder="Ex: Jean Dupont"
+                placeholderTextColor={colors.textMuted}
                 value={formData.adminName}
                 onChangeText={(text) => setFormData({ ...formData, adminName: text })}
                 autoCapitalize="words"
@@ -490,6 +501,7 @@ export default function PlatformDashboard() {
               <TextInput
                 style={styles.input}
                 placeholder="admin@exemple.com"
+                placeholderTextColor={colors.textMuted}
                 value={formData.adminEmail}
                 onChangeText={(text) => setFormData({ ...formData, adminEmail: text })}
                 keyboardType="email-address"
@@ -500,6 +512,7 @@ export default function PlatformDashboard() {
               <TextInput
                 style={styles.input}
                 placeholder="Mot de passe"
+                placeholderTextColor={colors.textMuted}
                 value={formData.adminPassword}
                 onChangeText={(text) => setFormData({ ...formData, adminPassword: text })}
                 secureTextEntry
@@ -512,10 +525,10 @@ export default function PlatformDashboard() {
                 disabled={creating}
               >
                 {creating ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={colors.textOnPrimary} />
                 ) : (
                   <>
-                    <Ionicons name="add-circle" size={20} color="#fff" />
+                    <PlusCircle size={20} color={colors.textOnPrimary} weight="fill" />
                     <Text style={styles.submitBtnText}>Créer</Text>
                   </>
                 )}
@@ -546,7 +559,7 @@ export default function PlatformDashboard() {
                 setEditModalVisible(false);
                 setEditingAssociation(null);
               }}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -554,7 +567,7 @@ export default function PlatformDashboard() {
               {editingAssociation && (
                 <>
                   <View style={styles.codeBox}>
-                    <Ionicons name="key" size={18} color="#9C27B0" />
+                    <Key size={18} color={colors.secondary} />
                     <Text style={styles.codeBoxText}>Code: {editingAssociation.code}</Text>
                   </View>
 
@@ -562,6 +575,7 @@ export default function PlatformDashboard() {
                   <TextInput
                     style={styles.input}
                     placeholder="Nom"
+                    placeholderTextColor={colors.textMuted}
                     value={editFormData.name}
                     onChangeText={(text) => setEditFormData({ ...editFormData, name: text })}
                     autoCapitalize="words"
@@ -586,6 +600,7 @@ export default function PlatformDashboard() {
                   <TextInput
                     style={styles.input}
                     placeholder="Email admin"
+                    placeholderTextColor={colors.textMuted}
                     value={editFormData.adminEmail}
                     onChangeText={(text) => setEditFormData({ ...editFormData, adminEmail: text })}
                     keyboardType="email-address"
@@ -601,6 +616,7 @@ export default function PlatformDashboard() {
                   <TextInput
                     style={styles.input}
                     placeholder="Ex: Villa, Désignation, Groupe..."
+                    placeholderTextColor={colors.textMuted}
                     value={editFormData.customFieldLabel}
                     onChangeText={(text) => setEditFormData({ ...editFormData, customFieldLabel: text })}
                     autoCapitalize="words"
@@ -611,7 +627,7 @@ export default function PlatformDashboard() {
                     onPress={() => setEditFormData({ ...editFormData, enableVehiclePlates: !editFormData.enableVehiclePlates })}
                   >
                     <View style={styles.toggleOptionLeft}>
-                      <Ionicons name="car" size={24} color={editFormData.enableVehiclePlates ? '#4CAF50' : '#999'} />
+                      <Car size={24} color={editFormData.enableVehiclePlates ? colors.success : colors.textMuted} />
                       <View style={styles.toggleOptionText}>
                         <Text style={styles.toggleOptionTitle}>Matricules de véhicules</Text>
                         <Text style={styles.toggleOptionDesc}>
@@ -628,7 +644,7 @@ export default function PlatformDashboard() {
                     style={styles.saveBtn}
                     onPress={handleSaveEdit}
                   >
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    <CheckCircle size={20} color={colors.textOnSecondary} weight="fill" />
                     <Text style={styles.saveBtnText}>Enregistrer</Text>
                   </TouchableOpacity>
                 </>
@@ -659,7 +675,7 @@ export default function PlatformDashboard() {
                 setAdminsModalVisible(false);
                 setSelectedAssociationForAdmins(null);
               }}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -667,7 +683,7 @@ export default function PlatformDashboard() {
               {selectedAssociationForAdmins && (
                 <>
                   <View style={styles.codeBox}>
-                    <Ionicons name="business" size={18} color="#9C27B0" />
+                    <Buildings size={18} color={colors.secondary} />
                     <Text style={styles.codeBoxText}>{selectedAssociationForAdmins.name}</Text>
                   </View>
 
@@ -675,12 +691,12 @@ export default function PlatformDashboard() {
                   <Text style={styles.sectionTitle}>Administrateurs ({admins.length})</Text>
                   
                   {loadingAdmins ? (
-                    <ActivityIndicator size="small" color="#9C27B0" style={{ marginVertical: 20 }} />
+                    <ActivityIndicator size="small" color={colors.secondary} style={{ marginVertical: 20 }} />
                   ) : (
                     admins.map((admin) => (
                       <View key={admin.id} style={styles.adminCard}>
                         <View style={styles.adminInfo}>
-                          <Ionicons name="person-circle" size={36} color="#9C27B0" />
+                          <UserCircle size={36} color={colors.secondary} weight="fill" />
                           <View style={{ marginLeft: 12, flex: 1 }}>
                             <Text style={styles.adminEmail}>{admin.email}</Text>
                             {admin.phone && <Text style={styles.adminPhone}>{admin.phone}</Text>}
@@ -693,6 +709,7 @@ export default function PlatformDashboard() {
                             <TextInput
                               style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8 }]}
                               placeholder="Nouveau mot de passe"
+                              placeholderTextColor={colors.textMuted}
                               value={changePasswordData.password}
                               onChangeText={(text) => setChangePasswordData({ ...changePasswordData, password: text })}
                               secureTextEntry
@@ -701,30 +718,30 @@ export default function PlatformDashboard() {
                               style={styles.miniBtn}
                               onPress={() => handleChangePassword(admin.id)}
                             >
-                              <Ionicons name="checkmark" size={20} color="#fff" />
+                              <CheckCircle size={20} color={colors.textOnSecondary} weight="fill" />
                             </TouchableOpacity>
                             <TouchableOpacity
-                              style={[styles.miniBtn, { backgroundColor: '#999', marginLeft: 4 }]}
+                              style={[styles.miniBtn, { backgroundColor: colors.textMuted, marginLeft: 4 }]}
                               onPress={() => setChangePasswordData({ adminId: null, password: '' })}
                             >
-                              <Ionicons name="close" size={20} color="#fff" />
+                              <X size={20} color={colors.textOnSecondary} />
                             </TouchableOpacity>
                           </View>
                         ) : (
                           <View style={styles.adminActions}>
                             <TouchableOpacity
-                              style={[styles.adminActionBtn, { backgroundColor: '#FF9800' }]}
+                              style={[styles.adminActionBtn, { backgroundColor: colors.warning }]}
                               onPress={() => setChangePasswordData({ adminId: admin.id, password: '' })}
                             >
-                              <Ionicons name="key" size={16} color="#fff" />
+                              <Key size={16} color={colors.textOnSecondary} />
                               <Text style={styles.adminActionText}>Mot de passe</Text>
                             </TouchableOpacity>
                             {admins.length > 1 && (
                               <TouchableOpacity
-                                style={[styles.adminActionBtn, { backgroundColor: '#F44336' }]}
+                                style={[styles.adminActionBtn, { backgroundColor: colors.error }]}
                                 onPress={() => handleDeleteAdmin(admin)}
                               >
-                                <Ionicons name="trash" size={16} color="#fff" />
+                                <Trash size={16} color={colors.textOnSecondary} />
                               </TouchableOpacity>
                             )}
                           </View>
@@ -742,6 +759,7 @@ export default function PlatformDashboard() {
                   <TextInput
                     style={styles.input}
                     placeholder="admin@exemple.com"
+                    placeholderTextColor={colors.textMuted}
                     value={newAdminData.email}
                     onChangeText={(text) => setNewAdminData({ ...newAdminData, email: text })}
                     keyboardType="email-address"
@@ -752,6 +770,7 @@ export default function PlatformDashboard() {
                   <TextInput
                     style={styles.input}
                     placeholder="Mot de passe"
+                    placeholderTextColor={colors.textMuted}
                     value={newAdminData.password}
                     onChangeText={(text) => setNewAdminData({ ...newAdminData, password: text })}
                     secureTextEntry
@@ -762,6 +781,7 @@ export default function PlatformDashboard() {
                   <TextInput
                     style={styles.input}
                     placeholder="+237 6XX XX XX XX"
+                    placeholderTextColor={colors.textMuted}
                     value={newAdminData.phone}
                     onChangeText={(text) => setNewAdminData({ ...newAdminData, phone: text })}
                     keyboardType="phone-pad"
@@ -771,7 +791,7 @@ export default function PlatformDashboard() {
                     style={styles.submitBtn}
                     onPress={handleAddAdmin}
                   >
-                    <Ionicons name="person-add" size={20} color="#fff" />
+                    <Plus size={20} color={colors.textOnPrimary} weight="bold" />
                     <Text style={styles.submitBtnText}>Ajouter l'Admin</Text>
                   </TouchableOpacity>
                 </>
@@ -787,7 +807,7 @@ export default function PlatformDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -795,79 +815,79 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    color: '#666',
+    marginTop: spacing.lg,
+    color: colors.textMuted,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#9C27B0',
+    backgroundColor: colors.secondary,
     padding: 20,
     paddingTop: 50,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.textOnSecondary,
   },
   headerSubtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   logoutBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     padding: 10,
-    borderRadius: 8,
+    borderRadius: borderRadius.button,
   },
   statsContainer: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.backgroundWhite,
+    padding: spacing.lg,
+    borderRadius: borderRadius.card,
     alignItems: 'center',
   },
   statNumber: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   createBtn: {
     flexDirection: 'row',
-    backgroundColor: '#9C27B0',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.card,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   createBtnText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnPrimary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingBottom: 20,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -877,7 +897,7 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   statusDot: {
     width: 12,
@@ -888,77 +908,72 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
     flex: 1,
   },
   cardInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   cardCode: {
-    fontSize: 14,
-    color: '#9C27B0',
+    fontSize: typography.body.fontSize,
+    color: colors.secondary,
     fontWeight: '500',
   },
   cardType: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
     textTransform: 'capitalize',
   },
   cardAdmin: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   adminText: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   cardActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 12,
+    borderTopColor: colors.borderLight,
+    paddingTop: spacing.md,
   },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.button,
     gap: 6,
   },
-  actionBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '500',
-  },
   editBtn: {
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.secondary,
   },
   adminsBtn: {
-    backgroundColor: '#9C27B0',
+    backgroundColor: colors.accentTeal,
   },
   activateBtn: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   deactivateBtn: {
-    backgroundColor: '#FF9800',
+    backgroundColor: colors.warning,
   },
   deleteBtn: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.error,
   },
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 60,
   },
   emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#999',
+    marginTop: spacing.lg,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
   },
   // Modal styles
   modalContainer: {
@@ -967,7 +982,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.backgroundWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '90%',
@@ -978,161 +993,162 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.borderLight,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
   },
   modalBody: {
     padding: 20,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.input,
     padding: 14,
-    fontSize: 16,
-    marginBottom: 16,
+    fontSize: typography.body.fontSize,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
+    color: colors.text,
   },
   typeRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   typeBtn: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    padding: spacing.md,
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.background,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
   },
   typeBtnActive: {
-    backgroundColor: '#F3E5F5',
-    borderColor: '#9C27B0',
+    backgroundColor: colors.warningBg,
+    borderColor: colors.primary,
   },
   typeBtnText: {
-    color: '#666',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   typeBtnTextActive: {
-    color: '#9C27B0',
+    color: colors.primary,
   },
   divider: {
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 16,
-    marginTop: 8,
-    marginBottom: 16,
+    borderTopColor: colors.borderLight,
+    paddingTop: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
   dividerText: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textMuted,
   },
   submitBtn: {
     flexDirection: 'row',
-    backgroundColor: '#9C27B0',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    padding: spacing.lg,
+    borderRadius: borderRadius.card,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
     marginBottom: 30,
   },
   submitBtnDisabled: {
     opacity: 0.6,
   },
   submitBtnText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnPrimary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   codeBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3E5F5',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    gap: 8,
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: borderRadius.input,
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
   },
   codeBoxText: {
-    fontSize: 14,
-    color: '#9C27B0',
+    fontSize: typography.body.fontSize,
+    color: colors.secondary,
     fontWeight: '500',
   },
   saveBtn: {
     flexDirection: 'row',
-    backgroundColor: '#4CAF50',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.success,
+    padding: spacing.lg,
+    borderRadius: borderRadius.card,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
     marginBottom: 30,
   },
   saveBtnText: {
-    color: '#fff',
-    fontSize: 16,
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
   },
   // Admin management styles
   sectionTitle: {
-    fontSize: 16,
+    fontSize: typography.h3.fontSize,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-    marginTop: 8,
+    color: colors.text,
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
   },
   adminCard: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   adminInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   adminEmail: {
-    fontSize: 15,
+    fontSize: typography.body.fontSize,
     fontWeight: '500',
-    color: '#333',
+    color: colors.text,
   },
   adminPhone: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
     marginTop: 2,
   },
   adminActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   adminActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderRadius: 6,
     gap: 6,
   },
   adminActionText: {
-    color: '#fff',
-    fontSize: 12,
+    color: colors.textOnSecondary,
+    fontSize: typography.caption.fontSize,
     fontWeight: '500',
   },
   passwordRow: {
@@ -1140,62 +1156,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   miniBtn: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
     padding: 10,
-    borderRadius: 8,
+    borderRadius: borderRadius.button,
   },
   // Options personnalisées styles
   sectionDivider: {
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: colors.border,
     marginTop: 20,
-    paddingTop: 16,
-    marginBottom: 8,
+    paddingTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   toggleOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
+    borderRadius: borderRadius.card,
+    marginBottom: spacing.lg,
   },
   toggleOptionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 12,
+    gap: spacing.md,
   },
   toggleOptionText: {
     flex: 1,
   },
   toggleOptionTitle: {
-    fontSize: 15,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   toggleOptionDesc: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
     marginTop: 2,
   },
   toggleSwitch: {
     width: 50,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#ccc',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     padding: 2,
   },
   toggleSwitchOn: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   toggleKnob: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.backgroundWhite,
   },
   toggleKnobOn: {
     alignSelf: 'flex-end',

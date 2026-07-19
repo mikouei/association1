@@ -9,7 +9,10 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('bg-white rounded-xl shadow-sm border border-gray-200', className)}
+      className={cn(
+        'bg-[var(--color-background-white)] rounded-[var(--radius-card)] shadow-sm border border-[var(--color-border)]',
+        className
+      )}
       {...props}
     />
   )
@@ -20,7 +23,7 @@ export const CardHeader = forwardRef<HTMLDivElement, CardProps>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-6 py-4 border-b border-gray-200', className)}
+      className={cn('px-6 py-4 border-b border-[var(--color-border)]', className)}
       {...props}
     />
   )
@@ -31,7 +34,7 @@ export const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadi
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-lg font-semibold text-gray-900', className)}
+      className={cn('text-lg font-semibold text-[var(--color-text)] font-[var(--font-heading)]', className)}
       {...props}
     />
   )

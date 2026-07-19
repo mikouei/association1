@@ -9,10 +9,20 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  UserCircle, 
+  Users, 
+  CheckCircle, 
+  XCircle, 
+  ArrowsClockwise,
+  Calendar,
+  WarningCircle,
+  Clock
+} from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency } from '../../utils/format';
+import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 export default function Dashboard() {
   const { user, association } = useAuth();
@@ -109,7 +119,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -118,7 +128,12 @@ export default function Dashboard() {
     <ScrollView
       style={styles.container}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl 
+          refreshing={refreshing} 
+          onRefresh={onRefresh} 
+          colors={[colors.primary]}
+          tintColor={colors.primary}
+        />
       }
     >
       <View style={styles.header}>
@@ -128,7 +143,7 @@ export default function Dashboard() {
 
       <View style={styles.welcomeCard}>
         <View style={styles.welcomeRow}>
-          <Ionicons name="person-circle" size={36} color="#2196F3" />
+          <UserCircle size={40} color={colors.primary} weight="fill" />
           <View style={styles.welcomeInfo}>
             <Text style={styles.welcomeText}>{user?.member?.name || 'Administrateur'}</Text>
             <Text style={styles.roleText}>
@@ -144,18 +159,18 @@ export default function Dashboard() {
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Membres</Text>
           <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: '#4CAF50' }]}>
-              <Ionicons name="people" size={28} color="#fff" />
+            <View style={[styles.statCard, { backgroundColor: colors.accentTeal }]}>
+              <Users size={28} color={colors.textOnSecondary} weight="fill" />
               <Text style={styles.statNumber}>{memberStats.totalMembers}</Text>
               <Text style={styles.statLabel}>Total</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: '#2196F3' }]}>
-              <Ionicons name="checkmark-circle" size={28} color="#fff" />
+            <View style={[styles.statCard, { backgroundColor: colors.success }]}>
+              <CheckCircle size={28} color={colors.textOnSecondary} weight="fill" />
               <Text style={styles.statNumber}>{memberStats.activeMembers}</Text>
               <Text style={styles.statLabel}>Actifs</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: '#FF9800' }]}>
-              <Ionicons name="close-circle" size={28} color="#fff" />
+            <View style={[styles.statCard, { backgroundColor: colors.warning }]}>
+              <XCircle size={28} color={colors.textOnSecondary} weight="fill" />
               <Text style={styles.statNumber}>{memberStats.inactiveMembers}</Text>
               <Text style={styles.statLabel}>Inactifs</Text>
             </View>
@@ -172,7 +187,7 @@ export default function Dashboard() {
           
           {paymentStats.noYear ? (
             <View style={styles.noDataContainer}>
-              <Ionicons name="calendar-outline" size={32} color="#999" />
+              <Calendar size={32} color={colors.textMuted} />
               <Text style={styles.noDataText}>
                 {paymentStats.yearCount > 0
                   ? 'Aucune année active. Activez une année dans Paramètres.'
@@ -181,41 +196,41 @@ export default function Dashboard() {
             </View>
           ) : paymentStats.error ? (
             <View style={styles.noDataContainer}>
-              <Ionicons name="alert-circle-outline" size={32} color="#FF9800" />
+              <WarningCircle size={32} color={colors.warning} />
               <Text style={styles.noDataText}>Erreur de chargement des statistiques</Text>
             </View>
           ) : (
             <>
               <View style={styles.paymentStatsGrid}>
                 <View style={styles.paymentStatRow}>
-                  <View style={[styles.paymentStatCard, { borderLeftColor: '#2196F3' }]}>
+                  <View style={[styles.paymentStatCard, { borderLeftColor: colors.secondary }]}>
                     <Text style={styles.paymentStatLabel}>Attendu</Text>
-                    <Text style={[styles.paymentStatValue, { color: '#2196F3' }]}>{formatAmount(paymentStats.totalExpected)} FCFA</Text>
+                    <Text style={[styles.paymentStatValue, { color: colors.secondary }]}>{formatAmount(paymentStats.totalExpected)} FCFA</Text>
                   </View>
-                  <View style={[styles.paymentStatCard, { borderLeftColor: '#4CAF50' }]}>
+                  <View style={[styles.paymentStatCard, { borderLeftColor: colors.success }]}>
                     <Text style={styles.paymentStatLabel}>Collecté</Text>
-                    <Text style={[styles.paymentStatValue, { color: '#4CAF50' }]}>{formatAmount(paymentStats.totalCollected)} FCFA</Text>
+                    <Text style={[styles.paymentStatValue, { color: colors.success }]}>{formatAmount(paymentStats.totalCollected)} FCFA</Text>
                   </View>
                 </View>
                 <View style={styles.paymentStatRow}>
-                  <View style={[styles.paymentStatCard, { borderLeftColor: '#FF9800' }]}>
+                  <View style={[styles.paymentStatCard, { borderLeftColor: colors.warning }]}>
                     <Text style={styles.paymentStatLabel}>Reste</Text>
-                    <Text style={[styles.paymentStatValue, { color: '#FF9800' }]}>{formatAmount(paymentStats.remaining)} FCFA</Text>
+                    <Text style={[styles.paymentStatValue, { color: colors.warning }]}>{formatAmount(paymentStats.remaining)} FCFA</Text>
                   </View>
-                  <View style={[styles.paymentStatCard, { borderLeftColor: paymentStats.rate >= 70 ? '#4CAF50' : paymentStats.rate >= 40 ? '#FF9800' : '#F44336' }]}>
+                  <View style={[styles.paymentStatCard, { borderLeftColor: paymentStats.rate >= 70 ? colors.success : paymentStats.rate >= 40 ? colors.warning : colors.error }]}>
                     <Text style={styles.paymentStatLabel}>Taux recouvrement</Text>
-                    <Text style={[styles.paymentStatValue, { color: paymentStats.rate >= 70 ? '#4CAF50' : paymentStats.rate >= 40 ? '#FF9800' : '#F44336' }]}>{paymentStats.rate}%</Text>
+                    <Text style={[styles.paymentStatValue, { color: paymentStats.rate >= 70 ? colors.success : paymentStats.rate >= 40 ? colors.warning : colors.error }]}>{paymentStats.rate}%</Text>
                   </View>
                 </View>
               </View>
 
               <View style={styles.paymentMembersRow}>
                 <View style={styles.paymentMemberItem}>
-                  <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                  <CheckCircle size={18} color={colors.success} weight="fill" />
                   <Text style={styles.paymentMemberText}>{paymentStats.membersFullyPaid} à jour</Text>
                 </View>
                 <View style={styles.paymentMemberItem}>
-                  <Ionicons name="time" size={16} color="#FF9800" />
+                  <Clock size={18} color={colors.warning} weight="fill" />
                   <Text style={styles.paymentMemberText}>{paymentStats.membersPending} en retard</Text>
                 </View>
               </View>
@@ -225,7 +240,7 @@ export default function Dashboard() {
       )}
 
       <TouchableOpacity style={styles.syncButton} onPress={onRefresh}>
-        <Ionicons name="sync" size={20} color="#fff" />
+        <ArrowsClockwise size={20} color={colors.textOnPrimary} weight="bold" />
         <Text style={styles.syncButtonText}>Synchroniser</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -235,169 +250,172 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: '#2196F3',
-    padding: 12,
-    paddingTop: 16,
+    backgroundColor: colors.secondary,
+    padding: spacing.md,
+    paddingTop: spacing.lg,
     alignItems: 'center',
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.textOnSecondary,
+    fontFamily: typography.fontFamilyHeading,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#fff',
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    color: colors.textOnSecondary,
+    marginTop: spacing.xs,
     opacity: 0.9,
   },
   welcomeCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 12,
-    marginTop: 10,
-    marginBottom: 6,
-    padding: 12,
-    borderRadius: 10,
-    elevation: 1,
+    backgroundColor: colors.backgroundWhite,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: borderRadius.card,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   welcomeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   welcomeInfo: {
     flex: 1,
   },
   welcomeText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize + 1,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   roleText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   statsSection: {
-    marginHorizontal: 12,
-    marginBottom: 6,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 10,
-    elevation: 1,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.md,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.h3.fontSize,
+    fontWeight: typography.h3.fontWeight,
+    color: colors.text,
+    fontFamily: typography.fontFamilyHeading,
+    marginBottom: spacing.sm,
   },
   statsGrid: {
     flexDirection: 'row',
-    gap: 6,
+    gap: spacing.sm,
   },
   statCard: {
     flex: 1,
-    padding: 10,
-    borderRadius: 10,
+    padding: spacing.md,
+    borderRadius: borderRadius.card,
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 18,
+    fontSize: typography.h2.fontSize,
     fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 4,
+    color: colors.textOnSecondary,
+    marginTop: spacing.xs,
   },
   statLabel: {
-    fontSize: 10,
-    color: '#fff',
-    marginTop: 1,
+    fontSize: typography.tabLabel.fontSize,
+    color: colors.textOnSecondary,
+    marginTop: 2,
     textAlign: 'center',
     opacity: 0.9,
   },
   paymentStatsGrid: {
-    gap: 6,
+    gap: spacing.sm,
   },
   paymentStatRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: spacing.sm,
   },
   paymentStatCard: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
-    borderRadius: 8,
-    padding: 8,
+    backgroundColor: colors.borderLight,
+    borderRadius: borderRadius.button,
+    padding: spacing.md,
     borderLeftWidth: 3,
   },
   paymentStatLabel: {
-    fontSize: 10,
-    color: '#888',
+    fontSize: typography.tabLabel.fontSize,
+    color: colors.textMuted,
     fontWeight: '500',
   },
   paymentStatValue: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: 'bold',
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   paymentMembersRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: colors.border,
   },
   paymentMemberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
   paymentMemberText: {
-    fontSize: 13,
-    color: '#555',
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
     fontWeight: '500',
   },
   noDataContainer: {
     alignItems: 'center',
-    padding: 20,
-    gap: 8,
+    padding: spacing.xl,
+    gap: spacing.sm,
   },
   noDataText: {
-    fontSize: 13,
-    color: '#999',
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
     textAlign: 'center',
   },
   syncButton: {
     flexDirection: 'row',
-    backgroundColor: '#2196F3',
-    marginHorizontal: 12,
-    marginTop: 6,
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.sm,
   },
   syncButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    color: colors.textOnPrimary,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
 });

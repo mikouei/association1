@@ -15,10 +15,24 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  User, 
+  MagnifyingGlass, 
+  Plus, 
+  Trash, 
+  Car,
+  CheckCircle,
+  XCircle,
+  X,
+  CheckSquare,
+  Square,
+  Key,
+  UsersThree
+} from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency } from '../../utils/format';
+import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 export default function Membres() {
   const { user, association } = useAuth();
@@ -455,14 +469,16 @@ export default function Membres() {
               style={styles.checkboxContainer}
               onPress={() => toggleMemberSelection(item.id)}
             >
-              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
-              </View>
+              {isSelected ? (
+                <CheckSquare size={24} color={colors.primary} weight="fill" />
+              ) : (
+                <Square size={24} color={colors.textMuted} />
+              )}
             </TouchableOpacity>
           )}
           
           <View style={styles.memberIcon}>
-            <Ionicons name="person" size={24} color="#2196F3" />
+            <User size={24} color={colors.primary} weight="fill" />
           </View>
           <View style={styles.memberInfo}>
             <Text style={styles.memberName}>{item.name}</Text>
@@ -482,7 +498,7 @@ export default function Membres() {
                   onPress={() => openVehicleModal(item)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="car" size={20} color="#9C27B0" />
+                  <Car size={22} color={colors.accentTerracotta} weight="fill" />
                 </TouchableOpacity>
               )}
               {isAdmin && (
@@ -491,18 +507,18 @@ export default function Membres() {
                   onPress={() => handleDeleteMember(item)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="trash-outline" size={20} color="#FF5252" />
+                  <Trash size={20} color={colors.error} />
                 </TouchableOpacity>
               )}
             </>
           )}
           
           <View style={styles.memberStatus}>
-            <Ionicons
-              name={item.active ? 'checkmark-circle' : 'close-circle'}
-              size={24}
-              color={item.active ? '#4CAF50' : '#FF5252'}
-            />
+            {item.active ? (
+              <CheckCircle size={24} color={colors.success} weight="fill" />
+            ) : (
+              <XCircle size={24} color={colors.error} weight="fill" />
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -512,7 +528,7 @@ export default function Membres() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -523,17 +539,17 @@ export default function Membres() {
       {selectionMode && (
         <View style={styles.selectionBar}>
           <TouchableOpacity style={styles.selectionButton} onPress={toggleSelectionMode}>
-            <Ionicons name="close" size={24} color="#666" />
+            <X size={24} color={colors.textMuted} />
           </TouchableOpacity>
           <Text style={styles.selectionText}>
             {selectedMembers.length} sélectionné(s)
           </Text>
           <TouchableOpacity style={styles.selectionButton} onPress={selectAllMembers}>
-            <Ionicons 
-              name={selectedMembers.length === filteredMembers.length ? "checkbox" : "square-outline"} 
-              size={24} 
-              color="#2196F3" 
-            />
+            {selectedMembers.length === filteredMembers.length ? (
+              <CheckSquare size={24} color={colors.primary} weight="fill" />
+            ) : (
+              <Square size={24} color={colors.primary} />
+            )}
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.deleteSelectionButton, selectedMembers.length === 0 && styles.deleteSelectionButtonDisabled]}
@@ -541,10 +557,10 @@ export default function Membres() {
             disabled={selectedMembers.length === 0 || deletingBulk}
           >
             {deletingBulk ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={colors.textOnSecondary} />
             ) : (
               <>
-                <Ionicons name="trash" size={18} color="#fff" />
+                <Trash size={18} color={colors.textOnSecondary} />
                 <Text style={styles.deleteSelectionText}>Supprimer</Text>
               </>
             )}
@@ -556,7 +572,7 @@ export default function Membres() {
       {isAdmin && !selectionMode && (
         <View style={styles.actionBar}>
           <TouchableOpacity style={styles.selectModeButton} onPress={toggleSelectionMode}>
-            <Ionicons name="checkbox-outline" size={20} color="#2196F3" />
+            <CheckSquare size={20} color={colors.primary} />
             <Text style={styles.selectModeText}>Sélection multiple</Text>
           </TouchableOpacity>
           <Text style={styles.memberCount}>{filteredMembers.length} membre(s)</Text>
@@ -564,10 +580,11 @@ export default function Membres() {
       )}
 
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <MagnifyingGlass size={20} color={colors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Rechercher un membre..."
+          placeholderTextColor={colors.textMuted}
           value={search}
           onChangeText={setSearch}
           autoCapitalize="none"
@@ -581,11 +598,16 @@ export default function Membres() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={64} color="#ccc" />
+            <UsersThree size={64} color={colors.border} />
             <Text style={styles.emptyText}>Aucun membre trouvé</Text>
           </View>
         )}
@@ -593,7 +615,7 @@ export default function Membres() {
 
       {isAdmin && !selectionMode && (
         <TouchableOpacity style={styles.fab} onPress={handleAddMember}>
-          <Ionicons name="add" size={28} color="#fff" />
+          <Plus size={28} color={colors.textOnPrimary} weight="bold" />
         </TouchableOpacity>
       )}
 
@@ -615,7 +637,7 @@ export default function Membres() {
                 {editingMember ? 'Modifier membre' : 'Nouveau membre'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -629,6 +651,7 @@ export default function Membres() {
                 <TextInput
                   style={styles.input}
                   placeholder="Ex: Jean Dupont"
+                  placeholderTextColor={colors.textMuted}
                   value={formData.name}
                   onChangeText={(text) => setFormData({ ...formData, name: text })}
                   autoCapitalize="words"
@@ -640,6 +663,7 @@ export default function Membres() {
                 <TextInput
                   style={styles.input}
                   placeholder="Ex: Villa 12"
+                  placeholderTextColor={colors.textMuted}
                   value={formData.customFieldValue}
                   onChangeText={(text) => setFormData({ ...formData, customFieldValue: text })}
                 />
@@ -650,6 +674,7 @@ export default function Membres() {
                 <TextInput
                   style={styles.input}
                   placeholder="email@exemple.com"
+                  placeholderTextColor={colors.textMuted}
                   value={formData.email}
                   onChangeText={(text) => setFormData({ ...formData, email: text })}
                   keyboardType="email-address"
@@ -662,6 +687,7 @@ export default function Membres() {
                 <TextInput
                   style={styles.input}
                   placeholder="+237 6XX XX XX XX"
+                  placeholderTextColor={colors.textMuted}
                   value={formData.phone}
                   onChangeText={(text) => setFormData({ ...formData, phone: text })}
                   keyboardType="phone-pad"
@@ -674,6 +700,7 @@ export default function Membres() {
                   <TextInput
                     style={styles.input}
                     placeholder="Laisser vide pour auto-génération"
+                    placeholderTextColor={colors.textMuted}
                     value={formData.password}
                     onChangeText={(text) => setFormData({ ...formData, password: text })}
                     secureTextEntry
@@ -689,7 +716,7 @@ export default function Membres() {
                     setTimeout(() => handleResetPassword(editingMember), 300);
                   }}
                 >
-                  <Ionicons name="key" size={20} color="#FF9800" />
+                  <Key size={20} color={colors.warning} weight="fill" />
                   <Text style={styles.resetPasswordText}>Réinitialiser le mot de passe</Text>
                 </TouchableOpacity>
               )}
@@ -700,7 +727,7 @@ export default function Membres() {
                 disabled={saving}
               >
                 {saving ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={colors.textOnPrimary} />
                 ) : (
                   <Text style={styles.submitButtonText}>
                     {editingMember ? 'Modifier' : 'Créer'}
@@ -725,7 +752,7 @@ export default function Membres() {
         >
           <View style={styles.resetModalContent}>
             <View style={styles.resetModalHeader}>
-              <Ionicons name="key" size={40} color="#FF9800" />
+              <Key size={40} color={colors.warning} weight="fill" />
               <Text style={styles.resetModalTitle}>Réinitialiser le mot de passe</Text>
               {resetPasswordMember && (
                 <Text style={styles.resetModalSubtitle}>{resetPasswordMember.name}</Text>
@@ -737,6 +764,7 @@ export default function Membres() {
               <TextInput
                 style={styles.input}
                 placeholder="Minimum 4 caractères"
+                placeholderTextColor={colors.textMuted}
                 value={newPassword}
                 onChangeText={setNewPassword}
                 secureTextEntry
@@ -760,7 +788,7 @@ export default function Membres() {
                 disabled={resettingPassword}
               >
                 {resettingPassword ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={colors.textOnSecondary} size="small" />
                 ) : (
                   <Text style={styles.resetConfirmText}>Confirmer</Text>
                 )}
@@ -783,11 +811,12 @@ export default function Membres() {
         >
           <View style={styles.vehicleModalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                <Ionicons name="car" size={24} color="#9C27B0" /> Matricules
-              </Text>
+              <View style={styles.modalTitleRow}>
+                <Car size={24} color={colors.accentTerracotta} weight="fill" />
+                <Text style={styles.modalTitle}> Matricules</Text>
+              </View>
               <TouchableOpacity onPress={() => setVehicleModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#666" />
+                <X size={28} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -796,14 +825,14 @@ export default function Membres() {
             )}
 
             {loadingVehicles ? (
-              <ActivityIndicator size="large" color="#9C27B0" style={{ marginVertical: 30 }} />
+              <ActivityIndicator size="large" color={colors.accentTerracotta} style={{ marginVertical: 30 }} />
             ) : (
               <>
                 {/* Liste des matricules existants */}
                 <ScrollView style={styles.vehicleList}>
                   {memberVehicles.length === 0 ? (
                     <View style={styles.noVehicles}>
-                      <Ionicons name="car-outline" size={48} color="#ccc" />
+                      <Car size={48} color={colors.border} />
                       <Text style={styles.noVehiclesText}>Aucun matricule enregistré</Text>
                     </View>
                   ) : (
@@ -819,7 +848,7 @@ export default function Membres() {
                           onPress={() => handleDeleteVehicle(vehicle)}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                          <Ionicons name="trash-outline" size={20} color="#FF5252" />
+                          <Trash size={20} color={colors.error} />
                         </TouchableOpacity>
                       </View>
                     ))
@@ -832,6 +861,7 @@ export default function Membres() {
                   <TextInput
                     style={styles.input}
                     placeholder="Numéro de plaque (ex: AB-1234-CD)"
+                    placeholderTextColor={colors.textMuted}
                     value={newPlateNumber}
                     onChangeText={setNewPlateNumber}
                     autoCapitalize="characters"
@@ -839,6 +869,7 @@ export default function Membres() {
                   <TextInput
                     style={styles.input}
                     placeholder="Description (optionnel)"
+                    placeholderTextColor={colors.textMuted}
                     value={newPlateDescription}
                     onChangeText={setNewPlateDescription}
                   />
@@ -848,10 +879,10 @@ export default function Membres() {
                     disabled={savingVehicle}
                   >
                     {savingVehicle ? (
-                      <ActivityIndicator color="#fff" />
+                      <ActivityIndicator color={colors.textOnSecondary} />
                     ) : (
                       <>
-                        <Ionicons name="add" size={20} color="#fff" />
+                        <Plus size={20} color={colors.textOnSecondary} weight="bold" />
                         <Text style={styles.addVehicleButtonText}>Ajouter</Text>
                       </>
                     )}
@@ -869,47 +900,49 @@ export default function Membres() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    margin: 16,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: colors.backgroundWhite,
+    margin: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.button,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingVertical: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingBottom: 80,
   },
   memberCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   memberHeader: {
@@ -920,58 +953,58 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.warningBg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   memberInfo: {
     flex: 1,
   },
   memberName: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   memberField: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   memberPhone: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
     marginTop: 2,
   },
   memberStatus: {
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
   deleteButton: {
-    padding: 8,
-    marginLeft: 4,
+    padding: spacing.sm,
+    marginLeft: spacing.xs,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 64,
+    paddingVertical: spacing.xxl * 2,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
-    marginTop: 16,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.lg,
   },
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: spacing.lg,
+    bottom: spacing.lg,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -982,10 +1015,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
+    backgroundColor: colors.backgroundWhite,
+    borderTopLeftRadius: borderRadius.card,
+    borderTopRightRadius: borderRadius.card,
+    padding: spacing.xl,
     maxHeight: '90%',
   },
   modalScrollContent: {
@@ -995,61 +1028,67 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
+    fontFamily: typography.fontFamilyHeading,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 14,
+    fontSize: typography.caption.fontSize + 1,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    backgroundColor: colors.borderLight,
+    borderRadius: borderRadius.input,
+    padding: spacing.md,
+    fontSize: typography.body.fontSize,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
+    color: colors.text,
   },
   resetPasswordButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF3E0',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    backgroundColor: colors.warningBg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.button,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#FF9800',
+    borderColor: colors.warning,
+    gap: spacing.sm,
   },
   resetPasswordText: {
-    color: '#FF9800',
-    fontSize: 14,
+    color: colors.warning,
+    fontSize: typography.caption.fontSize + 1,
     fontWeight: '600',
-    marginLeft: 8,
   },
   submitButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
   resetModalContainer: {
     flex: 1,
@@ -1058,216 +1097,204 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   resetModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.xl,
     width: '85%',
     maxWidth: 340,
   },
   resetModalHeader: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   resetModalTitle: {
-    fontSize: 18,
+    fontSize: typography.h3.fontSize + 2,
     fontWeight: 'bold',
-    color: '#333',
-    marginTop: 12,
+    color: colors.text,
+    marginTop: spacing.md,
   },
   resetModalSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   resetModalButtons: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
   resetCancelButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    paddingVertical: spacing.md + 2,
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.borderLight,
     alignItems: 'center',
   },
   resetCancelText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textMuted,
   },
   resetConfirmButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#FF9800',
+    paddingVertical: spacing.md + 2,
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.warning,
     alignItems: 'center',
   },
   resetConfirmText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textOnSecondary,
   },
   // Styles pour les matricules
   vehicleButton: {
-    padding: 8,
-    marginRight: 8,
+    padding: spacing.sm,
+    marginRight: spacing.sm,
   },
   vehicleModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
+    backgroundColor: colors.backgroundWhite,
+    borderTopLeftRadius: borderRadius.card,
+    borderTopRightRadius: borderRadius.card,
+    padding: spacing.xl,
     maxHeight: '80%',
   },
   vehicleMemberName: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   vehicleList: {
     maxHeight: 200,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   noVehicles: {
     alignItems: 'center',
-    padding: 30,
+    padding: spacing.xl,
   },
   noVehiclesText: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
   vehicleItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    backgroundColor: colors.borderLight,
+    padding: spacing.md,
+    borderRadius: borderRadius.button,
+    marginBottom: spacing.sm,
   },
   vehicleInfo: {
     flex: 1,
   },
   vehiclePlate: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
-    color: '#333',
+    color: colors.text,
     letterSpacing: 1,
   },
   vehicleDesc: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
     marginTop: 2,
   },
   addVehicleForm: {
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    paddingTop: 16,
+    borderTopColor: colors.border,
+    paddingTop: spacing.lg,
   },
   addVehicleTitle: {
-    fontSize: 14,
+    fontSize: typography.caption.fontSize + 1,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    color: colors.text,
+    marginBottom: spacing.md,
   },
   addVehicleButton: {
     flexDirection: 'row',
-    backgroundColor: '#9C27B0',
-    paddingVertical: 14,
-    borderRadius: 8,
+    backgroundColor: colors.accentTerracotta,
+    paddingVertical: spacing.md + 2,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   addVehicleButtonText: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.textOnSecondary,
   },
   // Styles pour la sélection multiple
   selectionBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E3F2FD',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    backgroundColor: colors.warningBg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#BBDEFB',
+    borderBottomColor: colors.border,
   },
   selectionButton: {
-    padding: 8,
+    padding: spacing.sm,
   },
   selectionText: {
     flex: 1,
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#1976D2',
-    marginLeft: 8,
+    color: colors.secondary,
+    marginLeft: spacing.sm,
   },
   deleteSelectionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F44336',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    gap: 6,
+    backgroundColor: colors.error,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.badge,
+    gap: spacing.xs,
   },
   deleteSelectionButtonDisabled: {
     opacity: 0.5,
   },
   deleteSelectionText: {
-    color: '#fff',
-    fontSize: 14,
+    color: colors.textOnSecondary,
+    fontSize: typography.caption.fontSize + 1,
     fontWeight: '600',
   },
   actionBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#f5f5f5',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.border,
   },
   selectModeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
   },
   selectModeText: {
-    fontSize: 14,
-    color: '#2196F3',
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.primary,
     fontWeight: '500',
   },
   memberCount: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
   },
   memberCardSelected: {
-    backgroundColor: '#E3F2FD',
-    borderColor: '#2196F3',
+    backgroundColor: colors.warningBg,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
   checkboxContainer: {
-    marginRight: 12,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: '#9E9E9E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    marginRight: spacing.md,
   },
 });

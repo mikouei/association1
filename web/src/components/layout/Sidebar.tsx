@@ -50,23 +50,24 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'h-screen bg-gray-900 text-white flex flex-col transition-all duration-300',
+        'h-screen flex flex-col transition-all duration-300',
+        'bg-[#1F4E79] text-white',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-800">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-[#2A5F94]">
         {!collapsed && (
           <div>
-            <h1 className="text-lg font-bold">AssocManager</h1>
+            <h1 className="text-lg font-bold font-[Poppins]">Kotiz</h1>
             {selectedAssociation && (
-              <p className="text-xs text-gray-400 truncate">{selectedAssociation.name}</p>
+              <p className="text-xs text-white/70 truncate">{selectedAssociation.name}</p>
             )}
           </div>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1 rounded hover:bg-gray-800 transition-colors"
+          className="p-1 rounded hover:bg-[#2A5F94] transition-colors"
         >
           {collapsed ? (
             <ChevronRight className="w-5 h-5" />
@@ -89,8 +90,8 @@ export function Sidebar() {
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                 isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  ? 'bg-[#F5A623] text-[#1F2937] font-semibold'
+                  : 'text-white/80 hover:bg-[#2A5F94] hover:text-white'
               )}
             >
               <Icon className="w-5 h-5 flex-shrink-0" />
@@ -101,18 +102,18 @@ export function Sidebar() {
       </nav>
 
       {/* User info & Logout */}
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-[#2A5F94]">
         {!collapsed && user && (
           <div className="mb-3">
             <p className="text-sm font-medium truncate">{user.email || user.name}</p>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-white/60">
               {isPlatformAuth ? 'Super Admin' : 'Administrateur'}
             </p>
           </div>
         )}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2 text-white/80 hover:bg-[#2A5F94] hover:text-white rounded-lg transition-colors"
         >
           <LogOut className="w-5 h-5" />
           {!collapsed && <span>Déconnexion</span>}

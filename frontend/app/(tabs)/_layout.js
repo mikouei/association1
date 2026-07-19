@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { colors, typography } from '../../utils/theme';
+import { House, Wallet, CalendarDots, Users, ShieldCheck, GearSix } from 'phosphor-react-native';
 
 export default function TabsLayout() {
   const { user } = useAuth();
@@ -9,15 +10,38 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#2196F3',
-        tabBarInactiveTintColor: '#666',
+        // Couleurs Kotiz Design System
+        tabBarActiveTintColor: colors.primary,          // Or actif (#F5A623)
+        tabBarInactiveTintColor: colors.secondary,      // Bleu nuit inactif (#1F4E79)
+        tabBarStyle: {
+          backgroundColor: colors.backgroundWhite,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          paddingTop: 8,
+          paddingBottom: 8,
+          height: 64,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: typography.tabLabel.fontSize,
+          fontWeight: '600',
+          marginTop: 2,
+        },
         headerShown: true,
         headerStyle: {
-          backgroundColor: '#2196F3',
+          backgroundColor: colors.secondary,            // Bleu nuit en-tête
+          elevation: 0,
+          shadowOpacity: 0,
         },
-        headerTintColor: '#fff',
+        headerTintColor: colors.textOnSecondary,        // Texte blanc
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: '700',
+          fontSize: typography.h3.fontSize,
+          fontFamily: typography.fontFamilyHeading,
         },
       }}
     >
@@ -25,8 +49,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Accueil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <House size={24} color={color} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -34,17 +58,17 @@ export default function TabsLayout() {
         name="cotisations"
         options={{
           title: 'Cotisations',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cash" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Wallet size={24} color={color} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
       <Tabs.Screen
         name="exceptionnelles"
         options={{
-          title: 'Exceptionnelles',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="gift" size={size} color={color} />
+          title: 'Événements',
+          tabBarIcon: ({ color, focused }) => (
+            <CalendarDots size={24} color={color} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -53,8 +77,8 @@ export default function TabsLayout() {
         options={{
           title: 'Membres',
           href: isAdmin ? '/membres' : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Users size={24} color={color} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -63,8 +87,8 @@ export default function TabsLayout() {
         options={{
           title: 'Admin',
           href: isAdmin ? '/admin' : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="shield" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <ShieldCheck size={24} color={color} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />
@@ -72,8 +96,8 @@ export default function TabsLayout() {
         name="parametres"
         options={{
           title: 'Paramètres',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <GearSix size={24} color={color} weight={focused ? 'fill' : 'regular'} />
           ),
         }}
       />

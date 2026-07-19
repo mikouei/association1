@@ -15,8 +15,25 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  UsersThree, 
+  Phone, 
+  Lock, 
+  Eye, 
+  EyeSlash, 
+  Key, 
+  Buildings, 
+  CaretDown,
+  MagnifyingGlass,
+  XCircle,
+  CheckCircle,
+  House,
+  Users,
+  Shield,
+  X
+} from 'phosphor-react-native';
 import api from '../utils/api';
+import { colors, spacing, borderRadius, typography } from '../utils/theme';
 
 export default function Login() {
   const [mode, setMode] = useState('password'); // 'password' ou 'token'
@@ -101,7 +118,13 @@ export default function Login() {
     >
       <View style={styles.associationItemContent}>
         <View style={[styles.associationIcon, { backgroundColor: getAssociationColor(item.type) }]}>
-          <Ionicons name={getAssociationIcon(item.type)} size={20} color="#fff" />
+          {item.type === 'syndicat' ? (
+            <Buildings size={20} color={colors.textOnSecondary} weight="fill" />
+          ) : item.type === 'amicale' ? (
+            <Users size={20} color={colors.textOnSecondary} weight="fill" />
+          ) : (
+            <House size={20} color={colors.textOnSecondary} weight="fill" />
+          )}
         </View>
         <View style={styles.associationInfo}>
           <Text style={styles.associationName}>{item.name}</Text>
@@ -109,24 +132,16 @@ export default function Login() {
         </View>
       </View>
       {selectedAssociation?.id === item.id && (
-        <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+        <CheckCircle size={24} color={colors.success} weight="fill" />
       )}
     </TouchableOpacity>
   );
 
   const getAssociationColor = (type) => {
     switch (type) {
-      case 'syndicat': return '#FF9800';
-      case 'amicale': return '#9C27B0';
-      default: return '#2196F3';
-    }
-  };
-
-  const getAssociationIcon = (type) => {
-    switch (type) {
-      case 'syndicat': return 'business';
-      case 'amicale': return 'people';
-      default: return 'home';
+      case 'syndicat': return colors.warning;
+      case 'amicale': return colors.accentTerracotta;
+      default: return colors.primary;
     }
   };
 
@@ -137,7 +152,7 @@ export default function Login() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Ionicons name="people-circle" size={80} color="#2196F3" />
+          <UsersThree size={80} color={colors.primary} weight="fill" />
           <Text style={styles.title}>AssocManager</Text>
           <Text style={styles.subtitle}>Gestion de cotisations</Text>
         </View>
@@ -149,23 +164,29 @@ export default function Login() {
           disabled={loadingAssociations}
         >
           {loadingAssociations ? (
-            <ActivityIndicator size="small" color="#2196F3" />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : selectedAssociation ? (
             <View style={styles.selectedAssociation}>
               <View style={[styles.associationIcon, { backgroundColor: getAssociationColor(selectedAssociation.type) }]}>
-                <Ionicons name={getAssociationIcon(selectedAssociation.type)} size={20} color="#fff" />
+                {selectedAssociation.type === 'syndicat' ? (
+                  <Buildings size={20} color={colors.textOnSecondary} weight="fill" />
+                ) : selectedAssociation.type === 'amicale' ? (
+                  <Users size={20} color={colors.textOnSecondary} weight="fill" />
+                ) : (
+                  <House size={20} color={colors.textOnSecondary} weight="fill" />
+                )}
               </View>
               <View style={styles.selectedAssociationText}>
                 <Text style={styles.selectedAssociationName}>{selectedAssociation.name}</Text>
                 <Text style={styles.selectedAssociationCode}>{selectedAssociation.code}</Text>
               </View>
-              <Ionicons name="chevron-down" size={24} color="#666" />
+              <CaretDown size={24} color={colors.textMuted} />
             </View>
           ) : (
             <View style={styles.placeholderContainer}>
-              <Ionicons name="business" size={20} color="#999" />
+              <Buildings size={20} color={colors.textMuted} />
               <Text style={styles.placeholderText}>Sélectionner une association</Text>
-              <Ionicons name="chevron-down" size={24} color="#666" />
+              <CaretDown size={24} color={colors.textMuted} />
             </View>
           )}
         </TouchableOpacity>
@@ -193,10 +214,11 @@ export default function Login() {
         {mode === 'password' ? (
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Ionicons name="call" size={20} color="#666" style={styles.icon} />
+              <Phone size={20} color={colors.textMuted} style={styles.icon} />
               <TextInput
                 style={styles.input}
                 placeholder="Téléphone ou email"
+                placeholderTextColor={colors.textMuted}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="default"
@@ -206,30 +228,32 @@ export default function Login() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed" size={20} color="#666" style={styles.icon} />
+              <Lock size={20} color={colors.textMuted} style={styles.icon} />
               <TextInput
                 style={styles.input}
                 placeholder="Mot de passe"
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons 
-                  name={showPassword ? "eye-off" : "eye"} 
-                  size={20} 
-                  color="#666" 
-                />
+                {showPassword ? (
+                  <EyeSlash size={20} color={colors.textMuted} />
+                ) : (
+                  <Eye size={20} color={colors.textMuted} />
+                )}
               </TouchableOpacity>
             </View>
           </View>
         ) : (
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Ionicons name="key" size={20} color="#666" style={styles.icon} />
+              <Key size={20} color={colors.textMuted} style={styles.icon} />
               <TextInput
                 style={styles.input}
                 placeholder="Entrez votre token d'accès"
+                placeholderTextColor={colors.textMuted}
                 value={accessToken}
                 onChangeText={setAccessToken}
                 autoCapitalize="none"
@@ -244,7 +268,7 @@ export default function Login() {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.textOnPrimary} />
           ) : (
             <Text style={styles.buttonText}>Connexion</Text>
           )}
@@ -255,7 +279,7 @@ export default function Login() {
           style={styles.platformLink}
           onPress={() => router.push('/platform')}
         >
-          <Ionicons name="shield" size={16} color="#9C27B0" />
+          <Shield size={16} color={colors.accentTerracotta} weight="fill" />
           <Text style={styles.platformLinkText}>Accès Platform Admin</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -272,15 +296,16 @@ export default function Login() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Choisir une association</Text>
               <TouchableOpacity onPress={() => setShowAssociationPicker(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color="#999" />
+              <MagnifyingGlass size={20} color={colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Rechercher..."
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCapitalize="none"
@@ -288,7 +313,7 @@ export default function Login() {
               />
               {searchQuery ? (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color="#999" />
+                  <XCircle size={20} color={colors.textMuted} weight="fill" />
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -300,7 +325,7 @@ export default function Login() {
               style={styles.associationList}
               ListEmptyComponent={() => (
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="business-outline" size={48} color="#ccc" />
+                  <Buildings size={48} color={colors.border} />
                   <Text style={styles.emptyText}>
                     {searchQuery ? 'Aucune association trouvée' : 'Aucune association disponible'}
                   </Text>
@@ -317,35 +342,36 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: spacing.xl,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 16,
+    fontSize: typography.h1.fontSize,
+    fontWeight: typography.h1.fontWeight,
+    color: colors.text,
+    marginTop: spacing.lg,
+    fontFamily: typography.fontFamilyHeading,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 8,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
   associationSelector: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
     borderWidth: 2,
-    borderColor: '#2196F3',
+    borderColor: colors.primary,
     minHeight: 60,
     justifyContent: 'center',
   },
@@ -362,16 +388,16 @@ const styles = StyleSheet.create({
   },
   selectedAssociationText: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: spacing.md,
   },
   selectedAssociationName: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   selectedAssociationCode: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
     marginTop: 2,
   },
   placeholderContainer: {
@@ -380,81 +406,82 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#999',
+    marginLeft: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
   },
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: 24,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 8,
-    padding: 4,
+    marginBottom: spacing.xl,
+    backgroundColor: colors.border,
+    borderRadius: borderRadius.button,
+    padding: spacing.xs,
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: borderRadius.button - 2,
   },
   activeTab: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.backgroundWhite,
   },
   tabText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
     fontWeight: '500',
   },
   activeTabText: {
-    color: '#2196F3',
+    color: colors.primary,
     fontWeight: '600',
   },
   form: {
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 16,
-    paddingHorizontal: 16,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.input,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
   },
   icon: {
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   input: {
     flex: 1,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: '#333',
+    paddingVertical: spacing.lg,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
   },
   button: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.button,
     alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
   },
   platformLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
-    gap: 8,
+    marginTop: spacing.xl,
+    gap: spacing.sm,
   },
   platformLinkText: {
-    color: '#9C27B0',
-    fontSize: 14,
+    color: colors.accentTerracotta,
+    fontSize: typography.caption.fontSize + 1,
+    fontWeight: '500',
   },
   // Modal styles
   modalOverlay: {
@@ -463,49 +490,51 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.backgroundWhite,
+    borderTopLeftRadius: borderRadius.card,
+    borderTopRightRadius: borderRadius.card,
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: typography.h3.fontSize + 2,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
+    fontFamily: typography.fontFamilyHeading,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    marginHorizontal: 16,
-    marginVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    backgroundColor: colors.borderLight,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.input,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    fontSize: 16,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
   },
   associationList: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   associationItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.borderLight,
   },
   associationItemContent: {
     flexDirection: 'row',
@@ -513,25 +542,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   associationInfo: {
-    marginLeft: 12,
+    marginLeft: spacing.md,
   },
   associationName: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '500',
-    color: '#333',
+    color: colors.text,
   },
   associationCode: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
     marginTop: 2,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 48,
+    paddingVertical: spacing.xxl * 1.5,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 12,
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
+    marginTop: spacing.md,
   },
 });

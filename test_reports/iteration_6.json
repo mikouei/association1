@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 6 - Backend testing of 2 new features: (1) memberFieldLabel default per association type + admin edit via PUT /api/auth/association-settings, (2) PUT /api/years/:id supports updating the year number with uniqueness check and preserves payments. 12/12 pytest cases PASS (100%).",
+  "review_scope_validation": {
+    "1_amicale_default_fonction": "PASS - POST /api/platform/associations {type:'amicale'} returns association with memberFieldLabel='Fonction' (verified via creation response AND GET /api/platform/associations/:id).",
+    "2_syndicat_default_villa": "PASS - POST /api/platform/associations {type:'syndicat'} → memberFieldLabel='Villa'.",
+    "3_association_default_fonction": "PASS - type 'association' also defaults to 'Fonction' (as per platform.js lines 333-337: association OR amicale → Fonction).",
+    "4_admin_can_edit_label": "PASS - PUT /api/auth/association-settings with {memberFieldLabel:'Matricule'} by ADMIN → 200; GET /api/auth/association-settings echoes customFieldLabel='Matricule'.",
+    "5_reject_empty_label": "PASS - Empty string and whitespace-only string → 400 with error 'Le libellé ne peut pas être vide'.",
+    "6_reject_non_admin": "PASS - MEMBER role (created via /api/members, logged in via accessToken) → PUT rejected with 403 'Accès réservé aux administrateurs'.",
+    "7_reject_unauthenticated": "PASS - PUT without token → 401.",
+    "8_update_year_number": "PASS - PUT /api/years/:id with {year:2045} updates the year and persists across GET /api/years.",
+    "9_reject_duplicate_year": "PASS - Attempt to update year to a value already used in the same association → 400 'Cette année existe déjà pour cette association'.",
+    "10_reject_invalid_year_range": "PASS - PUT with year=1500 or year=2200 → 400 'Numéro d'année invalide' (range enforced 2000-2100).",
+    "11_payments_persist_after_rename": "PASS - After renaming a year (2035 → 2091), GET /api/payments/year/:yearId still returns the payment (id, memberId, yearId, month=3, amountPaid=10000) attached; only the year number label is updated. yearId remains stable so all foreign keys (payments) remain attached.",
+    "12_non_admin_cannot_update_year": "PASS - Unauthenticated PUT /api/years/:id → 401."
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/years/:id", "issue": "Year range restricted to 2000-2100 in UPDATE but POST /api/years accepts any integer. This asymmetry means an admin who created a year like 3000 via POST cannot later rename it via PUT (validation blocks). Consider aligning validation between POST and PUT (either both enforce, or PUT allows any int)."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_member_field_label_and_year_update.py",
+    "/app/test_reports/pytest/feat_label_year_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "platform.js POST /associations correctly maps type→default label: amicale/association → 'Fonction', syndicat/syndic/copropriété → 'Villa'. Type comparison is case-insensitive (lowercased). Good defensive default: unknown types fall back to 'Villa'.",
+    "auth.js PUT /api/auth/association-settings: uses req.user.role check for ADMIN. Correctly trims label and rejects empty. Uses req.associationId (attached by authenticateToken middleware) so tenant isolation is preserved.",
+    "years.js PUT /:id: proper tenant scoping (findFirst with associationId filter), uniqueness check excluding current id, range validation 2000-2100. Payments remain attached because yearId (UUID) is untouched — only the numeric 'year' column is modified.",
+    "Suggestion: platform.js PUT /api/platform/associations/:id also accepts memberFieldLabel — but there is no empty-string guard here (unlike auth.js PUT). If a SUPER_ADMIN passes memberFieldLabel:'', the '&& { memberFieldLabel }' short-circuit will skip it (falsy), so it's safe. But whitespace-only strings WOULD be persisted since only truthy check is applied. Minor consistency concern.",
+    "Suggestion: auth.js GET /api/auth/association-settings hard-codes fallback to 'Villa' in the catch block (line 173) — this could confuse an amicale admin if the DB read ever fails. Prefer returning a 500 or the real default per type."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_member_field_label_and_year_update.py (new file, 12 tests)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "N/A - backend only"},
+  "test_credentials": "Super Admin: drigo@drigo.local/drigo123 | Admin AMICALE-TEST: admin@amicale-test.local/admin123 | Admin DELETE-TEST: admin@delete-test.local/admin123. Ephemeral test associations TESTAMI-*, TESTSYN-*, TESTASS-*, TESTLBL-* are created and cascade-deleted by the test suite.",
+  "seed_data_creation": "Ephemeral, self-cleaned: (a) 4 associations TESTAMI/TESTSYN/TESTASS/TESTLBL-<hex> created & deleted; (b) 1 member+payment in AMICALE-TEST for payment-persistence test, member deleted afterwards; (c) years created (in 2005-2100 range) then deleted. No production data touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "BASE_URL: https://mobile-bug-crush-1.preview.emergentagent.com. Run: `cd /app/backend/tests && python -m pytest test_member_field_label_and_year_update.py -v`. AMICALE-TEST association currently has memberFieldLabel='Matricule' after a test run (test_admin_can_update_member_field_label uses an ephemeral association so main AMICALE-TEST label is not modified — but manual curl checks by dev may have set it). PUT /api/years/:id enforces year range 2000-2100 while POST /api/years does not enforce range: potential inconsistency.",
+  "rca_of_the_issue": "N/A - all features work as expected."
+}

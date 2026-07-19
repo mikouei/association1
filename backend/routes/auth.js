@@ -175,6 +175,52 @@ router.get('/association-settings', authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /api/auth/association-settings
+// Modifier les paramètres de l'association (ADMIN uniquement)
+router.put('/association-settings', authenticateToken, async (req, res) => {
+  try {
+    // Vérifier que l'utilisateur est ADMIN
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
+    }
+
+    const { memberFieldLabel, enableVehiclePlates } = req.body;
+
+    const updateData = {};
+    
+    // Libellé du champ personnalisé (texte libre)
+    if (memberFieldLabel !== undefined) {
+      if (typeof memberFieldLabel !== 'string' || memberFieldLabel.trim().length === 0) {
+        return res.status(400).json({ error: 'Le libellé ne peut pas être vide' });
+      }
+      updateData.memberFieldLabel = memberFieldLabel.trim();
+    }
+
+    // Option plaques d'immatriculation
+    if (enableVehiclePlates !== undefined) {
+      updateData.enableVehiclePlates = Boolean(enableVehiclePlates);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'Aucun paramètre à modifier' });
+    }
+
+    const updatedAssociation = await prisma.association.update({
+      where: { id: req.associationId },
+      data: updateData
+    });
+
+    res.json({
+      message: 'Paramètres mis à jour',
+      enableVehiclePlates: updatedAssociation.enableVehiclePlates,
+      customFieldLabel: updatedAssociation.memberFieldLabel
+    });
+  } catch (error) {
+    console.error('Update association settings error:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour des paramètres' });
+  }
+});
+
 // DELETE /api/auth/me
 // Suppression (anonymisation) du compte utilisateur
 // Requis par Google Play Store pour les apps avec création de compte

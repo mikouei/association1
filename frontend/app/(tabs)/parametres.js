@@ -128,13 +128,17 @@ export default function Parametres() {
 
     setSaving(true);
     try {
-      await api.post('/config', formData);
-      Alert.alert('Succès', 'Configuration enregistrée');
+      // Sauvegarder le libellé du champ personnalisé via la nouvelle route
+      await api.put('/auth/association-settings', {
+        memberFieldLabel: formData.memberFieldLabel
+      });
+      Alert.alert('Succès', 'Paramètres enregistrés');
       setEditing(false);
       loadConfig();
     } catch (error) {
       console.error('Erreur sauvegarde config:', error);
-      Alert.alert('Erreur', 'Erreur lors de la sauvegarde');
+      const errorMessage = error.response?.data?.error || 'Erreur lors de la sauvegarde';
+      Alert.alert('Erreur', errorMessage);
     } finally {
       setSaving(false);
     }
@@ -162,10 +166,12 @@ export default function Parametres() {
     setSaving(true);
     try {
       if (editingYear) {
+        // Modification : envoyer l'année ET le montant
         await api.put(`/years/${editingYear.id}`, {
+          year: parseInt(yearFormData.year),
           monthlyAmount: parseFloat(yearFormData.monthlyAmount)
         });
-        Alert.alert('Succès', 'Montant modifié');
+        Alert.alert('Succès', 'Année modifiée');
       } else {
         await api.post('/years', {
           year: parseInt(yearFormData.year),
@@ -751,7 +757,7 @@ export default function Parametres() {
               <View style={styles.yearModalContent}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>
-                    {editingYear ? 'Modifier montant' : 'Nouvelle année'}
+                    {editingYear ? 'Modifier l\'année' : 'Nouvelle année'}
                   </Text>
                   <TouchableOpacity onPress={() => setYearModalVisible(false)}>
                     <Ionicons name="close" size={28} color="#333" />
@@ -764,23 +770,26 @@ export default function Parametres() {
                   contentContainerStyle={{ paddingBottom: 40 }}
                   bounces={false}
                 >
-                  {!editingYear && (
-                    <View style={styles.inputContainer}>
-                      <Text style={styles.label}>Année *</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Ex: 2026"
-                        value={yearFormData.year}
-                        onChangeText={(text) => {
-                          // Nettoyer le texte pour n'accepter que les chiffres
-                          const cleanedText = text.replace(/[^0-9]/g, '');
-                          setYearFormData(prev => ({ ...prev, year: cleanedText }));
-                        }}
-                        keyboardType="numeric"
-                        selectTextOnFocus={true}
-                      />
-                    </View>
-                  )}
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Année *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ex: 2026"
+                      value={yearFormData.year}
+                      onChangeText={(text) => {
+                        // Nettoyer le texte pour n'accepter que les chiffres
+                        const cleanedText = text.replace(/[^0-9]/g, '');
+                        setYearFormData(prev => ({ ...prev, year: cleanedText }));
+                      }}
+                      keyboardType="numeric"
+                      selectTextOnFocus={true}
+                    />
+                    {editingYear && (
+                      <Text style={styles.helperText}>
+                        Vous pouvez corriger le numéro d'année si nécessaire
+                      </Text>
+                    )}
+                  </View>
 
                   <View style={styles.inputContainer}>
                     <Text style={styles.label}>Montant mensuel (FCFA) *</Text>
@@ -1493,6 +1502,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   // Styles suppression de compte
   deleteAccountButton: {

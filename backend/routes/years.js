@@ -97,10 +97,11 @@ router.post('/', requireAdmin, async (req, res) => {
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { monthlyAmount } = req.body;
+    const { monthlyAmount, year } = req.body;
 
-    if (!monthlyAmount) {
-      return res.status(400).json({ error: 'Montant mensuel requis' });
+    // Au moins un champ à modifier
+    if (monthlyAmount === undefined && year === undefined) {
+      return res.status(400).json({ error: 'Montant mensuel ou numéro d\'année requis' });
     }
 
     // Vérifier que l'année appartient à l'association
@@ -115,9 +116,43 @@ router.put('/:id', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Année introuvable' });
     }
 
+    const updateData = {};
+
+    // Mise à jour du montant mensuel
+    if (monthlyAmount !== undefined) {
+      updateData.monthlyAmount = parseFloat(monthlyAmount);
+    }
+
+    // Mise à jour du numéro d'année
+    if (year !== undefined) {
+      const newYear = parseInt(year);
+      
+      // Vérifier que le numéro d'année est valide
+      if (isNaN(newYear) || newYear < 2000 || newYear > 2100) {
+        return res.status(400).json({ error: 'Numéro d\'année invalide' });
+      }
+
+      // Si le numéro change, vérifier l'unicité
+      if (newYear !== existing.year) {
+        const conflict = await prisma.year.findFirst({
+          where: {
+            associationId: req.associationId,
+            year: newYear,
+            id: { not: id } // Exclure l'année en cours de modification
+          }
+        });
+
+        if (conflict) {
+          return res.status(400).json({ error: 'Cette année existe déjà pour cette association' });
+        }
+
+        updateData.year = newYear;
+      }
+    }
+
     const updatedYear = await prisma.year.update({
       where: { id },
-      data: { monthlyAmount: parseFloat(monthlyAmount) }
+      data: updateData
     });
 
     res.json(updatedYear);

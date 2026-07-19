@@ -329,6 +329,14 @@ router.post('/associations', authenticateSuperAdmin, async (req, res) => {
     // Hash du mot de passe admin
     const passwordHash = await bcrypt.hash(adminPassword, 10);
 
+    // Déterminer le libellé du champ personnalisé selon le type d'association
+    const associationType = (type || 'association').toLowerCase();
+    let defaultMemberFieldLabel = 'Villa';
+    if (associationType === 'amicale' || associationType === 'association') {
+      defaultMemberFieldLabel = 'Fonction';
+    }
+    // syndicat, syndic, copropriété → reste "Villa"
+
     // Créer l'association et son premier admin en transaction
     const result = await prisma.$transaction(async (tx) => {
       // Créer l'association
@@ -340,7 +348,7 @@ router.post('/associations', authenticateSuperAdmin, async (req, res) => {
           active: true,
           adminEmail,
           adminName: adminName || 'Administrateur',
-          memberFieldLabel: 'Villa',
+          memberFieldLabel: defaultMemberFieldLabel,
           enableVehiclePlates: false
         }
       });

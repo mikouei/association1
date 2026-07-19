@@ -369,6 +369,36 @@ Le bouton crayon (Modifier) sur /platform/associations faisait un toggle silenci
 - Build TypeScript passe ✅
 - Tests: 7/7 critères d'acceptation validés
 
+## Audit Icônes Phosphor - 19 Juillet 2026 ✅
+
+Toutes les icônes utilisées ont été vérifiées et sont valides :
+- ArrowClockwise, ArrowLeft, CalendarDots, CaretDown, CaretRight
+- Download, Envelope, Eye, EyeSlash, File, FileText, FolderOpen
+- GearSix, Gift, HandHeart, Heart, House, Key, Lock, MagnifyingGlass
+- Pencil, Phone, Plus, Prohibit, ShieldCheck, SignIn, SignOut
+- SmileyMeh, Star, Trash, User, UserCircle, Users, Wallet
+- Warning, WarningCircle, X
+
+**Fix appliqué** : `CaretForward` → `CaretRight` (corrigé, causait le crash Paramètres)
+
+## Sentry Crash Reporting - 19 Juillet 2026 ✅
+
+### Installation
+- Package `@sentry/react-native` installé
+- Module `/app/frontend/utils/sentry.js` créé
+- ErrorBoundary global ajouté dans `_layout.js`
+
+### Activation (pour builds natifs)
+Le guide complet est dans `/app/frontend/SENTRY_SETUP.md`
+
+**Note** : Sentry ne fonctionne pas avec Expo Web preview, uniquement avec les builds natifs (APK/IPA).
+
+### Étapes pour activer :
+1. Créer compte/projet sur sentry.io (free tier)
+2. Configurer `EXPO_PUBLIC_SENTRY_DSN` dans EAS Secrets
+3. Ajouter `"@sentry/react-native"` dans plugins de app.json
+4. Build avec `eas build --platform android`
+
 ## Tâches à venir
 
 ### P2 - Clarifier fonctionnalité "Labels"

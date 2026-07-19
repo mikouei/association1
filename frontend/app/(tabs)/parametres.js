@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { 
   User, Envelope, Phone, UserCircle, Pencil, CheckCircle, Plus, X, 
   ArrowLeft, FolderOpen, Eye, CloudArrowUp, Download, File, FileText,
-  SignOut, Trash, Warning, CaretForward
+  SignOut, Trash, Warning, CaretRight
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useRouter } from 'expo-router';
@@ -685,7 +685,7 @@ export default function Parametres() {
               >
                 <CloudArrowUp size={24} color={colors.primary} />
                 <Text style={styles.optionText}>Importer membres (TXT/CSV)</Text>
-                <CaretForward size={20} color={colors.textMuted} />
+                <CaretRight size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -694,7 +694,7 @@ export default function Parametres() {
               >
                 <Download size={24} color={colors.success} />
                 <Text style={styles.optionText}>Exporter membres (CSV)</Text>
-                <CaretForward size={20} color={colors.textMuted} />
+                <CaretRight size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -703,7 +703,7 @@ export default function Parametres() {
               >
                 <File size={24} color={colors.warning} />
                 <Text style={styles.optionText}>Exporter statistiques (CSV)</Text>
-                <CaretForward size={20} color={colors.textMuted} />
+                <CaretRight size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -712,7 +712,7 @@ export default function Parametres() {
               >
                 <FileText size={24} color={colors.error} />
                 <Text style={styles.optionText}>Exporter statistiques (PDF)</Text>
-                <CaretForward size={20} color={colors.textMuted} />
+                <CaretRight size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
           </View>

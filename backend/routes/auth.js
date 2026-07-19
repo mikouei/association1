@@ -175,4 +175,86 @@ router.get('/association-settings', authenticateToken, async (req, res) => {
   }
 });
 
+// DELETE /api/auth/me
+// Suppression (anonymisation) du compte utilisateur
+// Requis par Google Play Store pour les apps avec création de compte
+router.delete('/me', authenticateToken, async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: 'Mot de passe requis pour confirmer la suppression' });
+    }
+
+    // Récupérer l'utilisateur complet avec son hash de mot de passe
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { member: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    // Vérifier le mot de passe
+    const validPassword = await bcrypt.compare(password, user.passwordHash);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Mot de passe incorrect' });
+    }
+
+    // Si l'utilisateur est ADMIN, vérifier qu'il n'est pas le dernier admin actif
+    if (user.role === 'ADMIN') {
+      const activeAdminCount = await prisma.user.count({
+        where: {
+          associationId: req.associationId,
+          role: 'ADMIN',
+          active: true
+        }
+      });
+
+      if (activeAdminCount <= 1) {
+        return res.status(400).json({ 
+          error: 'Vous êtes le dernier administrateur de cette association. Veuillez d\'abord faire ajouter un autre administrateur par le Super Admin avant de supprimer votre compte.' 
+        });
+      }
+    }
+
+    // Générer une valeur aléatoire pour invalider les credentials
+    const randomSuffix = Math.random().toString(36).substring(2, 10);
+    const deletedEmail = `compte-supprime-${user.id.substring(0, 8)}@deleted.local`;
+    const invalidPasswordHash = await bcrypt.hash(randomSuffix + Date.now(), 10);
+
+    // Anonymiser le compte (ne pas supprimer pour conserver l'historique des paiements)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        email: deletedEmail,
+        phone: null,
+        passwordHash: invalidPasswordHash,
+        token: null,
+        active: false
+      }
+    });
+
+    // Si le user a un Member associé, anonymiser aussi le nom
+    if (user.member) {
+      await prisma.member.update({
+        where: { id: user.member.id },
+        data: {
+          name: `Membre supprimé (${user.id.substring(0, 8)})`,
+          customFieldValue: null,
+          active: false
+        }
+      });
+    }
+
+    res.json({ 
+      message: 'Compte supprimé. L\'historique des cotisations est conservé pour la comptabilité de l\'association.' 
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du compte' });
+  }
+});
+
 export default router;

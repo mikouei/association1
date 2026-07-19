@@ -54,6 +54,11 @@ export default function Parametres() {
   const [importPreview, setImportPreview] = useState(null);
   const [importing, setImporting] = useState(false);
 
+  // Suppression de compte
+  const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     loadConfig();
     loadYears();
@@ -81,6 +86,37 @@ export default function Parametres() {
       setYears(response.data);
     } catch (error) {
       console.error('Erreur chargement années:', error);
+    }
+  };
+
+  // Suppression de compte
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      Alert.alert('Erreur', 'Veuillez entrer votre mot de passe pour confirmer');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await api.delete('/auth/me', {
+        data: { password: deletePassword }
+      });
+      
+      Alert.alert(
+        'Compte supprimé',
+        'Votre compte a été supprimé. L\'historique des cotisations est conservé pour la comptabilité de l\'association.',
+        [{ text: 'OK', onPress: () => {
+          setDeleteAccountModalVisible(false);
+          setDeletePassword('');
+          logout();
+        }}]
+      );
+    } catch (error) {
+      console.error('Erreur suppression compte:', error);
+      const errorMessage = error.response?.data?.error || 'Erreur lors de la suppression du compte';
+      Alert.alert('Erreur', errorMessage);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -677,6 +713,18 @@ export default function Parametres() {
           </TouchableOpacity>
         </View>
 
+        {/* Suppression de compte */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Zone dangereuse</Text>
+          <TouchableOpacity 
+            style={styles.deleteAccountButton} 
+            onPress={() => setDeleteAccountModalVisible(true)}
+          >
+            <Ionicons name="trash" size={20} color="#fff" />
+            <Text style={styles.deleteAccountButtonText}>Supprimer mon compte</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>AssocManager v1.0.0</Text>
           <Text style={styles.footerText}>Toutes phases implémentées</Text>
@@ -905,6 +953,68 @@ export default function Parametres() {
                 onPress={confirmLogout}
               >
                 <Text style={styles.logoutConfirmText}>Déconnexion</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Suppression de compte */}
+      <Modal
+        visible={deleteAccountModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setDeleteAccountModalVisible(false)}
+      >
+        <View style={styles.deleteAccountModalOverlay}>
+          <View style={styles.deleteAccountModalContent}>
+            <View style={styles.deleteAccountModalHeader}>
+              <Ionicons name="warning" size={48} color="#DC2626" />
+              <Text style={styles.deleteAccountModalTitle}>Supprimer mon compte</Text>
+            </View>
+            
+            <View style={styles.deleteAccountModalBody}>
+              <Text style={styles.deleteAccountWarningText}>
+                Attention : cette action est irréversible.
+              </Text>
+              <Text style={styles.deleteAccountInfoText}>
+                • Votre email, téléphone et mot de passe seront supprimés{'\n'}
+                • Vous ne pourrez plus vous connecter{'\n'}
+                • L'historique de vos cotisations et paiements sera conservé pour la comptabilité de l'association
+              </Text>
+              
+              <Text style={styles.deleteAccountPasswordLabel}>
+                Pour confirmer, entrez votre mot de passe :
+              </Text>
+              <TextInput
+                style={styles.deleteAccountPasswordInput}
+                placeholder="Mot de passe"
+                secureTextEntry
+                value={deletePassword}
+                onChangeText={setDeletePassword}
+              />
+            </View>
+
+            <View style={styles.deleteAccountModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteAccountCancelButton}
+                onPress={() => {
+                  setDeleteAccountModalVisible(false);
+                  setDeletePassword('');
+                }}
+              >
+                <Text style={styles.deleteAccountCancelText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteAccountConfirmButton, deleting && styles.deleteAccountConfirmButtonDisabled]}
+                onPress={handleDeleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.deleteAccountConfirmText}>Supprimer</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1380,6 +1490,105 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  // Styles suppression de compte
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    gap: 8,
+  },
+  deleteAccountButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteAccountModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  deleteAccountModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  deleteAccountModalHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteAccountModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#DC2626',
+    marginTop: 12,
+  },
+  deleteAccountModalBody: {
+    marginBottom: 24,
+  },
+  deleteAccountWarningText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#DC2626',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  deleteAccountInfoText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  deleteAccountPasswordLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  deleteAccountPasswordInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  deleteAccountModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  deleteAccountCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+  },
+  deleteAccountCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  deleteAccountConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+  },
+  deleteAccountConfirmButtonDisabled: {
+    opacity: 0.7,
+  },
+  deleteAccountConfirmText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',

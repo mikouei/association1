@@ -648,4 +648,48 @@ router.get('/stats', authenticateSuperAdmin, async (req, res) => {
   }
 });
 
+// ============ DEMANDES DE SUPPRESSION ============
+
+// GET /api/platform/deletion-requests
+// Liste des demandes de suppression de compte
+router.get('/deletion-requests', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const requests = await prisma.deletionRequest.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(requests);
+  } catch (error) {
+    console.error('Erreur liste demandes suppression:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT /api/platform/deletion-requests/:id
+// Traiter une demande de suppression
+router.put('/deletion-requests/:id', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['processed', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Statut invalide' });
+    }
+
+    const request = await prisma.deletionRequest.update({
+      where: { id },
+      data: {
+        status,
+        processedAt: new Date(),
+        processedBy: req.superAdmin.email
+      }
+    });
+
+    res.json(request);
+  } catch (error) {
+    console.error('Erreur traitement demande:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 export default router;

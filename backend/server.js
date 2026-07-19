@@ -15,6 +15,7 @@ import importRoutes from "./routes/import.js";
 import exportRoutes from "./routes/export.js";
 import platformRoutes from "./routes/platform.js";
 import vehicleRoutes from "./routes/vehicles.js";
+import publicRoutes from "./routes/public.js";
 
 dotenv.config();
 
@@ -84,6 +85,12 @@ app.use("/api/vehicles", vehicleRoutes);
 //
 
 app.use("/api/platform", platformRoutes);
+
+//
+// ROUTES PUBLIQUES (sans auth)
+//
+
+app.use("/api/public", publicRoutes);
 
 //
 // ERROR HANDLER

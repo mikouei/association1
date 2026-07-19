@@ -217,3 +217,18 @@ model PlatformConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// DEMANDES DE SUPPRESSION DE COMPTE
+// ============================================
+
+model DeletionRequest {
+  id              String   @id @default(uuid())
+  email           String?
+  phone           String?
+  associationCode String
+  message         String?
+  status          String   @default("pending") // pending, processed, rejected
+  processedAt     DateTime?
+  processedBy     String?
+  createdAt       DateTime @default(now())
+}

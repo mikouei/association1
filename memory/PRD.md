@@ -254,6 +254,29 @@ DATABASE_URL="postgresql://assocmanager:***@dpg-d6r057dm5p6s73eb2uug-a.oregon-po
 - **Délai** : 30 jours max
 - **Contact** : mikouei2@gmail.com
 
+## Fonctionnalités Admin Self-Service - 19 Juillet 2026 ✅
+
+### Libellé champ personnalisé ✅
+- **Défaut intelligent à la création** :
+  - Type `amicale` ou `association` → `Fonction`
+  - Type `syndicat` ou `syndic` → `Villa`
+- **Modifiable par l'admin** :
+  - Route `PUT /api/auth/association-settings` (ADMIN uniquement)
+  - Champ texte libre (Villa, Fonction, Matricule, Poste, etc.)
+  - Validation : rejet si vide
+  - Mobile : champ éditable dans Paramètres
+  - Web : `/settings` avec bouton Modifier
+
+### Correction numéro d'année ✅
+- **Route** : `PUT /api/years/:id` accepte maintenant `year` en plus de `monthlyAmount`
+- **Validation** :
+  - Vérification unicité (associationId + year)
+  - Plage valide : 2000-2100
+  - Erreur claire si doublon : "Cette année existe déjà pour cette association"
+- **Paiements conservés** : yearId (UUID) reste stable, seul le numéro change
+- **Mobile** : Champ année éditable dans le modal de modification
+- **Web** : Modal édition avec les deux champs
+
 ### Interface Super Admin - Gestion demandes suppression ✅
 - **Page** : `/platform/deletion-requests`
 - **Fonctionnalités** :

@@ -5,12 +5,16 @@
 - **Mot de passe**: drigo123
 - **URL**: /platform/login
 
-## Admin Association Test
-- **Association**: TEST-NEW-DB (Association Test Nouvelle DB)
-- **Email**: admin@test-new-db.local
+## Admin Association DELETE-TEST
+- **Association**: DELETE-TEST (Test Suppression Compte)
+- **Email**: admin@delete-test.local
 - **Mot de passe**: admin123
 
-## Membre Test (créé pour tests)
-- **Nom**: Jean Dupont Test
-- **Email**: jean.dupont@test.local
-- **Token d'accès**: tc7p3jr72msb2l62euxc
+## Admin Association ASCB
+- **Association**: ASCB
+- **Email**: ascb@drigo.local
+- **Mot de passe**: (à vérifier/réinitialiser si nécessaire)
+
+## Page publique suppression de compte
+- **URL**: /delete-account
+- **Email support**: mikouei2@gmail.com

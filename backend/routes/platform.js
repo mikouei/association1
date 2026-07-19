@@ -676,6 +676,15 @@ router.put('/deletion-requests/:id', authenticateSuperAdmin, async (req, res) =>
       return res.status(400).json({ error: 'Statut invalide' });
     }
 
+    // Vérifier que la demande existe
+    const existingRequest = await prisma.deletionRequest.findUnique({
+      where: { id }
+    });
+
+    if (!existingRequest) {
+      return res.status(404).json({ error: 'Demande introuvable' });
+    }
+
     const request = await prisma.deletionRequest.update({
       where: { id },
       data: {

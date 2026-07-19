@@ -1,10 +1,9 @@
 // Routes publiques (sans authentification)
 // Pour les demandes de suppression de compte accessibles sans l'app
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../middleware/auth.js';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // POST /api/public/deletion-request
 // Soumettre une demande de suppression de compte

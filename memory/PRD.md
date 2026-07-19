@@ -227,3 +227,29 @@ DATABASE_URL="postgresql://assocmanager:***@dpg-d6r057dm5p6s73eb2uug-a.oregon-po
 - Route `POST /api/platform/superadmins` - Créer un Super Admin
 - Route `DELETE /api/platform/superadmins/:id` - Supprimer (sauf dernier et soi-même)
 - Interface dans `/platform/settings` avec liste et formulaire de création
+
+## Suppression de Compte (Conformité Google Play) - 19 Juillet 2026 ✅
+
+### PARTIE 1 - Suppression depuis l'app ✅
+- **Route** : `DELETE /api/auth/me` (authentification requise)
+- **Validation** : Mot de passe requis pour confirmer
+- **Protection** : Bloque si dernier admin de l'association
+- **Anonymisation** : 
+  - Email → `compte-supprime-<id>@deleted.local`
+  - Phone → null
+  - PasswordHash → valeur aléatoire invalide
+  - Active → false
+  - Nom du membre → `Membre supprimé (<id>)`
+- **Historique conservé** : Les paiements (MonthlyPayment, ExceptionalPayment) restent intacts
+- **Mobile** : Bouton "Supprimer mon compte" dans Paramètres avec modal de confirmation
+
+### PARTIE 2 - Demande web sans l'app ✅
+- **Page publique** : `/delete-account`
+- **Route** : `POST /api/public/deletion-request` (sans authentification)
+- **Champs** : email ou téléphone, code association, message optionnel
+- **Stockage** : Table `DeletionRequest` avec statut pending/processed/rejected
+- **Gestion Super Admin** :
+  - `GET /api/platform/deletion-requests` - Liste des demandes
+  - `PUT /api/platform/deletion-requests/:id` - Traiter une demande
+- **Délai** : 30 jours max
+- **Contact** : mikouei2@gmail.com

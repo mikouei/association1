@@ -1,19 +1,29 @@
-# AssocManager - Product Requirements Document
+# AssocManager / Kotiz - Product Requirements Document
 
 ## Aperçu du projet
-AssocManager est une application de gestion d'associations qui permet de gérer les membres, les cotisations mensuelles et exceptionnelles, et les véhicules des membres.
+Kotiz (anciennement AssocManager) est une application de gestion d'associations qui permet de gérer les membres, les cotisations mensuelles et exceptionnelles, et les véhicules des membres.
 
 ## Architecture
 
 ### Backend
 - **Technologie** : Node.js, Express.js
-- **Base de données** : PostgreSQL (migré depuis SQLite)
+- **Base de données** : PostgreSQL (Render)
 - **ORM** : Prisma
 - **Architecture** : Multi-tenant avec isolation par `associationId`
 
 ### Frontend
-- **Mobile** : React Native (Expo)
-- **Web** : Next.js (scaffold en cours)
+- **Mobile** : React Native (Expo) + Phosphor Icons
+- **Web** : Next.js + Phosphor Icons + Tailwind CSS
+
+### Design System - 19 Juillet 2026 ✅
+- **Couleur primaire** : #F5A623 (Gold)
+- **Couleur secondaire** : #1F4E79 (Navy)
+- **Texte** : #1F2937 (foncé) / #6B7280 (muted)
+- **Rayons** : 16px (cards), 10px (buttons/inputs), 12px (badges)
+- **Espacements** : 4/8/12/16/24/32px
+- **Polices** : Poppins (titres), Inter (corps)
+- **WCAG** : Texte foncé (#1F2937) sur fond Gold pour contraste
+- **Icônes** : Phosphor Icons (mobile: phosphor-react-native, web: @phosphor-icons/react)
 
 ## Migration PostgreSQL - COMPLÉTÉE ✅
 
@@ -285,6 +295,42 @@ DATABASE_URL="postgresql://assocmanager:***@dpg-d6r057dm5p6s73eb2uug-a.oregon-po
   - Boutons pour traiter ou rejeter chaque demande
   - Instructions de traitement manuel
 - **Navigation** : Lien "Suppressions" dans la sidebar Platform
+
+
+## Harmonisation Design System - 19 Juillet 2026 ✅
+
+### Mobile React Native
+Tous les écrans ont été mis à jour avec le Design System :
+- `/app/frontend/app/login.js` ✅
+- `/app/frontend/app/(tabs)/index.js` ✅
+- `/app/frontend/app/(tabs)/membres.js` ✅
+- `/app/frontend/app/(tabs)/cotisations.js` ✅
+- `/app/frontend/app/(tabs)/admin.js` ✅
+- `/app/frontend/app/(tabs)/exceptionnelles.js` ✅
+- `/app/frontend/app/(tabs)/parametres.js` ✅
+- `/app/frontend/app/platform/index.js` ✅
+- `/app/frontend/app/platform/dashboard.js` ✅
+
+### Web Next.js
+- `/app/web/src/app/globals.css` - Variables CSS du Design System
+- `/app/web/src/app/dashboard/page.tsx` - Dashboard avec Phosphor Icons
+- `/app/web/src/app/login/page.tsx` - Login harmonisé avec couleurs DS
+- `/app/web/src/components/ui/Card.tsx` - Utilise variables CSS
+- `/app/web/src/components/ui/Badge.tsx` - Utilise variables CSS
+- `/app/web/src/components/layout/Sidebar.tsx` - Navy/Gold pour navigation
+
+### Fichiers de thème
+- `/app/frontend/utils/theme.js` - Tokens mobile (colors, spacing, borderRadius, typography)
+- `/app/web/src/app/globals.css` - Variables CSS web (--color-*, --radius-*, --spacing-*)
+
+## Tâches à venir
+
+### P1 - Afficher stats événements exceptionnels (Backend prêt)
+- API `GET /api/exceptional/stats` déjà implémentée
+- Créer composant UI pour afficher les statistiques sur le frontend
+
+### P2 - Clarifier fonctionnalité "Labels"
+- Comprendre les besoins pour activer/désactiver les labels Superadmin
 
 ### Pages publiques Play Store ✅
 - **Politique de confidentialité** : `/privacy`

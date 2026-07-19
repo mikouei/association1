@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, Card, CardContent } from '@/components/ui';
-import { Building2 } from 'lucide-react';
+import { Buildings } from '@phosphor-icons/react';
 import { api } from '@/services/api';
 import { Association } from '@/types';
 
@@ -34,9 +34,10 @@ export default function LoginPage() {
     }
   };
 
-  useState(() => {
+  // Fix: Use useEffect instead of useState for side effects
+  useEffect(() => {
     loadAssociations();
-  });
+  }, []);
 
   const handleSelectAssociation = (assoc: Association) => {
     setSelectedAssoc(assoc);
@@ -63,38 +64,38 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--color-secondary)] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardContent className="p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Building2 className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-[var(--color-primary)] rounded-[var(--radius-card)] flex items-center justify-center mx-auto mb-4">
+              <Buildings size={32} weight="duotone" className="text-[var(--color-text-on-primary)]" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">AssocManager</h1>
-            <p className="text-gray-500 mt-1">Connexion Administration</p>
+            <h1 className="text-2xl font-bold text-[var(--color-text)] font-[var(--font-heading)]">Kotiz</h1>
+            <p className="text-[var(--color-text-muted)] mt-1">Connexion Administration</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg">
+            <div className="mb-4 p-3 bg-[var(--color-error-bg)] border border-[var(--color-error)] text-[var(--color-error)] text-sm rounded-[var(--radius-input)]">
               {error}
             </div>
           )}
 
           {step === 'association' ? (
             <div className="space-y-4">
-              <p className="text-sm text-gray-600 mb-4">Sélectionnez votre association :</p>
+              <p className="text-sm text-[var(--color-text-muted)] mb-4">Sélectionnez votre association :</p>
               {loadingAssociations ? (
-                <div className="text-center py-8 text-gray-500">Chargement...</div>
+                <div className="text-center py-8 text-[var(--color-text-muted)]">Chargement...</div>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {associations.filter(a => a.active !== false).map((assoc) => (
                     <button
                       key={assoc.id}
                       onClick={() => handleSelectAssociation(assoc)}
-                      className="w-full p-4 text-left border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                      className="w-full p-4 text-left border border-[var(--color-border)] rounded-[var(--radius-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-warning-bg)] transition-colors"
                     >
-                      <p className="font-medium text-gray-900">{assoc.name}</p>
-                      <p className="text-sm text-gray-500">{assoc.code}</p>
+                      <p className="font-medium text-[var(--color-text)]">{assoc.name}</p>
+                      <p className="text-sm text-[var(--color-text-muted)]">{assoc.code}</p>
                     </button>
                   ))}
                 </div>
@@ -105,14 +106,14 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setStep('association')}
-                className="text-sm text-blue-600 hover:text-blue-700 mb-2"
+                className="text-sm text-[var(--color-secondary)] hover:text-[var(--color-primary)] mb-2"
               >
-                ← Changer d'association
+                ← Changer d&apos;association
               </button>
               
-              <div className="p-3 bg-gray-50 rounded-lg mb-4">
-                <p className="text-sm text-gray-600">Association sélectionnée :</p>
-                <p className="font-medium text-gray-900">{selectedAssoc?.name}</p>
+              <div className="p-3 bg-[var(--color-background)] rounded-[var(--radius-input)] mb-4">
+                <p className="text-sm text-[var(--color-text-muted)]">Association sélectionnée :</p>
+                <p className="font-medium text-[var(--color-text)]">{selectedAssoc?.name}</p>
               </div>
 
               <Input
@@ -142,7 +143,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <Link
               href="/platform/login"
-              className="text-sm text-gray-500 hover:text-blue-600"
+              className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
             >
               Accès Super Admin →
             </Link>

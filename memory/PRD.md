@@ -343,6 +343,32 @@ Tous les écrans ont été mis à jour avec le Design System :
 - Liste les 5 événements récents avec icônes par type
 - API utilisée : `GET /api/exceptional/stats`
 
+## Bug Fix: Bouton Modifier Associations - 19 Juillet 2026 ✅
+
+### Problème
+Le bouton crayon (Modifier) sur /platform/associations faisait un toggle silencieux du statut au lieu d'ouvrir un formulaire d'édition. Bug de sécurité : un clic accidentel pouvait désactiver une association active.
+
+### Solution
+- **Bouton Modifier (Pencil)** : Redirige vers `/platform/associations/[id]` pour édition
+- **Bouton Toggle (Power/PowerOff)** : Ouvre une modale de confirmation avant d'activer/désactiver
+- **Nouvelle page** `/platform/associations/[id]` : Formulaire d'édition + gestion des admins
+
+### Fonctionnalités ajoutées
+- Modifier nom, type, libellé du champ personnalisé
+- Voir la liste des admins de l'association
+- Ajouter un nouvel admin (email, mot de passe, téléphone)
+- Réinitialiser le mot de passe d'un admin
+- Supprimer un admin (avec protection : impossible de supprimer le dernier)
+
+### Fichiers modifiés/créés
+- `/app/web/src/app/platform/associations/page.tsx` - Séparation Modifier/Toggle
+- `/app/web/src/app/platform/associations/[id]/page.tsx` - Nouvelle page d'édition
+
+### Vérification
+- ASCB reste au statut Active ✅
+- Build TypeScript passe ✅
+- Tests: 7/7 critères d'acceptation validés
+
 ## Tâches à venir
 
 ### P2 - Clarifier fonctionnalité "Labels"

@@ -6,13 +6,15 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, DataTable, Badge, Modal } from '@/components/ui';
 import { platformApi } from '@/services/api';
 import { Association } from '@/types';
-import { Plus, Pencil, Trash2, UserCog } from 'lucide-react';
+import { Plus, Pencil, Trash2, Power, PowerOff } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 export default function AssociationsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editingAssoc, setEditingAssoc] = useState<Association | null>(null);
+  const [toggleConfirm, setToggleConfirm] = useState<Association | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -49,6 +51,7 @@ export default function AssociationsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-associations'] });
+      setToggleConfirm(null);
     },
   });
 
@@ -75,6 +78,20 @@ export default function AssociationsPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate(formData);
+  };
+
+  const handleEdit = (assoc: Association) => {
+    router.push(`/platform/associations/${assoc.id}`);
+  };
+
+  const handleToggleClick = (assoc: Association) => {
+    setToggleConfirm(assoc);
+  };
+
+  const confirmToggle = () => {
+    if (toggleConfirm) {
+      toggleMutation.mutate(toggleConfirm.id);
+    }
   };
 
   const columns = [
@@ -121,20 +138,36 @@ export default function AssociationsPage() {
       header: 'Actions',
       render: (assoc: Association) => (
         <div className="flex items-center gap-2">
+          {/* Bouton Modifier - Ouvre la page d'édition */}
           <button
-            onClick={() => toggleMutation.mutate(assoc.id)}
-            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-            title={assoc.active ? 'Désactiver' : 'Activer'}
+            onClick={() => handleEdit(assoc)}
+            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            title="Modifier l'association"
           >
             <Pencil className="w-4 h-4" />
           </button>
+          
+          {/* Bouton Activer/Désactiver - Avec confirmation */}
+          <button
+            onClick={() => handleToggleClick(assoc)}
+            className={`p-1.5 rounded transition-colors ${
+              assoc.active 
+                ? 'text-gray-500 hover:text-orange-600 hover:bg-orange-50' 
+                : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
+            }`}
+            title={assoc.active ? 'Désactiver' : 'Activer'}
+          >
+            {assoc.active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+          </button>
+          
+          {/* Bouton Supprimer */}
           <button
             onClick={() => {
-              if (confirm('Êtes-vous sûr de vouloir supprimer cette association ?')) {
+              if (confirm('Êtes-vous sûr de vouloir supprimer cette association ? Cette action est irréversible.')) {
                 deleteMutation.mutate(assoc.id);
               }
             }}
-            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
             title="Supprimer"
             disabled={assoc.code === 'V1-DEFAULT'}
           >
@@ -235,6 +268,53 @@ export default function AssociationsPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* Modal Confirmation Toggle */}
+        <Modal
+          isOpen={!!toggleConfirm}
+          onClose={() => setToggleConfirm(null)}
+          title={toggleConfirm?.active ? 'Désactiver l\'association' : 'Activer l\'association'}
+          size="md"
+        >
+          <div className="space-y-4">
+            {toggleConfirm?.active ? (
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <p className="text-orange-800 font-medium">
+                  Êtes-vous sûr de vouloir désactiver « {toggleConfirm?.name} » ?
+                </p>
+                <p className="text-orange-700 text-sm mt-2">
+                  Ses membres et son admin ne pourront plus se connecter tant que l&apos;association sera inactive.
+                </p>
+              </div>
+            ) : (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-800 font-medium">
+                  Voulez-vous réactiver « {toggleConfirm?.name} » ?
+                </p>
+                <p className="text-green-700 text-sm mt-2">
+                  Ses membres et son admin pourront à nouveau se connecter.
+                </p>
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setToggleConfirm(null)}
+              >
+                Annuler
+              </Button>
+              <Button 
+                onClick={confirmToggle} 
+                loading={toggleMutation.isPending}
+                className={toggleConfirm?.active ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}
+              >
+                {toggleConfirm?.active ? 'Désactiver' : 'Activer'}
+              </Button>
+            </div>
+          </div>
         </Modal>
       </div>
     </DashboardLayout>

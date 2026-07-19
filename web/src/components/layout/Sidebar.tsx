@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -26,6 +27,7 @@ interface NavItem {
 const platformNavItems: NavItem[] = [
   { href: '/platform/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { href: '/platform/associations', label: 'Associations', icon: Building2 },
+  { href: '/platform/deletion-requests', label: 'Suppressions', icon: Trash2 },
   { href: '/platform/settings', label: 'Paramètres', icon: Settings },
 ];
 

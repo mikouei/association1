@@ -253,3 +253,22 @@ DATABASE_URL="postgresql://assocmanager:***@dpg-d6r057dm5p6s73eb2uug-a.oregon-po
   - `PUT /api/platform/deletion-requests/:id` - Traiter une demande
 - **Délai** : 30 jours max
 - **Contact** : mikouei2@gmail.com
+
+### Interface Super Admin - Gestion demandes suppression ✅
+- **Page** : `/platform/deletion-requests`
+- **Fonctionnalités** :
+  - Liste des demandes avec filtres (toutes, en attente, traitées, rejetées)
+  - Compteur de demandes en attente
+  - Boutons pour traiter ou rejeter chaque demande
+  - Instructions de traitement manuel
+- **Navigation** : Lien "Suppressions" dans la sidebar Platform
+
+### Pages publiques Play Store ✅
+- **Politique de confidentialité** : `/privacy`
+  - Données collectées, utilisation, sécurité
+  - Procédure de suppression de compte
+  - Contact et droits RGPD
+- **Data Safety** : `/data-safety`
+  - Résumé structuré pour formulaire Play Console
+  - Tableau récapitulatif des réponses Play Store
+  - Liens vers les pages de suppression et confidentialité

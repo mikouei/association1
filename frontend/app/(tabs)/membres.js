@@ -670,6 +670,18 @@ export default function Membres() {
               </View>
 
               <View style={styles.inputContainer}>
+                <Text style={styles.label}>Téléphone</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="+237 6XX XX XX XX"
+                  placeholderTextColor={colors.textMuted}
+                  value={formData.phone}
+                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
                 <Text style={styles.label}>Email</Text>
                 <TextInput
                   style={styles.input}
@@ -679,18 +691,6 @@ export default function Membres() {
                   onChangeText={(text) => setFormData({ ...formData, email: text })}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Téléphone</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="+237 6XX XX XX XX"
-                  placeholderTextColor={colors.textMuted}
-                  value={formData.phone}
-                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                  keyboardType="phone-pad"
                 />
               </View>
 

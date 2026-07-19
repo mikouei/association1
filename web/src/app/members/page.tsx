@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, Button, Input, DataTable, Badge, Modal } from '@/components/ui';
 import { api } from '@/services/api';
 import { Member } from '@/types';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Key } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export default function MembersPage() {
@@ -21,6 +21,10 @@ export default function MembersPage() {
     email: '',
     password: '',
   });
+
+  // Reset password state
+  const [resetPasswordMember, setResetPasswordMember] = useState<Member | null>(null);
+  const [newPassword, setNewPassword] = useState('');
 
   const { data: members, isLoading } = useQuery({
     queryKey: ['members', search],
@@ -73,6 +77,21 @@ export default function MembersPage() {
     },
   });
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ memberId, password }: { memberId: string; password: string }) => {
+      const response = await api.put(`/members/${memberId}/password`, { password });
+      return response.data;
+    },
+    onSuccess: () => {
+      setResetPasswordMember(null);
+      setNewPassword('');
+      alert('Mot de passe réinitialisé avec succès');
+    },
+    onError: (error: Error & { response?: { data?: { error?: string } } }) => {
+      alert(error.response?.data?.error || 'Erreur lors de la réinitialisation');
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -103,22 +122,44 @@ export default function MembersPage() {
     }
   };
 
+  const handleResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 4) {
+      alert('Le mot de passe doit contenir au moins 4 caractères');
+      return;
+    }
+    if (resetPasswordMember) {
+      resetPasswordMutation.mutate({ memberId: resetPasswordMember.id, password: newPassword });
+    }
+  };
+
+  const openResetPasswordModal = () => {
+    if (editingMember) {
+      setResetPasswordMember(editingMember);
+      setEditingMember(null);
+      resetForm();
+    }
+  };
+
   const columns = [
     {
       key: 'name',
-      header: 'Membre',
+      header: 'Nom',
       render: (member: Member) => (
         <div>
           <p className="font-medium text-gray-900">{member.name}</p>
-          <p className="text-sm text-gray-500">{member.phone || member.email || '-'}</p>
+          <p className="text-sm text-gray-500">{member.customFieldValue}</p>
         </div>
       ),
     },
     {
-      key: 'customFieldValue',
-      header: config?.memberFieldLabel || 'Villa',
+      key: 'contact',
+      header: 'Contact',
       render: (member: Member) => (
-        <span className="text-gray-600">{member.customFieldValue || '-'}</span>
+        <div className="text-sm">
+          {member.phone && <p>{member.phone}</p>}
+          {member.email && <p className="text-gray-500">{member.email}</p>}
+        </div>
       ),
     },
     {
@@ -132,7 +173,7 @@ export default function MembersPage() {
     },
     {
       key: 'createdAt',
-      header: 'Créé le',
+      header: 'Inscrit le',
       render: (member: Member) => formatDate(member.createdAt),
     },
     {
@@ -143,6 +184,7 @@ export default function MembersPage() {
           <button
             onClick={() => handleEdit(member)}
             className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+            title="Modifier"
           >
             <Pencil className="w-4 h-4" />
           </button>
@@ -153,6 +195,7 @@ export default function MembersPage() {
               }
             }}
             className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+            title="Supprimer"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -247,6 +290,19 @@ export default function MembersPage() {
                 required
               />
             )}
+            
+            {/* Bouton Réinitialiser le mot de passe (visible uniquement en mode édition) */}
+            {editingMember && (
+              <button
+                type="button"
+                onClick={openResetPasswordModal}
+                className="flex items-center gap-2 w-full px-4 py-3 text-left bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors"
+              >
+                <Key className="w-5 h-5 text-amber-600" />
+                <span className="text-amber-700 font-medium">Réinitialiser le mot de passe</span>
+              </button>
+            )}
+            
             <div className="flex justify-end gap-3 pt-4">
               <Button
                 type="button"
@@ -264,6 +320,56 @@ export default function MembersPage() {
                 loading={createMutation.isPending || updateMutation.isPending}
               >
                 {editingMember ? 'Modifier' : 'Créer'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Modal Réinitialisation du mot de passe */}
+        <Modal
+          isOpen={!!resetPasswordMember}
+          onClose={() => {
+            setResetPasswordMember(null);
+            setNewPassword('');
+          }}
+          title="Réinitialiser le mot de passe"
+          size="md"
+        >
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <Key className="w-8 h-8 text-amber-600" />
+              <div>
+                <p className="font-medium text-gray-900">{resetPasswordMember?.name}</p>
+                <p className="text-sm text-gray-500">{resetPasswordMember?.phone || resetPasswordMember?.email}</p>
+              </div>
+            </div>
+            
+            <Input
+              label="Nouveau mot de passe"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Minimum 4 caractères"
+              required
+            />
+            
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setResetPasswordMember(null);
+                  setNewPassword('');
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                loading={resetPasswordMutation.isPending}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                Réinitialiser
               </Button>
             </div>
           </form>

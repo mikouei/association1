@@ -13,6 +13,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -35,6 +36,8 @@ import {
 import api from '../utils/api';
 import { colors, spacing, borderRadius, typography } from '../utils/theme';
 
+const LAST_ASSOCIATION_KEY = '@kotiz_last_association';
+
 export default function Login() {
   const [mode, setMode] = useState('password'); // 'password' ou 'token'
   const [phone, setPhone] = useState('');
@@ -49,6 +52,7 @@ export default function Login() {
   const [showAssociationPicker, setShowAssociationPicker] = useState(false);
   const [loadingAssociations, setLoadingAssociations] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [lastUsedAssociationId, setLastUsedAssociationId] = useState(null);
   
   const { login } = useAuth();
   const router = useRouter();
@@ -60,8 +64,33 @@ export default function Login() {
 
   const loadAssociations = async () => {
     try {
+      // Récupérer la dernière association utilisée
+      const lastAssocId = await AsyncStorage.getItem(LAST_ASSOCIATION_KEY);
+      if (lastAssocId) {
+        setLastUsedAssociationId(lastAssocId);
+      }
+
       const response = await api.get('/auth/associations');
-      setAssociations(response.data);
+      let assocList = response.data;
+
+      // Si une seule association, la sélectionner automatiquement
+      if (assocList.length === 1) {
+        setSelectedAssociation(assocList[0]);
+        setAssociations(assocList);
+        setLoadingAssociations(false);
+        return;
+      }
+
+      // Trier par dernière utilisée en premier
+      if (lastAssocId) {
+        assocList = assocList.sort((a, b) => {
+          if (a.id === lastAssocId) return -1;
+          if (b.id === lastAssocId) return 1;
+          return a.name.localeCompare(b.name);
+        });
+      }
+
+      setAssociations(assocList);
     } catch (error) {
       console.error('Erreur chargement associations:', error);
       // En cas d'erreur, permettre quand même le login V1 classique
@@ -70,10 +99,15 @@ export default function Login() {
     }
   };
 
-  const filteredAssociations = associations.filter(assoc => 
-    assoc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    assoc.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filtrer par nom ET code (recherche en direct)
+  const filteredAssociations = associations.filter(assoc => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      assoc.name.toLowerCase().includes(query) ||
+      assoc.code.toLowerCase().includes(query)
+    );
+  });
 
   const handleLogin = async () => {
     if (!selectedAssociation) {
@@ -101,6 +135,12 @@ export default function Login() {
     setLoading(false);
 
     if (result.success) {
+      // Sauvegarder la dernière association utilisée
+      try {
+        await AsyncStorage.setItem(LAST_ASSOCIATION_KEY, selectedAssociation.id);
+      } catch (e) {
+        console.warn('Could not save last association:', e);
+      }
       router.replace('/(tabs)');
     } else {
       Alert.alert('Erreur', result.error);

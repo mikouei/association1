@@ -399,6 +399,37 @@ Le guide complet est dans `/app/frontend/SENTRY_SETUP.md`
 3. Ajouter `"@sentry/react-native"` dans plugins de app.json
 4. Build avec `eas build --platform android`
 
+## Parité Web/Mobile "Modifier membre" - 19 Juillet 2026 ✅
+
+### Corrections appliquées
+
+1. **Bouton "Réinitialiser le mot de passe" ajouté au Web**
+   - `/app/web/src/app/members/page.tsx` - Bouton identique au mobile
+   - Modale dédiée avec confirmation du membre
+   - Appelle `PUT /api/members/:id/password`
+
+2. **Ordre des champs harmonisé (Web & Mobile)**
+   - Ordre standard : Nom complet → Fonction/Villa → Téléphone → Email
+   - Mobile corrigé dans `/app/frontend/app/(tabs)/membres.js`
+
+### Optimisation sélection d'association - 19 Juillet 2026 ✅
+
+1. **Auto-sélection si une seule association** ✅
+   - Si `associations.length === 1`, sélection automatique sans afficher le picker
+
+2. **Tri par dernière utilisée** ✅
+   - Stockage dans AsyncStorage (`@kotiz_last_association`)
+   - La dernière association utilisée apparaît en premier dans la liste
+
+3. **Recherche par code ET nom** ✅
+   - Filtrage en direct pendant la frappe
+   - Fonctionne avec "ASCB", "amicale", etc.
+
+### Fichiers modifiés
+- `/app/web/src/app/members/page.tsx` - Reset password + ordre champs
+- `/app/frontend/app/(tabs)/membres.js` - Ordre champs harmonisé
+- `/app/frontend/app/login.js` - Auto-select + tri par dernière utilisée
+
 ## Tâches à venir
 
 ### P2 - Clarifier fonctionnalité "Labels"

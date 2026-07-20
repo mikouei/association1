@@ -71,24 +71,74 @@ export const AuthProvider = ({ children }) => {
   const [association, setAssociation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
+  const [linkedAccounts, setLinkedAccounts] = useState([]);
 
   // Charger l'utilisateur depuis le cache au démarrage
   useEffect(() => {
     loadUser();
   }, []);
 
+  // Fonction interne : ajouter ou mettre à jour un compte lié
+  const upsertLinkedAccount = async (newToken, newUser, newAssociation) => {
+    try {
+      const storedAccounts = await getStorageItem('linkedAccounts');
+      let accounts = storedAccounts ? JSON.parse(storedAccounts) : [];
+      
+      // Chercher si ce compte existe déjà (même association.id)
+      const existingIndex = accounts.findIndex(
+        acc => acc.association?.id === newAssociation?.id
+      );
+      
+      const accountData = { token: newToken, user: newUser, association: newAssociation };
+      
+      if (existingIndex >= 0) {
+        // Mettre à jour le compte existant
+        accounts[existingIndex] = accountData;
+      } else {
+        // Ajouter le nouveau compte
+        accounts.push(accountData);
+      }
+      
+      await setStorageItem('linkedAccounts', JSON.stringify(accounts));
+      setLinkedAccounts(accounts);
+    } catch (error) {
+      console.error('Erreur upsertLinkedAccount:', error);
+    }
+  };
+
   const loadUser = async () => {
     try {
       const storedToken = await getStorageItem('authToken');
       const storedUser = await getStorageItem('user');
       const storedAssociation = await getStorageItem('association');
+      const storedLinkedAccounts = await getStorageItem('linkedAccounts');
 
       if (storedToken && storedUser) {
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        
+        let parsedAssociation = null;
         if (storedAssociation) {
-          setAssociation(JSON.parse(storedAssociation));
+          parsedAssociation = JSON.parse(storedAssociation);
+          setAssociation(parsedAssociation);
         }
+
+        // Compatibilité ascendante : si linkedAccounts n'existe pas, l'initialiser
+        if (!storedLinkedAccounts) {
+          const initialAccount = { 
+            token: storedToken, 
+            user: parsedUser, 
+            association: parsedAssociation 
+          };
+          await setStorageItem('linkedAccounts', JSON.stringify([initialAccount]));
+          setLinkedAccounts([initialAccount]);
+        } else {
+          setLinkedAccounts(JSON.parse(storedLinkedAccounts));
+        }
+      } else if (storedLinkedAccounts) {
+        // Charger les comptes liés même sans session active
+        setLinkedAccounts(JSON.parse(storedLinkedAccounts));
       }
     } catch (error) {
       console.error('Erreur chargement utilisateur:', error);
@@ -116,6 +166,9 @@ export const AuthProvider = ({ children }) => {
         await setStorageItem('association', JSON.stringify(newAssociation));
       }
 
+      // Ajouter/mettre à jour ce compte dans linkedAccounts
+      await upsertLinkedAccount(newToken, newUser, newAssociation);
+
       setToken(newToken);
       setUser(newUser);
       setAssociation(newAssociation);
@@ -135,9 +188,11 @@ export const AuthProvider = ({ children }) => {
       await removeStorageItem('authToken');
       await removeStorageItem('user');
       await removeStorageItem('association');
+      await removeStorageItem('linkedAccounts'); // Vider tous les comptes liés
       setToken(null);
       setUser(null);
       setAssociation(null);
+      setLinkedAccounts([]);
     } catch (error) {
       console.error('Erreur logout:', error);
     }
@@ -156,6 +211,9 @@ export const AuthProvider = ({ children }) => {
         await setStorageItem('association', JSON.stringify(assocData));
       }
 
+      // Ajouter/mettre à jour ce compte dans linkedAccounts
+      await upsertLinkedAccount(newToken, userData, assocData);
+
       setToken(newToken);
       setUser(userData);
       setAssociation(assocData);
@@ -164,6 +222,63 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Erreur loginWithToken:', error);
       return { success: false, error: 'Erreur de connexion' };
+    }
+  };
+
+  // Basculer vers un autre compte lié
+  const switchAccount = async (associationId) => {
+    try {
+      const storedAccounts = await getStorageItem('linkedAccounts');
+      if (!storedAccounts) return;
+      
+      const accounts = JSON.parse(storedAccounts);
+      const targetAccount = accounts.find(acc => acc.association?.id === associationId);
+      
+      if (targetAccount) {
+        // Réécrire les clés de session active
+        await setStorageItem('authToken', targetAccount.token);
+        await setStorageItem('user', JSON.stringify(targetAccount.user));
+        if (targetAccount.association) {
+          await setStorageItem('association', JSON.stringify(targetAccount.association));
+        }
+        
+        // Mettre à jour les états
+        setToken(targetAccount.token);
+        setUser(targetAccount.user);
+        setAssociation(targetAccount.association);
+      }
+    } catch (error) {
+      console.error('Erreur switchAccount:', error);
+    }
+  };
+
+  // Retirer un compte lié
+  const removeLinkedAccount = async (associationId) => {
+    try {
+      const storedAccounts = await getStorageItem('linkedAccounts');
+      if (!storedAccounts) return;
+      
+      let accounts = JSON.parse(storedAccounts);
+      const wasActive = association?.id === associationId;
+      
+      // Retirer le compte
+      accounts = accounts.filter(acc => acc.association?.id !== associationId);
+      
+      await setStorageItem('linkedAccounts', JSON.stringify(accounts));
+      setLinkedAccounts(accounts);
+      
+      // Si le compte retiré était actif
+      if (wasActive) {
+        if (accounts.length > 0) {
+          // Basculer sur le premier compte restant
+          await switchAccount(accounts[0].association?.id);
+        } else {
+          // Plus aucun compte, déconnexion complète
+          await logout();
+        }
+      }
+    } catch (error) {
+      console.error('Erreur removeLinkedAccount:', error);
     }
   };
 
@@ -183,7 +298,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, association, loading, token, login, loginWithToken, logout, refreshUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      association, 
+      loading, 
+      token, 
+      login, 
+      loginWithToken, 
+      logout, 
+      refreshUser,
+      linkedAccounts,
+      switchAccount,
+      removeLinkedAccount
+    }}>
       {children}
     </AuthContext.Provider>
   );

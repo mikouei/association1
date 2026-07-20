@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal, toast } from '@/components/ui';
 import { api } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Pencil, Trash2, Save, Copy, QrCode, Share2, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, Copy, QrCode, Share2, Download, Users, Check, UserPlus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -26,7 +27,8 @@ const getJoinUrl = (code: string) => {
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
-  const { selectedAssociation } = useAuth();
+  const router = useRouter();
+  const { selectedAssociation, linkedAccounts, switchAccount, removeLinkedAccount } = useAuth();
   const qrRef = useRef<SVGSVGElement>(null);
   const [isYearModalOpen, setIsYearModalOpen] = useState(false);
   const [editingYear, setEditingYear] = useState<Year | null>(null);
@@ -83,6 +85,28 @@ export default function SettingsPage() {
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [savingLabel, setSavingLabel] = useState(false);
   const [labelMessage, setLabelMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [removeAccountConfirm, setRemoveAccountConfirm] = useState<{ id: string; name: string } | null>(null);
+
+  // Gestion des comptes liés
+  const handleAddAccount = () => {
+    router.push('/login');
+  };
+
+  const handleSwitchAccount = (associationId: string) => {
+    switchAccount(associationId);
+    router.push('/dashboard');
+  };
+
+  const handleRemoveLinkedAccount = () => {
+    if (removeAccountConfirm) {
+      removeLinkedAccount(removeAccountConfirm.id);
+      setRemoveAccountConfirm(null);
+      // Si c'était le dernier compte, le contexte redirigera vers login
+      if (linkedAccounts.length <= 1) {
+        router.push('/login');
+      }
+    }
+  };
 
   const { data: config, isLoading: loadingConfig } = useQuery({
     queryKey: ['config'],
@@ -372,6 +396,96 @@ export default function SettingsPage() {
           </Card>
         )}
 
+        {/* Comptes liés */}
+        <Card data-testid="linked-accounts-card">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              <CardTitle>Comptes liés</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Bouton Ajouter un compte - toujours visible */}
+              <Button
+                variant="secondary"
+                onClick={handleAddAccount}
+                className="w-full border-2 border-dashed"
+                data-testid="add-account-btn"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Ajouter un compte
+              </Button>
+
+              {/* Liste des comptes liés - uniquement si plus d'un */}
+              {linkedAccounts && linkedAccounts.length > 1 && (
+                <div className="space-y-2">
+                  {linkedAccounts.map((account) => {
+                    const isActive = account.association?.id === selectedAssociation?.id;
+                    return (
+                      <div
+                        key={account.association?.id}
+                        className={`flex items-center justify-between p-3 rounded-lg border ${
+                          isActive ? 'border-primary bg-primary/5' : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <button
+                          className="flex items-center gap-3 flex-1 text-left"
+                          onClick={() => !isActive && handleSwitchAccount(account.association?.id)}
+                          disabled={isActive}
+                          data-testid={`switch-account-${account.association?.id}`}
+                        >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            isActive ? 'bg-primary/10' : 'bg-gray-100'
+                          }`}>
+                            <Users className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-gray-500'}`} />
+                          </div>
+                          <div>
+                            <p className={`font-medium ${isActive ? 'text-primary' : 'text-gray-900'}`}>
+                              {account.association?.name || 'Association'}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {account.association?.type && `${account.association.type} • `}
+                              {account.association?.code}
+                            </p>
+                          </div>
+                        </button>
+                        
+                        <div className="flex items-center gap-2">
+                          {isActive && (
+                            <Badge variant="success" className="flex items-center gap-1">
+                              <Check className="w-3 h-3" />
+                              Actif
+                            </Badge>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setRemoveAccountConfirm({
+                              id: account.association?.id,
+                              name: account.association?.name || 'Association'
+                            })}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            data-testid={`remove-account-${account.association?.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {linkedAccounts?.length <= 1 && (
+                <p className="text-sm text-gray-500 text-center">
+                  Ajoutez un compte pour gérer plusieurs associations sans vous déconnecter.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Gestion des années */}
         <Card>
           <CardHeader>
@@ -493,6 +607,33 @@ export default function SettingsPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* Modal de confirmation suppression compte lié */}
+        <Modal
+          isOpen={!!removeAccountConfirm}
+          onClose={() => setRemoveAccountConfirm(null)}
+          title="Retirer ce compte ?"
+        >
+          <div className="space-y-4">
+            <p className="text-gray-600">
+              Voulez-vous retirer <strong>{removeAccountConfirm?.name}</strong> de vos comptes liés ?
+            </p>
+            <p className="text-sm text-gray-500">
+              Vous pourrez toujours vous reconnecter à ce compte plus tard.
+            </p>
+            <div className="flex gap-3 justify-end pt-4">
+              <Button variant="secondary" onClick={() => setRemoveAccountConfirm(null)}>
+                Annuler
+              </Button>
+              <Button 
+                variant="danger"
+                onClick={handleRemoveLinkedAccount}
+              >
+                Retirer
+              </Button>
+            </div>
+          </div>
         </Modal>
       </div>
     </DashboardLayout>

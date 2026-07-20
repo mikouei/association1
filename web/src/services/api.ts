@@ -97,6 +97,24 @@ const handleError = (error: any) => {
     console.warn("Unauthorized request");
 
     if (typeof window !== "undefined") {
+      const failedToken = localStorage.getItem("authToken");
+      
+      // Retirer le compte mort de linkedAccounts si c'est une erreur association
+      if (failedToken && error.config?.baseURL?.includes('/api')) {
+        try {
+          const storedAccounts = localStorage.getItem("linkedAccounts");
+          if (storedAccounts) {
+            const accounts = JSON.parse(storedAccounts);
+            const filteredAccounts = accounts.filter(
+              (acc: { token: string }) => acc.token !== failedToken
+            );
+            localStorage.setItem("linkedAccounts", JSON.stringify(filteredAccounts));
+          }
+        } catch (e) {
+          console.warn("Failed to update linkedAccounts after 401");
+        }
+      }
+      
       localStorage.removeItem("authToken");
       localStorage.removeItem("platformToken");
     }

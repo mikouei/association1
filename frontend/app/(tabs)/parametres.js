@@ -20,7 +20,7 @@ import {
   User, Envelope, Phone, UserCircle, Pencil, CheckCircle, Plus, X, 
   ArrowLeft, FolderOpen, Eye, CloudArrowUp, Download, File, FileText,
   SignOut, Trash, Warning, CaretRight, QrCode, Copy, ShareNetwork,
-  WhatsappLogo, ClockCounterClockwise
+  WhatsappLogo, ClockCounterClockwise, UsersThree, UserSwitch
 } from 'phosphor-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -37,7 +37,7 @@ import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 const APP_DOMAIN = 'https://mobile-bug-crush-1.preview.emergentagent.com';
 
 export default function Parametres() {
-  const { user, logout, association } = useAuth();
+  const { user, logout, association, linkedAccounts, switchAccount, removeLinkedAccount } = useAuth();
   const router = useRouter();
   const isAdmin = user?.role === 'ADMIN';
 
@@ -476,6 +476,38 @@ export default function Parametres() {
     }
   };
 
+  // Gestion des comptes liés
+  const handleAddAccount = () => {
+    // Naviguer vers l'écran de connexion pour ajouter un nouveau compte
+    router.push('/login');
+  };
+
+  const handleSwitchAccount = async (accountAssociationId) => {
+    await switchAccount(accountAssociationId);
+    router.replace('/(tabs)');
+  };
+
+  const handleRemoveLinkedAccount = (accountAssociationId, accountName) => {
+    Alert.alert(
+      'Retirer ce compte ?',
+      `Voulez-vous retirer "${accountName}" de vos comptes liés ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Retirer', 
+          style: 'destructive',
+          onPress: async () => {
+            await removeLinkedAccount(accountAssociationId);
+            // Si c'était le dernier compte, router vers login
+            if (linkedAccounts.length <= 1) {
+              router.replace('/login');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleLogout = () => {
     setLogoutModalVisible(true);
   };
@@ -824,6 +856,74 @@ export default function Parametres() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Comptes liés */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Comptes liés</Text>
+          
+          {/* Bouton Ajouter un compte - toujours visible */}
+          <TouchableOpacity 
+            style={styles.addAccountButton} 
+            onPress={handleAddAccount}
+          >
+            <Plus size={20} color={colors.primary} />
+            <Text style={styles.addAccountButtonText}>Ajouter un compte</Text>
+          </TouchableOpacity>
+
+          {/* Liste des comptes liés - uniquement si plus d'un */}
+          {linkedAccounts && linkedAccounts.length > 1 && (
+            <View style={styles.linkedAccountsList}>
+              {linkedAccounts.map((account, index) => {
+                const isActive = account.association?.id === association?.id;
+                return (
+                  <View key={account.association?.id || index} style={styles.linkedAccountItem}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.linkedAccountInfo,
+                        isActive && styles.linkedAccountInfoActive
+                      ]}
+                      onPress={() => !isActive && handleSwitchAccount(account.association?.id)}
+                      disabled={isActive}
+                    >
+                      <View style={styles.linkedAccountIcon}>
+                        <UsersThree size={24} color={isActive ? colors.primary : colors.textMuted} />
+                      </View>
+                      <View style={styles.linkedAccountDetails}>
+                        <Text style={[
+                          styles.linkedAccountName,
+                          isActive && styles.linkedAccountNameActive
+                        ]}>
+                          {account.association?.name || 'Association'}
+                        </Text>
+                        <Text style={styles.linkedAccountMeta}>
+                          {account.association?.type && `${account.association.type} • `}
+                          {account.association?.code || ''}
+                        </Text>
+                      </View>
+                      {isActive && (
+                        <View style={styles.activeAccountBadge}>
+                          <CheckCircle size={16} color={colors.success} weight="fill" />
+                          <Text style={styles.activeAccountBadgeText}>Actif</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    
+                    {/* Bouton supprimer */}
+                    <TouchableOpacity 
+                      style={styles.removeAccountButton}
+                      onPress={() => handleRemoveLinkedAccount(
+                        account.association?.id, 
+                        account.association?.name
+                      )}
+                    >
+                      <Trash size={18} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
 
         {/* Déconnexion */}
         <View style={styles.section}>
@@ -1845,5 +1945,91 @@ const styles = StyleSheet.create({
   adminLinkSubtitle: {
     fontSize: typography.caption.fontSize,
     color: colors.textMuted,
+  },
+  // Styles pour les comptes liés
+  addAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.button,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  addAccountButtonText: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  linkedAccountsList: {
+    gap: spacing.sm,
+  },
+  linkedAccountItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  linkedAccountInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundWhite,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  linkedAccountInfoActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.backgroundWhite,
+  },
+  linkedAccountIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  linkedAccountDetails: {
+    flex: 1,
+  },
+  linkedAccountName: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  linkedAccountNameActive: {
+    color: colors.primary,
+  },
+  linkedAccountMeta: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  activeAccountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.successBg,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.badge,
+    gap: 4,
+  },
+  activeAccountBadgeText: {
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  removeAccountButton: {
+    padding: spacing.sm,
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.errorBg,
   },
 });

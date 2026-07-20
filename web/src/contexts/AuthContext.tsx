@@ -4,6 +4,12 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { platformApi, api } from '@/services/api';
 import { User, Association, LoginResponse, PlatformLoginResponse } from '@/types';
 
+interface LinkedAccount {
+  token: string;
+  user: User;
+  association: Association;
+}
+
 interface AuthContextType {
   user: User | null;
   association: Association | null;
@@ -22,6 +28,11 @@ interface AuthContextType {
   // Association selection
   selectAssociation: (association: Association) => void;
   selectedAssociation: Association | null;
+
+  // Comptes liés
+  linkedAccounts: LinkedAccount[];
+  switchAccount: (associationId: string) => void;
+  removeLinkedAccount: (associationId: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -32,10 +43,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [selectedAssociation, setSelectedAssociation] = useState<Association | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPlatformAuth, setIsPlatformAuth] = useState(false);
+  const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Fonction interne : ajouter ou mettre à jour un compte lié
+  const upsertLinkedAccount = (token: string, userData: User, assoc: Association) => {
+    const storedAccounts = localStorage.getItem('linkedAccounts');
+    let accounts: LinkedAccount[] = storedAccounts ? JSON.parse(storedAccounts) : [];
+    
+    // Chercher si ce compte existe déjà
+    const existingIndex = accounts.findIndex(
+      acc => acc.association?.id === assoc?.id
+    );
+    
+    const accountData: LinkedAccount = { token, user: userData, association: assoc };
+    
+    if (existingIndex >= 0) {
+      accounts[existingIndex] = accountData;
+    } else {
+      accounts.push(accountData);
+    }
+    
+    localStorage.setItem('linkedAccounts', JSON.stringify(accounts));
+    setLinkedAccounts(accounts);
+  };
 
   const checkAuth = async () => {
     try {
@@ -52,15 +86,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Sinon vérifier le token association
       const authToken = localStorage.getItem('authToken');
       const storedAssociation = localStorage.getItem('selectedAssociation');
+      const storedLinkedAccounts = localStorage.getItem('linkedAccounts');
       
       if (authToken) {
         const response = await api.get('/auth/me');
         setUser(response.data);
         setIsPlatformAuth(false);
         
+        let parsedAssociation: Association | null = null;
         if (storedAssociation) {
-          setSelectedAssociation(JSON.parse(storedAssociation));
+          parsedAssociation = JSON.parse(storedAssociation);
+          setSelectedAssociation(parsedAssociation);
         }
+
+        // Compatibilité ascendante : si linkedAccounts n'existe pas, l'initialiser
+        if (!storedLinkedAccounts && parsedAssociation) {
+          const initialAccount: LinkedAccount = { 
+            token: authToken, 
+            user: response.data, 
+            association: parsedAssociation 
+          };
+          localStorage.setItem('linkedAccounts', JSON.stringify([initialAccount]));
+          setLinkedAccounts([initialAccount]);
+        } else if (storedLinkedAccounts) {
+          setLinkedAccounts(JSON.parse(storedLinkedAccounts));
+        }
+      } else if (storedLinkedAccounts) {
+        // Charger les comptes liés même sans session active
+        setLinkedAccounts(JSON.parse(storedLinkedAccounts));
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -106,6 +159,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('selectedAssociation', JSON.stringify(association));
       setSelectedAssociation(association);
       setAssociation(association);
+      
+      // Ajouter/mettre à jour ce compte dans linkedAccounts
+      upsertLinkedAccount(token, user, association);
     }
     
     setUser(user);
@@ -118,6 +174,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('platformToken');
     localStorage.setItem('selectedAssociation', JSON.stringify(assoc));
     
+    // Ajouter/mettre à jour ce compte dans linkedAccounts
+    upsertLinkedAccount(token, userData, assoc);
+    
     setUser(userData);
     setAssociation(assoc);
     setSelectedAssociation(assoc);
@@ -127,15 +186,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('selectedAssociation');
+    localStorage.removeItem('linkedAccounts'); // Vider tous les comptes liés
     setUser(null);
     setAssociation(null);
     setSelectedAssociation(null);
     setIsPlatformAuth(false);
+    setLinkedAccounts([]);
   };
 
   const selectAssociation = (assoc: Association) => {
     localStorage.setItem('selectedAssociation', JSON.stringify(assoc));
     setSelectedAssociation(assoc);
+  };
+
+  // Basculer vers un autre compte lié
+  const switchAccount = (associationId: string) => {
+    const targetAccount = linkedAccounts.find(acc => acc.association?.id === associationId);
+    
+    if (targetAccount) {
+      // Réécrire les clés de session active
+      localStorage.setItem('authToken', targetAccount.token);
+      localStorage.setItem('selectedAssociation', JSON.stringify(targetAccount.association));
+      
+      // Mettre à jour les états
+      setUser(targetAccount.user);
+      setAssociation(targetAccount.association);
+      setSelectedAssociation(targetAccount.association);
+    }
+  };
+
+  // Retirer un compte lié
+  const removeLinkedAccount = (associationId: string) => {
+    const wasActive = selectedAssociation?.id === associationId;
+    
+    // Retirer le compte
+    const updatedAccounts = linkedAccounts.filter(acc => acc.association?.id !== associationId);
+    
+    localStorage.setItem('linkedAccounts', JSON.stringify(updatedAccounts));
+    setLinkedAccounts(updatedAccounts);
+    
+    // Si le compte retiré était actif
+    if (wasActive) {
+      if (updatedAccounts.length > 0) {
+        // Basculer sur le premier compte restant
+        switchAccount(updatedAccounts[0].association?.id);
+      } else {
+        // Plus aucun compte, déconnexion complète
+        logout();
+      }
+    }
   };
 
   return (
@@ -152,6 +251,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         selectAssociation,
         selectedAssociation,
+        linkedAccounts,
+        switchAccount,
+        removeLinkedAccount,
       }}
     >
       {children}

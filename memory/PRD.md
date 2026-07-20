@@ -444,3 +444,61 @@ Le guide complet est dans `/app/frontend/SENTRY_SETUP.md`
   - Résumé structuré pour formulaire Play Console
   - Tableau récapitulatif des réponses Play Store
   - Liens vers les pages de suppression et confidentialité
+
+## 10 Correctifs de Sécurité - Audit 20 Juillet 2026 ✅
+
+### CORRECTIF 0 - Export PDF/CSV bloqué par navigateur ✅
+- Frontend: `handleExportStatsPDF`, `handleExportMembers`, `handleExportStats` modifiés pour ouvrir la fenêtre de façon synchrone dans le clic utilisateur (évite blocage popup)
+- Fichiers: `/app/frontend/app/(tabs)/parametres.js`
+
+### CORRECTIF 1 - Injection HTML dans exports ✅
+- Ajout helper `escapeHtml()` pour échapper les caractères dangereux (<, >, &, ", ')
+- Appliqué dans `/api/export/stats/pdf` et `/api/exceptional/:eventId/stats/pdf`
+- Fichiers: `/app/backend/routes/export.js`, `/app/backend/routes/exceptional.js`
+
+### CORRECTIF 2 - Injection CSV ✅
+- Ajout helper `escapeCsv()` pour protéger contre les formules Excel (=, +, -, @, \t, \r)
+- Appliqué dans `/api/export/members` et `/api/export/statistics/:yearId`
+- Fichiers: `/app/backend/routes/export.js`
+
+### CORRECTIF 3 - Messages d'erreur techniques exposés ✅
+- Import membres: message d'erreur générique au lieu de `error.message`
+- JSON parse errors: middleware global retourne `{ error: 'JSON invalide' }` sans stack trace
+- Fichiers: `/app/backend/routes/import.js`, `/app/backend/server.js`
+
+### CORRECTIF 4 - Tokens prévisibles ✅
+- Remplacement `Math.random()` par `crypto.randomBytes(24).toString('base64url')` pour tokens d'accès
+- Mots de passe générés avec `crypto.randomBytes(6).toString('base64url')`
+- Fichiers: `/app/backend/middleware/auth.js`, `/app/backend/routes/members.js`, `/app/backend/routes/import.js`
+
+### CORRECTIF 5 - Validation création année ✅
+- Validation stricte: année 2000-2100, montant > 0 et < 100,000,000
+- Fichiers: `/app/backend/routes/years.js`
+
+### CORRECTIF 6 - Doublon téléphone ✅
+- Vérification unicité téléphone dans l'association (POST et PUT membre)
+- Fichiers: `/app/backend/routes/members.js`
+
+### CORRECTIF 7 - Rate limit endpoint public ✅
+- `deletionLimiter`: 5 requêtes / heure / IP sur `/api/public/deletion-request`
+- Fichiers: `/app/backend/routes/public.js`
+
+### CORRECTIF 8 - CORS résidu domaine aperçu ✅
+- Suppression du domaine Emergent preview de la liste CORS
+- Fichiers: `/app/backend/server.js`
+
+### CORRECTIF 9 - Headers de sécurité HTTP ✅
+- Ajout middleware `helmet()` (CSP, X-Frame-Options, X-Content-Type-Options, etc.)
+- Fichiers: `/app/backend/server.js`
+
+### CORRECTIF 10 - Validation format email ✅
+- Regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/` appliqué sur tous les endpoints de création:
+  - POST /api/members
+  - POST /api/admin/create
+  - POST /api/platform/associations/:id/admins
+  - POST /api/platform/superadmins
+- Fichiers: `/app/backend/routes/members.js`, `/app/backend/routes/admin.js`, `/app/backend/routes/platform.js`
+
+### Tests automatisés
+- 22 tests pytest dans `/app/backend/tests/test_security_fixes.py`
+- Rapport: `/app/test_reports/iteration_9.json` (20/22 PASS avant corrections finales)

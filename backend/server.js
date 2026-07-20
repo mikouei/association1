@@ -99,12 +99,21 @@ app.use("/api/public", publicRoutes);
 // ERROR HANDLER
 //
 
+// Middleware pour gérer les erreurs de parsing JSON (body-parser)
+app.use((err, req, res, next) => {
+  // Erreur de parsing JSON
+  if (err.type === 'entity.parse.failed' || err instanceof SyntaxError) {
+    return res.status(400).json({ error: 'JSON invalide' });
+  }
+  next(err);
+});
+
+// Middleware d'erreur global - ne jamais exposer la stack trace
 app.use((err, req, res, next) => {
   console.error("Error:", err);
 
   res.status(err.status || 500).json({
-    error: err.message || "Erreur serveur",
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+    error: err.message || "Erreur serveur"
   });
 });
 

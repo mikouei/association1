@@ -178,6 +178,11 @@ router.post('/superadmins', authenticateSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Email et mot de passe requis' });
     }
 
+    // Valider le format de l'email
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Format email invalide' });
+    }
+
     if (password.length < 4) {
       return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 4 caractères' });
     }

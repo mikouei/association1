@@ -23,7 +23,18 @@
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.kotiz.ci"
-    },
+     "intentFilters": [
+    {
+      "action": "VIEW",
+      "autoVerify": true,
+      "data": [
+        { "scheme": "https", "host": "web-bx1a.onrender.com", "pathPrefix": "/join" },
+        { "scheme": "https", "host": "assocmanager-web.onrender.com", "pathPrefix": "/join" }
+      ],
+      "category": ["BROWSABLE", "DEFAULT"]
+    }
+  ]
+},
     "web": {
       "bundler": "metro",
       "output": "static",

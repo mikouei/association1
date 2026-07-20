@@ -92,8 +92,11 @@ export default function SettingsPage() {
     router.push('/login');
   };
 
-  const handleSwitchAccount = (associationId: string) => {
+  const handleSwitchAccount = (associationId: string | undefined) => {
+    if (!associationId) return;
     switchAccount(associationId);
+    // Invalider le cache des queries pour forcer le rechargement des données de la nouvelle association
+    queryClient.clear();
     router.push('/dashboard');
   };
 
@@ -101,10 +104,6 @@ export default function SettingsPage() {
     if (removeAccountConfirm) {
       removeLinkedAccount(removeAccountConfirm.id);
       setRemoveAccountConfirm(null);
-      // Si c'était le dernier compte, le contexte redirigera vers login
-      if (linkedAccounts.length <= 1) {
-        router.push('/login');
-      }
     }
   };
 

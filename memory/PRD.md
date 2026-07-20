@@ -649,3 +649,27 @@ Le guide complet est dans `/app/frontend/SENTRY_SETUP.md`
 ### Fichiers intégrés
 - `/app/frontend/app/(tabs)/cotisations.js` : Utilise useOffline pour cache/lecture
 - `/app/frontend/components/OfflineIndicator.js` : Composant réutilisable
+
+
+## Comptes Liés (Multi-Association) - Décembre 2025 ✅
+
+### Fonctionnalité
+Permet à un utilisateur de se connecter à plusieurs associations et de basculer entre elles sans se déconnecter (similaire au sélecteur de comptes Gmail).
+
+### Architecture
+- **Stockage** : `linkedAccounts` (localStorage web / AsyncStorage mobile)
+- **Format** : `[{ token, user, association }, ...]`
+- **Compatibilité** : Sessions existantes auto-migrées au premier chargement
+
+### Mobile (`/app/frontend/`)
+- **AuthContext.js** : `linkedAccounts`, `switchAccount()`, `removeLinkedAccount()`, `upsertLinkedAccount()`
+- **parametres.js** : Section "Comptes liés" avec bouton "Ajouter un compte" + liste (si > 1 compte)
+
+### Web (`/app/web/src/`)
+- **AuthContext.tsx** : Mêmes fonctions que mobile + TypeScript
+- **settings/page.tsx** : Carte "Comptes liés" avec UI de bascule et suppression
+- **api.ts** : Nettoyage automatique du compte mort en cas de 401
+
+### Tests
+- Testing agent iteration 14 : 100% (5/5)
+- data-testid : `linked-accounts-card`, `add-account-btn`, `switch-account-{id}`, `remove-account-{id}`

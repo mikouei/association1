@@ -1,5 +1,6 @@
 // Système de Design Kotiz
 // Variables de couleurs, typographie et espacements
+// Note: Pour le mode sombre, utiliser useTheme() depuis context/ThemeContext.js
 
 export const colors = {
   // Couleurs principales
@@ -33,6 +34,30 @@ export const colors = {
   // Bordures et séparateurs
   border: '#E5E7EB',
   borderLight: '#F3F4F6',
+};
+
+// Couleurs mode sombre (exportées pour référence)
+export const darkColors = {
+  primary: '#F5A623',
+  primaryPressed: '#D9861F',
+  secondary: '#3A7AB8',
+  secondaryPressed: '#4A8AC8',
+  accentTerracotta: '#E8896A',
+  accentTeal: '#4AA89F',
+  text: '#F3F4F6',
+  textMuted: '#9CA3AF',
+  textOnPrimary: '#1F2937',
+  textOnSecondary: '#FFFFFF',
+  background: '#111827',
+  backgroundWhite: '#1F2937',
+  success: '#4ADE80',
+  successBg: '#14532D',
+  warning: '#FBBF24',
+  warningBg: '#78350F',
+  error: '#F87171',
+  errorBg: '#7F1D1D',
+  border: '#374151',
+  borderLight: '#4B5563',
 };
 
 export const typography = {

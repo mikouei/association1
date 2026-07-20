@@ -15,18 +15,21 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useOffline } from '../../context/OfflineContext';
 import { 
   Calendar, 
   CaretDown, 
   MagnifyingGlass, 
   XCircle, 
   X, 
-  CheckCircle 
+  CheckCircle,
+  WifiSlash
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
+import OfflineIndicator from '../../components/OfflineIndicator';
 
 const MONTHS = [
   'J', 'F', 'M', 'A', 'M', 'J',
@@ -40,6 +43,7 @@ const MONTHS_FULL = [
 
 export default function Cotisations() {
   const { user } = useAuth();
+  const { isOnline, cachePayments, cacheYears, getCachedPayments } = useOffline();
   const isAdmin = user?.role === 'ADMIN';
 
   const [loading, setLoading] = useState(true);
@@ -55,6 +59,7 @@ export default function Cotisations() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [usingCache, setUsingCache] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,26 +87,60 @@ export default function Cotisations() {
 
   const loadYears = async () => {
     try {
+      if (!isOnline) {
+        // Mode hors-ligne: utiliser le cache
+        const cachedPayments = await getCachedPayments(user?.id);
+        if (cachedPayments) {
+          setYears(cachedPayments.years || []);
+          setMembersData(cachedPayments.members || []);
+          setSelectedYear(cachedPayments.selectedYear);
+          setUsingCache(true);
+          setLoading(false);
+          return;
+        }
+      }
+
       const yearsRes = await api.get('/years');
       setYears(yearsRes.data);
+      cacheYears(yearsRes.data); // Sauvegarder dans le cache
       
       const activeYear = yearsRes.data.find(y => y.active);
       if (activeYear) {
         setSelectedYear(activeYear);
-        await loadPayments(activeYear.id);
+        await loadPayments(activeYear.id, yearsRes.data);
       } else if (yearsRes.data.length > 0) {
         setSelectedYear(yearsRes.data[0]);
-        await loadPayments(yearsRes.data[0].id);
+        await loadPayments(yearsRes.data[0].id, yearsRes.data);
       }
+      setUsingCache(false);
     } catch (error) {
       console.error('Erreur chargement années:', error);
+      // En cas d'erreur, essayer le cache
+      const cachedPayments = await getCachedPayments(user?.id);
+      if (cachedPayments) {
+        setYears(cachedPayments.years || []);
+        setMembersData(cachedPayments.members || []);
+        setSelectedYear(cachedPayments.selectedYear);
+        setUsingCache(true);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const loadPayments = async (yearId) => {
+  const loadPayments = async (yearId, yearsData = years) => {
     try {
+      if (!isOnline) {
+        // Mode hors-ligne: utiliser le cache
+        const cachedPayments = await getCachedPayments(user?.id);
+        if (cachedPayments && cachedPayments.members) {
+          setMembersData(cachedPayments.members);
+          setUsingCache(true);
+          setRefreshing(false);
+          return;
+        }
+      }
+
       const paymentsRes = await api.get(`/payments/year/${yearId}`);
       let members = paymentsRes.data.members;
       
@@ -110,9 +149,26 @@ export default function Cotisations() {
       }
       
       setMembersData(members);
+      setUsingCache(false);
+      
+      // Sauvegarder dans le cache
+      cachePayments({
+        members,
+        years: yearsData,
+        selectedYear: yearsData.find(y => y.id === yearId),
+        timestamp: new Date().toISOString()
+      }, user?.id);
+      
     } catch (error) {
       console.error('Erreur chargement paiements:', error);
-      setMembersData([]);
+      // En cas d'erreur, essayer le cache
+      const cachedPayments = await getCachedPayments(user?.id);
+      if (cachedPayments && cachedPayments.members) {
+        setMembersData(cachedPayments.members);
+        setUsingCache(true);
+      } else {
+        setMembersData([]);
+      }
     } finally {
       setRefreshing(false);
     }
@@ -198,6 +254,16 @@ export default function Cotisations() {
 
   return (
     <View style={styles.container}>
+      {/* Indicateur hors-ligne */}
+      {(usingCache || !isOnline) && (
+        <View style={styles.offlineBanner}>
+          <WifiSlash size={16} color="#FFF" weight="fill" />
+          <Text style={styles.offlineBannerText}>
+            {!isOnline ? 'Mode hors-ligne' : 'Données en cache'}
+          </Text>
+        </View>
+      )}
+
       <TouchableOpacity 
         style={styles.header}
         onPress={() => setYearSelectorModal(true)}
@@ -456,6 +522,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.warning,
+    paddingVertical: spacing.xs,
+    gap: spacing.xs,
+  },
+  offlineBannerText: {
+    color: '#FFF',
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,

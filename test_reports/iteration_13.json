@@ -1,0 +1,45 @@
+{
+  "summary": "Verified two new features: (1) Backend PDF export API GET /api/members/:id/export-pdf and (2) Web PDF download button on /members. Backend pytest suite (7 tests) all PASS: returns Content-Type application/pdf with valid %PDF magic bytes, Content-Disposition attachment filename 'releve-<name>-<ts>.pdf', PDF contains association name, member name, custom field label/value, 'Cotisations Mensuelles', per-year breakdown, 'TOTAL GÉNÉRAL', and 'Kotiz' footer. Requires admin (401 without token, 403 for MEMBER role via accessToken login), returns 404 for non-existent member, supports ?year= query filter. Frontend E2E (Playwright against Next.js on http://localhost:3002): 4 buttons with data-testid='export-pdf-<memberId>' render on /members, clicking triggers a real browser download of a valid PDF (2046 bytes, starts with %PDF), and the sonner success toast 'PDF téléchargé avec succès' appears. The mobile offline feature (cotisations.js + OfflineContext.js using @react-native-community/netinfo + AsyncStorage) was code-reviewed only — it is a React Native app that cannot be exercised via Playwright; logic is sound (cache write on success, cache read on !isOnline OR on catch, offline banner shown when usingCache||!isOnline).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/members/:id/export-pdf", "issue": "pdfkit's default Helvetica font does not render the Unicode glyphs used in the layout (✓ ○ ═ characters map to substitution glyphs; extracted text shows '%Ë' and '%P%P%P...'). PDFs still render acceptably in most viewers, but the check-mark/circle indicators and the divider row may look garbled on some renderers. Consider using ASCII fallbacks ('[x]'/'[ ]' and '---') or embedding a Unicode-capable TTF (e.g. DejaVuSans) via doc.registerFont."},
+      {"endpoint": "GET /api/members/:id/export-pdf", "issue": "The French number formatting 'x.toLocaleString(\\'fr-FR\\')' inserts U+202F (narrow no-break space) as thousands separator, which pdfkit's Helvetica also can't map — extracted PDF text shows '10 /000' and '120 /000' instead of '10 000'/'120 000'. Same font-embedding fix would resolve this."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_export_pdf.py",
+    "/app/test_reports/pytest/export_pdf_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Embed a Unicode-capable TTF in pdfkit (doc.registerFont + doc.font) so ✓ ○ ═ and the U+202F thousands-separator render correctly. Today the PDF looks OK-ish because most viewers substitute the missing glyphs, but character extraction / accessibility tools will see garbage."
+  ],
+  "critical_code_review_comments": [
+    "backend/routes/members.js export-pdf: `association.name` is used without null check when logging Content-Disposition filename; a member without a member record throws — but the earlier `if (!user || !user.member)` guard covers this. Fine.",
+    "backend/routes/members.js export-pdf: doc.end() is called after res headers/pipe — but if any exception happens AFTER `doc.pipe(res)` (e.g. yearData.monthlyAmount is null), Express can't send a 500 anymore because the response already started streaming; the catch block would try `res.status(500).json(...)` and throw ERR_HTTP_HEADERS_SENT. Consider wrapping the streaming section in try/catch and calling doc.end()/res.end() with a partial error page instead.",
+    "web/src/app/members/page.tsx handleExportPDF: uses `axios responseType:'blob'` — good. Filename derived from memberName without slugification (spaces preserved). Consider slugifying (same feedback as iteration_12 QR download).",
+    "web/src/app/members/page.tsx: delete confirm still uses native window.confirm (line 226) — inconsistent with the toast/modal UX. Non-blocking.",
+    "web/src/app/members/page.tsx line 82: reset-password mutation posts to '/members/:id/password' with `{password}` but backend route is 'POST /members/:id/reset-password' expecting `{newPassword}` (see routes/members.js:405). This is UNRELATED to the current PR but the mutation will 404 in production — please verify with a manual reset. Not tested this iteration.",
+    "frontend/app/(tabs)/cotisations.js: `loadYears()` inside `if (!isOnline)` returns cached data but the cached shape assumes `{years, members, selectedYear}` while `cacheYears()` stores ONLY the years array under key '@kotiz_cached_years'. The offline year read actually reuses the payments cache blob (cachePayments stores {members, years, selectedYear, timestamp}) — code is consistent but there are two overlapping year caches. Non-blocking.",
+    "frontend/context/OfflineContext.js: `isOnline` sets true only when state.isConnected && state.isInternetReachable — on Android emulator `isInternetReachable` can be null on first tick, briefly flagging the app as offline. Consider `state.isConnected && state.isInternetReachable !== false`. Non-blocking.",
+    "frontend/context/OfflineContext.js: cachePayments key uses memberId (== user.id for MEMBER, admin user id for ADMIN). Works but caches are duplicated per admin. Acceptable."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_export_pdf.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 pytest — PDF returns 200 + application/pdf + valid %PDF, contains member+association+mensuelles+total+Kotiz, 401 without token, 403 for MEMBER, 404 for unknown id, ?year= filter works)",
+    "frontend": "100% (Playwright: login OK, /members renders 4 export-pdf-<id> buttons, click triggers real download of valid PDF, success toast 'PDF téléchargé avec succès' shown)"
+  },
+  "test_credentials": "admin@delete-test.local / admin123 (association DELETE-TEST). Backend URL: https://mobile-bug-crush-1.preview.emergentagent.com. Web: manually started on http://localhost:3002 (see iteration_12 context).",
+  "seed_data_creation": "None — used existing Test ActivityLog member in DELETE-TEST association.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Next.js web must be started manually before UI testing: `cd /app/web && yarn dev --port 3002 &`. Only ports 3000/3002 are in backend CORS whitelist. Login is 2-step: click association tile then fill email+password. Mobile Expo app (React Native) at /app/frontend uses OfflineContext + AsyncStorage — cannot be exercised by Playwright; test it via Expo Go or code review only. Backend PDF pytest lives at /app/backend/tests/test_export_pdf.py and requires the `pypdf` python package (installed). Login body must use `identifier` (not `email`) + `password` + `associationCode`.",
+  "rca_of_the_issue": "N/A — feature-verification pass, no bugs blocking. The two minor items in backend_issues are pre-existing pdfkit/Helvetica limitations (no Unicode font embedded) causing ✓/○/═ and U+202F narrow-space to render as substitution glyphs; not a regression, but worth fixing for a polished PDF."
+}

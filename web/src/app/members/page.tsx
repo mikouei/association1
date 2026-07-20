@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, Button, Input, DataTable, Badge, Modal, toast } from '@/components/ui';
 import { api } from '@/services/api';
 import { Member } from '@/types';
-import { Plus, Pencil, Trash2, Search, Key } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Key, FileText } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export default function MembersPage() {
@@ -141,6 +141,31 @@ export default function MembersPage() {
     }
   };
 
+  // Export PDF d'un membre
+  const handleExportPDF = async (memberId: string, memberName: string) => {
+    try {
+      toast.info('Génération du PDF en cours...');
+      const response = await api.get(`/members/${memberId}/export-pdf`, {
+        responseType: 'blob'
+      });
+      
+      // Créer un lien de téléchargement
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `releve-${memberName.replace(/\s+/g, '_')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('PDF téléchargé avec succès');
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      toast.error('Erreur lors de la génération du PDF');
+    }
+  };
+
   const columns = [
     {
       key: 'name',
@@ -181,6 +206,14 @@ export default function MembersPage() {
       header: 'Actions',
       render: (member: Member) => (
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleExportPDF(member.id, member.name)}
+            className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+            title="Exporter PDF"
+            data-testid={`export-pdf-${member.id}`}
+          >
+            <FileText className="w-4 h-4" />
+          </button>
           <button
             onClick={() => handleEdit(member)}
             className="p-1 text-gray-400 hover:text-blue-600 transition-colors"

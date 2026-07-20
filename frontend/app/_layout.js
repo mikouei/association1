@@ -4,6 +4,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Application from 'expo-application';
 import { AuthProvider } from '../context/AuthContext';
+import { OfflineProvider } from '../context/OfflineContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 const REFERRER_PROCESSED_KEY = '@kotiz_referrer_processed';
@@ -75,7 +76,9 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <RootLayoutNav />
+        <OfflineProvider>
+          <RootLayoutNav />
+        </OfflineProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

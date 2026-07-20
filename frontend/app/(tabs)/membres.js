@@ -27,12 +27,15 @@ import {
   CheckSquare,
   Square,
   Key,
-  UsersThree
+  UsersThree,
+  FilePdf
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 export default function Membres() {
   const { user, association } = useAuth();
@@ -442,6 +445,49 @@ export default function Membres() {
   };
   // ========== FIN GESTION DES MATRICULES ==========
 
+  // ========== EXPORT PDF ==========
+  const handleExportPDF = async (member) => {
+    try {
+      Alert.alert('PDF', 'Génération du relevé en cours...');
+      
+      const response = await api.get(`/members/${member.id}/export-pdf`, {
+        responseType: 'blob'
+      });
+      
+      // Convertir le blob en base64
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64Data = reader.result.split(',')[1];
+          const fileName = `releve-${member.name.replace(/\s+/g, '_')}-${Date.now()}.pdf`;
+          const fileUri = FileSystem.documentDirectory + fileName;
+          
+          await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: 'application/pdf',
+              dialogTitle: `Relevé de ${member.name}`
+            });
+          } else {
+            Alert.alert('Succès', `PDF enregistré: ${fileName}`);
+          }
+        } catch (err) {
+          console.error('File save error:', err);
+          Alert.alert('Erreur', 'Impossible d\'enregistrer le PDF');
+        }
+      };
+      reader.readAsDataURL(response.data);
+      
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      Alert.alert('Erreur', 'Impossible de générer le PDF');
+    }
+  };
+  // ========== FIN EXPORT PDF ==========
+
   const renderMember = ({ item }) => {
     const isSelected = selectedMembers.includes(item.id);
     
@@ -499,6 +545,15 @@ export default function Membres() {
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Car size={22} color={colors.accentTerracotta} weight="fill" />
+                </TouchableOpacity>
+              )}
+              {isAdmin && (
+                <TouchableOpacity
+                  style={styles.pdfButton}
+                  onPress={() => handleExportPDF(item)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <FilePdf size={20} color={colors.accentTeal} weight="fill" />
                 </TouchableOpacity>
               )}
               {isAdmin && (
@@ -978,6 +1033,10 @@ const styles = StyleSheet.create({
   },
   memberStatus: {
     marginLeft: spacing.sm,
+  },
+  pdfButton: {
+    padding: spacing.sm,
+    marginLeft: spacing.xs,
   },
   deleteButton: {
     padding: spacing.sm,

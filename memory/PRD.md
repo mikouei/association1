@@ -577,3 +577,36 @@ Le guide complet est dans `/app/frontend/SENTRY_SETUP.md`
 ### Tests automatisés
 - 22 tests pytest dans `/app/backend/tests/test_security_fixes.py`
 - Rapport: `/app/test_reports/iteration_9.json` (20/22 PASS avant corrections finales)
+
+
+
+## Corrections et améliorations - 21 Juillet 2026 ✅
+
+### Bug fix: Import AuthContext mobile
+- **Problème** : `Unable to resolve module ../../context/AuthContext from /app/frontend/app/activity-log.js`
+- **Cause racine** : Chemin d'import incorrect (deux niveaux au lieu d'un)
+- **Fix** : Changé de `../../context/AuthContext` vers `../context/AuthContext`
+- **Vérifié** : Testing agent iteration 11 - 100% pass
+
+### Carte QR "Inviter des membres" - Web Settings
+- **Fichier** : `/app/web/src/app/settings/page.tsx`
+- **Fonctionnalités** :
+  - Affichage QR code (qrcode.react)
+  - Lien d'invitation copiable
+  - Téléchargement QR en PNG
+  - Toast de confirmation (sonner)
+- **data-testid** : `invite-members-card`, `copy-invite-link-btn`, `download-qr-btn`, `invite-link-input`
+- **Vérifié** : Testing agent iteration 12 - 100% pass
+
+### Migration alert() vers Toast (sonner)
+- **Fichiers modifiés** :
+  - `/app/web/src/app/settings/page.tsx`
+  - `/app/web/src/app/members/page.tsx`
+  - `/app/web/src/app/platform/associations/[id]/page.tsx`
+  - `/app/web/src/app/platform/deletion-requests/page.tsx`
+- **Résultat** : Tous les `alert()` remplacés par `toast.success()` / `toast.error()`
+
+### Configuration assetlinks.json
+- **Fichier** : `/app/web/public/.well-known/assetlinks.json`
+- **Status** : Préparé avec placeholder `VOTRE_SHA256_ICI`
+- **Action utilisateur requise** : Exécuter `eas credentials -p android` après build signé pour obtenir l'empreinte SHA256

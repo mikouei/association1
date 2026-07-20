@@ -602,4 +602,219 @@ router.delete('/bulk-delete', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/members/:id/export-pdf
+// Exporter le résumé des paiements d'un membre en PDF
+router.get('/:id/export-pdf', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { year } = req.query; // Optionnel: filtrer par année
+
+    // Récupérer le membre
+    const user = await prisma.user.findFirst({
+      where: {
+        id,
+        associationId: req.associationId,
+        role: 'MEMBER'
+      },
+      include: {
+        member: true
+      }
+    });
+
+    if (!user || !user.member) {
+      return res.status(404).json({ error: 'Membre non trouvé' });
+    }
+
+    // Récupérer l'association
+    const association = await prisma.association.findUnique({
+      where: { id: req.associationId }
+    });
+
+    // Récupérer les années avec paiements
+    const yearsQuery = year 
+      ? { year: parseInt(year) }
+      : {};
+
+    const years = await prisma.year.findMany({
+      where: {
+        associationId: req.associationId,
+        ...yearsQuery
+      },
+      orderBy: { year: 'desc' }
+    });
+
+    // Récupérer les paiements mensuels via les années de l'association
+    const yearIds = years.map(y => y.id);
+    const monthlyPayments = await prisma.monthlyPayment.findMany({
+      where: {
+        memberId: user.member.id,
+        yearId: { in: yearIds }
+      },
+      include: {
+        year: true
+      },
+      orderBy: { month: 'asc' }
+    });
+
+    // Récupérer les cotisations exceptionnelles avec paiements
+    const exceptionalContributions = await prisma.exceptionalContribution.findMany({
+      where: {
+        associationId: req.associationId,
+        active: true
+      },
+      include: {
+        payments: {
+          where: { memberId: user.member.id }
+        }
+      }
+    });
+
+    // Générer le PDF
+    const PDFDocument = (await import('pdfkit')).default;
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    // Headers pour le téléchargement
+    const fileName = `releve-${user.member.name.replace(/\s+/g, '_')}-${Date.now()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    doc.pipe(res);
+
+    // === EN-TÊTE ===
+    doc.fontSize(20).font('Helvetica-Bold')
+       .text(association.name, { align: 'center' });
+    doc.fontSize(12).font('Helvetica')
+       .text('Relevé des paiements', { align: 'center' });
+    doc.moveDown();
+
+    // Infos membre
+    doc.fontSize(11).font('Helvetica-Bold')
+       .text('Membre: ', { continued: true })
+       .font('Helvetica')
+       .text(user.member.name);
+    
+    if (user.member.customFieldValue) {
+      doc.font('Helvetica-Bold')
+         .text(`${association.memberFieldLabel || 'Info'}: `, { continued: true })
+         .font('Helvetica')
+         .text(user.member.customFieldValue);
+    }
+    
+    if (user.phone) {
+      doc.font('Helvetica-Bold')
+         .text('Téléphone: ', { continued: true })
+         .font('Helvetica')
+         .text(user.phone);
+    }
+
+    doc.font('Helvetica-Bold')
+       .text('Date: ', { continued: true })
+       .font('Helvetica')
+       .text(new Date().toLocaleDateString('fr-FR'));
+    
+    doc.moveDown(2);
+
+    // === PAIEMENTS MENSUELS ===
+    doc.fontSize(14).font('Helvetica-Bold')
+       .text('Cotisations Mensuelles', { underline: true });
+    doc.moveDown(0.5);
+
+    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+    let totalMonthlyPaid = 0;
+    let totalMonthlyDue = 0;
+
+    for (const yearData of years) {
+      const yearPayments = monthlyPayments.filter(p => p.yearId === yearData.id);
+      const paidMonths = yearPayments.filter(p => p.amountPaid > 0).length;
+      const yearPaid = yearPayments.reduce((sum, p) => sum + p.amountPaid, 0);
+      const yearDue = 12 * yearData.monthlyAmount;
+      
+      totalMonthlyPaid += yearPaid;
+      totalMonthlyDue += yearDue;
+
+      doc.fontSize(11).font('Helvetica-Bold')
+         .text(`Année ${yearData.year} - ${yearData.monthlyAmount.toLocaleString('fr-FR')} FCFA/mois`);
+      
+      // Tableau des mois
+      let monthLine = '';
+      for (let m = 1; m <= 12; m++) {
+        const payment = yearPayments.find(p => p.month === m);
+        const status = payment && payment.amountPaid > 0 ? '✓' : '○';
+        monthLine += `${monthNames[m-1]}:${status}  `;
+        if (m === 6) {
+          doc.fontSize(9).font('Helvetica').text(monthLine.trim());
+          monthLine = '';
+        }
+      }
+      if (monthLine) {
+        doc.fontSize(9).font('Helvetica').text(monthLine.trim());
+      }
+      
+      doc.fontSize(10).font('Helvetica')
+         .text(`Payé: ${yearPaid.toLocaleString('fr-FR')} / ${yearDue.toLocaleString('fr-FR')} FCFA (${paidMonths}/12 mois)`);
+      doc.moveDown(0.5);
+    }
+
+    // Total mensuels
+    doc.moveDown(0.5);
+    doc.fontSize(11).font('Helvetica-Bold')
+       .text(`Total cotisations mensuelles: ${totalMonthlyPaid.toLocaleString('fr-FR')} FCFA payés`);
+    
+    doc.moveDown(2);
+
+    // === COTISATIONS EXCEPTIONNELLES ===
+    if (exceptionalContributions.length > 0) {
+      doc.fontSize(14).font('Helvetica-Bold')
+         .text('Cotisations Exceptionnelles', { underline: true });
+      doc.moveDown(0.5);
+
+      let totalExceptionalPaid = 0;
+
+      for (const contrib of exceptionalContributions) {
+        const payment = contrib.payments[0];
+        const amountPaid = payment?.amount || 0;
+        totalExceptionalPaid += amountPaid;
+        
+        const status = amountPaid >= contrib.amount ? '✓ Complet' 
+                     : amountPaid > 0 ? `◐ Partiel (${amountPaid.toLocaleString('fr-FR')})` 
+                     : '○ Non payé';
+
+        doc.fontSize(10).font('Helvetica-Bold')
+           .text(`${contrib.title}: `, { continued: true })
+           .font('Helvetica')
+           .text(`${contrib.amount.toLocaleString('fr-FR')} FCFA - ${status}`);
+      }
+
+      doc.moveDown(0.5);
+      doc.fontSize(11).font('Helvetica-Bold')
+         .text(`Total exceptionnelles: ${totalExceptionalPaid.toLocaleString('fr-FR')} FCFA payés`);
+      
+      doc.moveDown(2);
+    }
+
+    // === TOTAL GÉNÉRAL ===
+    const grandTotal = totalMonthlyPaid + exceptionalContributions.reduce((sum, c) => 
+      sum + (c.payments[0]?.amount || 0), 0);
+
+    doc.fontSize(12).font('Helvetica-Bold')
+       .text(`═══════════════════════════════════`);
+    doc.fontSize(14).font('Helvetica-Bold')
+       .text(`TOTAL GÉNÉRAL: ${grandTotal.toLocaleString('fr-FR')} FCFA`);
+    doc.fontSize(12).font('Helvetica-Bold')
+       .text(`═══════════════════════════════════`);
+
+    // Pied de page
+    doc.moveDown(3);
+    doc.fontSize(8).font('Helvetica')
+       .fillColor('#666666')
+       .text(`Document généré le ${new Date().toLocaleString('fr-FR')} via Kotiz`, { align: 'center' });
+
+    doc.end();
+
+  } catch (error) {
+    console.error('Export PDF error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
+  }
+});
+
 export default router;

@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
+import { logActivity } from '../utils/activityLog.js';
 
 const router = express.Router();
 
@@ -173,6 +174,17 @@ router.post('/', requireAdmin, async (req, res) => {
       customFieldValue: result.member.customFieldValue,
       active: result.user.active
     });
+
+    // Log de l'activité (après réponse pour ne pas bloquer)
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'member.create',
+      targetType: 'Member',
+      targetId: result.member.id,
+      details: `Nouveau membre créé: ${result.member.name}`
+    });
   } catch (error) {
     console.error('Create member error:', error);
     res.status(500).json({ error: 'Erreur lors de la création du membre' });
@@ -289,6 +301,17 @@ router.put('/:id', requireAdmin, async (req, res) => {
       name: result.member.name,
       customFieldValue: result.member.customFieldValue
     });
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'member.update',
+      targetType: 'Member',
+      targetId: result.member.id,
+      details: `Membre modifié: ${result.member.name}`
+    });
   } catch (error) {
     console.error('Update member error:', error);
     res.status(500).json({ error: 'Erreur lors de la mise à jour du membre' });
@@ -301,6 +324,12 @@ router.put('/:id/deactivate', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Récupérer le membre pour le log
+    const memberData = await prisma.user.findFirst({
+      where: { id, role: 'MEMBER', associationId: req.associationId },
+      include: { member: true }
+    });
+
     await prisma.user.updateMany({
       where: { 
         id, 
@@ -311,6 +340,19 @@ router.put('/:id/deactivate', requireAdmin, async (req, res) => {
     });
 
     res.json({ message: 'Membre désactivé avec succès' });
+
+    // Log de l'activité
+    if (memberData) {
+      logActivity({
+        associationId: req.associationId,
+        userId: req.user.id,
+        userName: req.user.member?.name || req.user.email || 'Admin',
+        action: 'member.deactivate',
+        targetType: 'Member',
+        targetId: memberData.member?.id,
+        details: `Membre désactivé: ${memberData.member?.name || 'Inconnu'}`
+      });
+    }
   } catch (error) {
     console.error('Deactivate member error:', error);
     res.status(500).json({ error: 'Erreur lors de la désactivation du membre' });
@@ -323,6 +365,12 @@ router.put('/:id/activate', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Récupérer le membre pour le log
+    const memberData = await prisma.user.findFirst({
+      where: { id, role: 'MEMBER', associationId: req.associationId },
+      include: { member: true }
+    });
+
     await prisma.user.updateMany({
       where: { 
         id, 
@@ -333,6 +381,19 @@ router.put('/:id/activate', requireAdmin, async (req, res) => {
     });
 
     res.json({ message: 'Membre réactivé avec succès' });
+
+    // Log de l'activité
+    if (memberData) {
+      logActivity({
+        associationId: req.associationId,
+        userId: req.user.id,
+        userName: req.user.member?.name || req.user.email || 'Admin',
+        action: 'member.activate',
+        targetType: 'Member',
+        targetId: memberData.member?.id,
+        details: `Membre réactivé: ${memberData.member?.name || 'Inconnu'}`
+      });
+    }
   } catch (error) {
     console.error('Activate member error:', error);
     res.status(500).json({ error: 'Erreur lors de la réactivation du membre' });
@@ -350,6 +411,12 @@ router.post('/:id/reset-password', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Mot de passe trop court (minimum 4 caractères)' });
     }
 
+    // Récupérer le membre pour le log
+    const memberData = await prisma.user.findFirst({
+      where: { id, role: 'MEMBER', associationId: req.associationId },
+      include: { member: true }
+    });
+
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.updateMany({
@@ -362,6 +429,19 @@ router.post('/:id/reset-password', requireAdmin, async (req, res) => {
     });
 
     res.json({ message: 'Mot de passe réinitialisé', newPassword });
+
+    // Log de l'activité
+    if (memberData) {
+      logActivity({
+        associationId: req.associationId,
+        userId: req.user.id,
+        userName: req.user.member?.name || req.user.email || 'Admin',
+        action: 'member.reset_password',
+        targetType: 'Member',
+        targetId: memberData.member?.id,
+        details: `Mot de passe réinitialisé pour: ${memberData.member?.name || 'Inconnu'}`
+      });
+    }
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });

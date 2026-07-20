@@ -41,6 +41,7 @@ import { colors, spacing, borderRadius, typography } from '../utils/theme';
 import { useLocalSearchParams } from 'expo-router';
 
 const LAST_ASSOCIATION_KEY = '@kotiz_last_association';
+const PRESELECTED_ASSOC_KEY = '@kotiz_preselected_association';
 
 export default function Login() {
   const { code: preselectedCode } = useLocalSearchParams();
@@ -80,10 +81,28 @@ export default function Login() {
       const response = await api.get('/auth/associations');
       let assocList = response.data;
 
-      // Si un code est passé en paramètre (deep link), sélectionner cette association
+      // Priorité 1: Si un code est passé en paramètre (deep link)
       if (preselectedCode) {
         const matchingAssoc = assocList.find(
           a => a.code.toUpperCase() === preselectedCode.toString().toUpperCase() && a.active !== false
+        );
+        if (matchingAssoc) {
+          setSelectedAssociation(matchingAssoc);
+          setIsPreselected(true);
+          setAssociations(assocList);
+          setLoadingAssociations(false);
+          return;
+        }
+      }
+
+      // Priorité 2: Vérifier si un code a été stocké via le referrer d'installation
+      const referrerCode = await AsyncStorage.getItem(PRESELECTED_ASSOC_KEY);
+      if (referrerCode) {
+        // Supprimer le code après utilisation
+        await AsyncStorage.removeItem(PRESELECTED_ASSOC_KEY);
+        
+        const matchingAssoc = assocList.find(
+          a => a.code.toUpperCase() === referrerCode.toUpperCase() && a.active !== false
         );
         if (matchingAssoc) {
           setSelectedAssociation(matchingAssoc);

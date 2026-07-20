@@ -1,13 +1,61 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Platform } from 'react-native';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Application from 'expo-application';
 import { AuthProvider } from '../context/AuthContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 
+const REFERRER_PROCESSED_KEY = '@kotiz_referrer_processed';
+const PRESELECTED_ASSOC_KEY = '@kotiz_preselected_association';
+
 function RootLayoutNav() {
+  const router = useRouter();
+  const segments = useSegments();
+
+  // Détection du referrer après installation fraîche (Android uniquement)
+  useEffect(() => {
+    const checkInstallReferrer = async () => {
+      // Uniquement sur Android
+      if (Platform.OS !== 'android') return;
+
+      try {
+        // Vérifier si on a déjà traité le referrer
+        const processed = await AsyncStorage.getItem(REFERRER_PROCESSED_KEY);
+        if (processed) return;
+
+        // Marquer comme traité pour ne pas refaire
+        await AsyncStorage.setItem(REFERRER_PROCESSED_KEY, 'true');
+
+        // Récupérer le referrer
+        const referrer = await Application.getInstallReferrerAsync();
+        
+        if (referrer && referrer.includes('assoc_code=')) {
+          // Extraire le code d'association
+          const match = referrer.match(/assoc_code=([A-Z0-9-]+)/i);
+          if (match && match[1]) {
+            const code = match[1].toUpperCase();
+            console.log('[Kotiz] Install referrer detected:', code);
+            
+            // Stocker le code pour le pré-sélectionner au login
+            await AsyncStorage.setItem(PRESELECTED_ASSOC_KEY, code);
+          }
+        }
+      } catch (error) {
+        console.log('[Kotiz] Referrer check error (non-bloquant):', error);
+      }
+    };
+
+    checkInstallReferrer();
+  }, []);
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
+      <Stack.Screen name="register-association" />
+      <Stack.Screen name="join/[code]" />
+      <Stack.Screen name="activity-log" />
       <Stack.Screen name="(tabs)" />
     </Stack>
   );

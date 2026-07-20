@@ -1,6 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
+import { logActivity } from '../utils/activityLog.js';
 
 const router = express.Router();
 
@@ -93,6 +94,17 @@ router.post('/create', async (req, res) => {
       active: admin.active,
       createdAt: admin.createdAt
     });
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'admin.create',
+      targetType: 'User',
+      targetId: admin.id,
+      details: `Nouvel admin créé: ${email}`
+    });
   } catch (error) {
     console.error('Create admin error:', error);
     res.status(500).json({ error: 'Erreur lors de la création de l\'administrateur' });
@@ -110,6 +122,11 @@ router.put('/:id/deactivate', async (req, res) => {
       return res.status(400).json({ error: 'Vous ne pouvez pas vous désactiver vous-même' });
     }
 
+    // Récupérer l'admin pour le log
+    const adminData = await prisma.user.findFirst({
+      where: { id, role: 'ADMIN', associationId: req.associationId }
+    });
+
     const admin = await prisma.user.updateMany({
       where: { 
         id, 
@@ -120,6 +137,19 @@ router.put('/:id/deactivate', async (req, res) => {
     });
 
     res.json({ message: 'Administrateur désactivé' });
+
+    // Log de l'activité
+    if (adminData) {
+      logActivity({
+        associationId: req.associationId,
+        userId: req.user.id,
+        userName: req.user.member?.name || req.user.email || 'Admin',
+        action: 'admin.deactivate',
+        targetType: 'User',
+        targetId: id,
+        details: `Admin désactivé: ${adminData.email}`
+      });
+    }
   } catch (error) {
     console.error('Deactivate admin error:', error);
     res.status(500).json({ error: 'Erreur lors de la désactivation' });
@@ -132,6 +162,11 @@ router.put('/:id/activate', async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Récupérer l'admin pour le log
+    const adminData = await prisma.user.findFirst({
+      where: { id, role: 'ADMIN', associationId: req.associationId }
+    });
+
     const admin = await prisma.user.updateMany({
       where: { 
         id, 
@@ -142,6 +177,19 @@ router.put('/:id/activate', async (req, res) => {
     });
 
     res.json({ message: 'Administrateur réactivé' });
+
+    // Log de l'activité
+    if (adminData) {
+      logActivity({
+        associationId: req.associationId,
+        userId: req.user.id,
+        userName: req.user.member?.name || req.user.email || 'Admin',
+        action: 'admin.activate',
+        targetType: 'User',
+        targetId: id,
+        details: `Admin réactivé: ${adminData.email}`
+      });
+    }
   } catch (error) {
     console.error('Activate admin error:', error);
     res.status(500).json({ error: 'Erreur lors de la réactivation' });
@@ -159,6 +207,11 @@ router.post('/:id/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Mot de passe trop court (minimum 4 caractères)' });
     }
 
+    // Récupérer l'admin pour le log
+    const adminData = await prisma.user.findFirst({
+      where: { id, role: 'ADMIN', associationId: req.associationId }
+    });
+
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.updateMany({
@@ -171,6 +224,19 @@ router.post('/:id/reset-password', async (req, res) => {
     });
 
     res.json({ message: 'Mot de passe réinitialisé avec succès' });
+
+    // Log de l'activité
+    if (adminData) {
+      logActivity({
+        associationId: req.associationId,
+        userId: req.user.id,
+        userName: req.user.member?.name || req.user.email || 'Admin',
+        action: 'admin.reset_password',
+        targetType: 'User',
+        targetId: id,
+        details: `Mot de passe réinitialisé pour admin: ${adminData.email}`
+      });
+    }
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });

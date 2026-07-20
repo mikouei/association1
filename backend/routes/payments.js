@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
+import { logActivity } from '../utils/activityLog.js';
 
 const router = express.Router();
 
@@ -244,6 +245,18 @@ router.post('/', requireAdmin, async (req, res) => {
     }
 
     res.status(201).json(payment);
+
+    // Log de l'activité
+    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: existingPayment ? 'payment.update' : 'payment.create',
+      targetType: 'MonthlyPayment',
+      targetId: payment.id,
+      details: `Paiement ${existingPayment ? 'modifié' : 'créé'}: ${parseFloat(amountPaid)} FCFA pour ${member.name} (${monthNames[parseInt(month) - 1]} ${year.year})`
+    });
   } catch (error) {
     console.error('Create payment error:', error);
     res.status(500).json({ error: 'Erreur lors de l\'enregistrement du paiement' });
@@ -291,6 +304,18 @@ router.put('/:id', requireAdmin, async (req, res) => {
     });
 
     res.json(payment);
+
+    // Log de l'activité
+    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'payment.update',
+      targetType: 'MonthlyPayment',
+      targetId: payment.id,
+      details: `Paiement modifié: ${payment.amountPaid} FCFA pour ${existingPayment.member?.name || 'Inconnu'} (${monthNames[existingPayment.month - 1]} ${existingPayment.year?.year})`
+    });
   } catch (error) {
     console.error('Update payment error:', error);
     res.status(500).json({ error: 'Erreur lors de la modification du paiement' });
@@ -327,6 +352,18 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     });
 
     res.json({ message: 'Paiement supprimé avec succès' });
+
+    // Log de l'activité
+    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'payment.delete',
+      targetType: 'MonthlyPayment',
+      targetId: id,
+      details: `Paiement supprimé: ${existingPayment.amountPaid} FCFA pour ${existingPayment.member?.name || 'Inconnu'} (${monthNames[existingPayment.month - 1]} ${existingPayment.year?.year})`
+    });
   } catch (error) {
     console.error('Delete payment error:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression du paiement' });

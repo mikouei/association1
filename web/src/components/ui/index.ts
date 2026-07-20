@@ -5,3 +5,4 @@ export { Modal } from './Modal';
 export { DataTable } from './DataTable';
 export { Badge } from './Badge';
 export { LoadingSpinner, FullPageLoader } from './LoadingSpinner';
+export { Toaster, toast } from './Toaster';

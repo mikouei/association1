@@ -45,14 +45,60 @@ Permettre à n'importe qui de créer lui-même son association sans intervention
 - Rate limiters : 5/h pour register, 30/h pour check-code et info
 
 ### Frontend ajouté
-- **Web** : `/creer-association` (formulaire), `/join/[code]` (page d'atterrissage), manifeste dynamique
-- **Mobile** : `register-association.js`, `join/[code].js`, carte "Premiers pas" sur dashboard
+- **Web** : `/creer-association` (formulaire), `/join/[code]` (page d'atterrissage), manifeste dynamique, `/dashboard/activity` (journal)
+- **Mobile** : `register-association.js`, `join/[code].js`, `activity-log.js`, carte "Premiers pas" sur dashboard
 
 ### Intégrations UI
 - Badge "Libre-service" dans console Platform
-- Carte QR code "Inviter des membres" dans paramètres
+- Carte QR code "Inviter des membres" dans paramètres (mobile + web à venir)
 - Bouton WhatsApp d'aide sur toutes les pages publiques
 - Lien "Créer mon association" sur login
+- Journal d'activité dans les paramètres admin
+
+## Journal d'activité (Phase 5) - 20 Juillet 2026 ✅
+
+### Actions tracées
+- **Membres** : create, update, deactivate, activate, reset_password
+- **Paiements mensuels** : create, update, delete
+- **Paiements exceptionnels** : create, update, delete
+- **Années** : create, update, activate, delete
+- **Admins** : create, deactivate, activate, reset_password
+- **Cotisations exceptionnelles** : create, update, delete
+
+### Affichage
+- **Web** : `/dashboard/activity` avec pagination
+- **Mobile** : `/activity-log` accessible depuis Paramètres
+
+### Notes techniques
+- Non-bloquant : le log n'échoue jamais l'action principale
+- Pagination par curseur sur `createdAt`
+- Visible uniquement par les admins de l'association
+
+## Play Install Referrer - 20 Juillet 2026 ✅
+
+### Fonctionnement
+1. Lien Play Store avec referrer : `https://play.google.com/store/apps/details?id=com.kotiz.ci&referrer=assoc_code%3D{code}`
+2. Au premier lancement, `expo-application.getInstallReferrerAsync()` lit le referrer
+3. Si `assoc_code=XXX` trouvé, stocké dans AsyncStorage
+4. Au login, l'association est pré-sélectionnée automatiquement
+
+### Fichiers modifiés
+- `/app/frontend/app/_layout.js` : détection referrer
+- `/app/frontend/app/login.js` : lecture code pré-sélectionné
+
+## Toast Notifications Web - 20 Juillet 2026 ✅
+
+### Configuration
+- Librairie : sonner
+- Composant : `/app/web/src/components/ui/Toaster.tsx`
+- Ajouté au layout principal
+
+### Utilisation
+```tsx
+import { toast } from '@/components/ui';
+toast.success('Action réussie');
+toast.error('Erreur');
+```
 
 ## Migration PostgreSQL - COMPLÉTÉE ✅
 

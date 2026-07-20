@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
+import { logActivity } from '../utils/activityLog.js';
 
 const router = express.Router();
 
@@ -382,6 +383,17 @@ router.post('/', requireAdmin, async (req, res) => {
     });
 
     res.status(201).json(contribution);
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'exceptional.create',
+      targetType: 'ExceptionalContribution',
+      targetId: contribution.id,
+      details: `Cotisation exceptionnelle créée: ${title} (${type})`
+    });
   } catch (error) {
     console.error('Create exceptional contribution error:', error);
     res.status(500).json({ error: 'Erreur lors de la création de la cotisation' });
@@ -426,6 +438,17 @@ router.put('/:id', requireAdmin, async (req, res) => {
     });
 
     res.json(contribution);
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'exceptional.update',
+      targetType: 'ExceptionalContribution',
+      targetId: contribution.id,
+      details: `Cotisation exceptionnelle modifiée: ${contribution.title}`
+    });
   } catch (error) {
     console.error('Update exceptional contribution error:', error);
     res.status(500).json({ error: 'Erreur lors de la mise à jour' });
@@ -455,6 +478,17 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     });
 
     res.json({ message: 'Cotisation supprimée avec succès' });
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'exceptional.delete',
+      targetType: 'ExceptionalContribution',
+      targetId: id,
+      details: `Cotisation exceptionnelle supprimée: ${existing.title}`
+    });
   } catch (error) {
     console.error('Delete exceptional contribution error:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression' });
@@ -519,6 +553,17 @@ router.post('/:id/payments', requireAdmin, async (req, res) => {
     });
 
     res.status(201).json(payment);
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'exceptional_payment.create',
+      targetType: 'ExceptionalPayment',
+      targetId: payment.id,
+      details: `Paiement exceptionnel créé: ${parseFloat(amount)} FCFA pour ${member.name} (${contribution.title})`
+    });
   } catch (error) {
     console.error('Create exceptional payment error:', error);
     res.status(500).json({ error: 'Erreur lors de l\'enregistrement du paiement' });
@@ -567,6 +612,17 @@ router.put('/payments/:paymentId', requireAdmin, async (req, res) => {
     });
 
     res.json(payment);
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'exceptional_payment.update',
+      targetType: 'ExceptionalPayment',
+      targetId: payment.id,
+      details: `Paiement exceptionnel modifié: ${payment.amount} FCFA pour ${existingPayment.member?.name || 'Inconnu'}`
+    });
   } catch (error) {
     console.error('Update exceptional payment error:', error);
     res.status(500).json({ error: 'Erreur lors de la modification' });
@@ -603,6 +659,17 @@ router.delete('/payments/:paymentId', requireAdmin, async (req, res) => {
     });
 
     res.json({ message: 'Paiement supprimé avec succès' });
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'exceptional_payment.delete',
+      targetType: 'ExceptionalPayment',
+      targetId: paymentId,
+      details: `Paiement exceptionnel supprimé: ${existingPayment.amount} FCFA pour ${existingPayment.member?.name || 'Inconnu'} (${existingPayment.contribution?.title})`
+    });
   } catch (error) {
     console.error('Delete exceptional payment error:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression' });

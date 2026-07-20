@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
+import { logActivity } from '../utils/activityLog.js';
 
 const router = express.Router();
 
@@ -99,6 +100,17 @@ router.post('/', requireAdmin, async (req, res) => {
     });
 
     res.status(201).json(newYear);
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'year.create',
+      targetType: 'Year',
+      targetId: newYear.id,
+      details: `Année de cotisation créée: ${year} (${parseFloat(monthlyAmount)} FCFA/mois)`
+    });
   } catch (error) {
     console.error('Create year error:', error);
     res.status(500).json({ error: 'Erreur lors de la création de l\'année' });
@@ -169,6 +181,17 @@ router.put('/:id', requireAdmin, async (req, res) => {
     });
 
     res.json(updatedYear);
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'year.update',
+      targetType: 'Year',
+      targetId: updatedYear.id,
+      details: `Année modifiée: ${updatedYear.year} (${updatedYear.monthlyAmount} FCFA/mois)`
+    });
   } catch (error) {
     console.error('Update year error:', error);
     res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'année' });
@@ -209,6 +232,17 @@ router.put('/:id/activate', requireAdmin, async (req, res) => {
     });
 
     res.json(activatedYear);
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'year.activate',
+      targetType: 'Year',
+      targetId: activatedYear.id,
+      details: `Année activée: ${activatedYear.year}`
+    });
   } catch (error) {
     console.error('Activate year error:', error);
     res.status(500).json({ error: 'Erreur lors de l\'activation de l\'année' });
@@ -249,6 +283,17 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     });
 
     res.json({ message: 'Année supprimée avec succès' });
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'year.delete',
+      targetType: 'Year',
+      targetId: id,
+      details: `Année supprimée: ${existing.year}`
+    });
   } catch (error) {
     console.error('Delete year error:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression de l\'année' });

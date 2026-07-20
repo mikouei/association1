@@ -20,7 +20,7 @@ import {
   User, Envelope, Phone, UserCircle, Pencil, CheckCircle, Plus, X, 
   ArrowLeft, FolderOpen, Eye, CloudArrowUp, Download, File, FileText,
   SignOut, Trash, Warning, CaretRight, QrCode, Copy, ShareNetwork,
-  WhatsappLogo, Question
+  WhatsappLogo, ClockCounterClockwise
 } from 'phosphor-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -804,6 +804,26 @@ export default function Parametres() {
             <CaretRight size={20} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
+
+        {/* Journal d'activité - Visible pour les admins */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Administration</Text>
+            <TouchableOpacity 
+              style={styles.adminLink}
+              onPress={() => router.push('/activity-log')}
+            >
+              <View style={styles.adminLinkIcon}>
+                <ClockCounterClockwise size={20} color={colors.primary} weight="duotone" />
+              </View>
+              <View style={styles.adminLinkContent}>
+                <Text style={styles.adminLinkTitle}>Journal d'activité</Text>
+                <Text style={styles.adminLinkSubtitle}>Historique des actions</Text>
+              </View>
+              <CaretRight size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Déconnexion */}
         <View style={styles.section}>
@@ -1792,6 +1812,37 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   whatsappSubtitle: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+  },
+  // Admin links styles
+  adminLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  adminLinkIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminLinkContent: {
+    flex: 1,
+  },
+  adminLinkTitle: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  adminLinkSubtitle: {
     fontSize: typography.caption.fontSize,
     color: colors.textMuted,
   },

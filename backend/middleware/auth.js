@@ -1,5 +1,6 @@
 // Middleware d'authentification pour AssocManager - PostgreSQL Multi-Tenant
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import rateLimit from 'express-rate-limit';
 
@@ -133,8 +134,7 @@ export const resolveAssociationByCode = async (code) => {
  * Générer un token d'accès pour un membre
  */
 export const generateAccessToken = () => {
-  return Math.random().toString(36).substring(2, 15) + 
-         Math.random().toString(36).substring(2, 15);
+  return crypto.randomBytes(24).toString('base64url');
 };
 
 /**

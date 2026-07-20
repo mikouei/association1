@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
 
@@ -91,8 +92,8 @@ router.post('/members/preview', async (req, res) => {
     res.json({
       total: lines.filter(l => l.trim() && !l.trim().startsWith('#') && !l.trim().startsWith('//')).length,
       valid: preview.length,
-      duplicates: duplicates.length,
-      errors: errors.length,
+      duplicatesCount: duplicates.length,
+      errorsCount: errors.length,
       preview,
       duplicates,
       errors
@@ -151,7 +152,7 @@ router.post('/members', async (req, res) => {
         }
 
         // Générer credentials
-        const password = Math.random().toString(36).slice(-8);
+        const password = crypto.randomBytes(6).toString('base64url');
         const passwordHash = await bcrypt.hash(password, 10);
         
         let accessToken = generateAccessToken();
@@ -202,7 +203,7 @@ router.post('/members', async (req, res) => {
         console.error('Import member error:', error);
         errors.push({
           name: memberData.name,
-          error: error.message
+          error: 'Erreur lors de l\'import de ce membre'
         });
       }
     }

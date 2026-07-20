@@ -8,6 +8,14 @@ router.use(authenticateToken);
 
 const CONTRIBUTION_TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'autre'];
 
+// Helper pour échapper le HTML (sécurité XSS)
+const escapeHtml = (str) =>
+  String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
 // GET /api/exceptional
 // Liste toutes les cotisations exceptionnelles de l'association
 router.get('/', async (req, res) => {
@@ -163,7 +171,7 @@ router.get('/:eventId/stats/pdf', async (req, res) => {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${contribution.title}</title>
+  <title>${escapeHtml(contribution.title)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
@@ -243,8 +251,8 @@ router.get('/:eventId/stats/pdf', async (req, res) => {
 </head>
 <body>
   <div class="header">
-    <h1>${contribution.title}</h1>
-    <span class="type">${contribution.type}</span>
+    <h1>${escapeHtml(contribution.title)}</h1>
+    <span class="type">${escapeHtml(contribution.type)}</span>
     <div class="date">Créé le ${new Date(contribution.createdAt).toLocaleDateString('fr-FR', { 
       day: 'numeric', 
       month: 'long', 
@@ -252,7 +260,7 @@ router.get('/:eventId/stats/pdf', async (req, res) => {
     })}</div>
   </div>
   
-  ${contribution.description ? `<div class="description">${contribution.description}</div>` : ''}
+  ${contribution.description ? `<div class="description">${escapeHtml(contribution.description)}</div>` : ''}
 
   <div class="stats-row">
     <div class="stat-box highlight">
@@ -289,7 +297,7 @@ router.get('/:eventId/stats/pdf', async (req, res) => {
   ` : '<div class="no-payments">Aucun paiement enregistré</div>'}
 
   <div class="footer">
-    <p>${association?.name || 'Association'}</p>
+    <p>${escapeHtml(association?.name || 'Association')}</p>
     <p>Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
   </div>
 </body>

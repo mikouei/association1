@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import dotenv from "dotenv";
 
 import { prisma } from "./middleware/auth.js";
@@ -26,6 +27,8 @@ const PORT = process.env.PORT || 8001;
 // MIDDLEWARE
 //
 
+app.use(helmet());
+
 app.use(
   cors({
     origin: [
@@ -34,7 +37,6 @@ app.use(
       "http://localhost:19006",
       "https://web-bx1a.onrender.com",
       "https://assocmanager-web.onrender.com",
-      "https://mobile-bug-crush-1.preview.emergentagent.com",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [

@@ -309,7 +309,10 @@ export default function Parametres() {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = 'membres.csv';
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
         Alert.alert('Succès', 'Fichier téléchargé');
       } else {
         // Sur mobile, utiliser cacheDirectory et partage
@@ -406,7 +409,10 @@ export default function Parametres() {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = filename;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
         Alert.alert('Succès', 'Fichier téléchargé');
       } else {
         // Sur mobile, sauvegarder directement dans Téléchargements
@@ -420,44 +426,41 @@ export default function Parametres() {
 
   // Export Stats PDF - Utilise la nouvelle API backend
   const handleExportStatsPDF = async () => {
-    try {
-      const activeYear = years.find(y => y.active);
-      if (!activeYear) {
-        Alert.alert('Erreur', 'Aucune année active');
+    const activeYear = years.find(y => y.active);
+    if (!activeYear) {
+      Alert.alert('Erreur', 'Aucune année active');
+      return;
+    }
+
+    // Sur le web : ouvrir la fenêtre de façon SYNCHRONE dans le clic utilisateur
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        Alert.alert('Erreur', 'Fenêtre bloquée par le navigateur. Autorisez les pop-ups.');
         return;
       }
+      printWindow.document.write('<p>Chargement…</p>');
 
-      // Récupérer le HTML depuis l'API backend
-      const response = await api.get('/export/stats/pdf', { responseType: 'text' });
-      const html = response.data;
-      const filename = `statistiques_${activeYear.year}.pdf`;
-
-      // Sur le web, ouvrir dans une nouvelle fenêtre pour impression/téléchargement
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(html);
-          printWindow.document.close();
-          printWindow.print();
-          Alert.alert('Succès', 'Document PDF ouvert pour impression');
-        }
-      } else {
-        // Sur mobile, générer le PDF et le télécharger directement
-        try {
-          const { uri } = await Print.printToFileAsync({ 
-            html,
-            base64: false
-          });
-          
-          // Sauvegarder directement dans le dossier Téléchargements
-          await savePdfToDownloads(uri, filename);
-        } catch (e) {
-          console.error('Erreur Print.printToFileAsync:', e);
-          Alert.alert('Erreur', 'Impossible de générer le PDF');
-        }
+      try {
+        const response = await api.get('/export/stats/pdf', { responseType: 'text' });
+        printWindow.document.open();
+        printWindow.document.write(response.data);
+        printWindow.document.close();
+        printWindow.print();
+      } catch (error) {
+        console.error('Erreur export PDF:', error);
+        printWindow.document.write('<p style="color:red">Erreur lors du chargement.</p>');
       }
+      return;
+    }
+
+    // Mobile : générer le PDF et le télécharger
+    try {
+      const response = await api.get('/export/stats/pdf', { responseType: 'text' });
+      const { uri } = await Print.printToFileAsync({ html: response.data, base64: false });
+      await savePdfToDownloads(uri, `statistiques_${activeYear.year}.pdf`);
     } catch (error) {
-      console.error('Erreur export PDF:', error);
+      console.error('Erreur export PDF mobile:', error);
       Alert.alert('Erreur', 'Impossible de générer le PDF');
     }
   };

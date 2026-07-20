@@ -12,6 +12,23 @@ const formatNumber = (num) => {
   return new Intl.NumberFormat('fr-FR').format(Math.round(num));
 };
 
+// Helper pour échapper le HTML (sécurité XSS)
+const escapeHtml = (str) =>
+  String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+// Helper pour protéger les valeurs CSV contre l'injection de formules
+const escapeCsv = (value) => {
+  let str = String(value ?? '');
+  const needsQuote = /[",\r\n]/.test(str) || /^[=+\-@\t\r]/.test(str);
+  if (/^[=+\-@\t\r]/.test(str)) str = "'" + str;
+  str = str.replace(/"/g, '""');
+  return needsQuote ? `"${str}"` : str;
+};
+
 // GET /api/export/members
 // Exporter les membres au format CSV
 router.get('/members', async (req, res) => {
@@ -30,7 +47,7 @@ router.get('/members', async (req, res) => {
     
     members.forEach(user => {
       if (user.member) {
-        csv += `${user.member.name},${user.member.customFieldValue},${user.phone || ''},${user.active ? 'Oui' : 'Non'}\n`;
+        csv += `${escapeCsv(user.member.name)},${escapeCsv(user.member.customFieldValue)},${escapeCsv(user.phone || '')},${user.active ? 'Oui' : 'Non'}\n`;
       }
     });
 
@@ -81,7 +98,7 @@ router.get('/statistics/:yearId', async (req, res) => {
       const remaining = totalDue - totalPaid;
       const percentage = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100 * 100) / 100 : 0;
 
-      csv += `${member.name},${member.customFieldValue},${totalDue},${totalPaid},${remaining},${percentage}%\n`;
+      csv += `${escapeCsv(member.name)},${escapeCsv(member.customFieldValue)},${totalDue},${totalPaid},${remaining},${percentage}%\n`;
     });
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -245,7 +262,7 @@ router.get('/stats/pdf', async (req, res) => {
 </head>
 <body>
   <div class="header">
-    <h1>${association?.name || 'Association'}</h1>
+    <h1>${escapeHtml(association?.name || 'Association')}</h1>
     <h2>Statistiques des cotisations - Année ${activeYear.year}</h2>
   </div>
   
@@ -271,8 +288,8 @@ router.get('/stats/pdf', async (req, res) => {
         const statusClass = m.percentage >= 100 ? 'paid-100' : m.percentage > 0 ? 'paid-partial' : 'paid-zero';
         return `
           <tr>
-            <td>${m.name}</td>
-            <td>${m.identifier}</td>
+            <td>${escapeHtml(m.name)}</td>
+            <td>${escapeHtml(m.identifier)}</td>
             <td class="text-right">${formatNumber(m.due)} FCFA</td>
             <td class="text-right ${statusClass}">${formatNumber(m.paid)} FCFA</td>
             <td class="text-right">${formatNumber(m.remaining)} FCFA</td>

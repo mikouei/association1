@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
 
@@ -84,6 +85,11 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Email ou téléphone requis' });
     }
 
+    // Valider le format de l'email
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Format email invalide' });
+    }
+
     // Vérifier unicité email dans l'association
     if (email) {
       const existing = await prisma.user.findFirst({ 
@@ -97,6 +103,16 @@ router.post('/', requireAdmin, async (req, res) => {
       }
     }
 
+    // Vérifier unicité téléphone dans l'association
+    if (phone) {
+      const existingPhone = await prisma.user.findFirst({
+        where: { associationId: req.associationId, phone }
+      });
+      if (existingPhone) {
+        return res.status(400).json({ error: 'Ce téléphone est déjà utilisé' });
+      }
+    }
+
     // Vérifier le plafond de 250 membres
     const memberCount = await prisma.user.count({
       where: { associationId: req.associationId, role: 'MEMBER' }
@@ -106,7 +122,7 @@ router.post('/', requireAdmin, async (req, res) => {
     }
 
     // Générer un mot de passe aléatoire si non fourni
-    const finalPassword = password || Math.random().toString(36).slice(-8);
+    const finalPassword = password || crypto.randomBytes(6).toString('base64url');
     const passwordHash = await bcrypt.hash(finalPassword, 10);
 
     // Générer un token d'accès unique
@@ -230,6 +246,16 @@ router.put('/:id', requireAdmin, async (req, res) => {
       });
       if (emailExists) {
         return res.status(400).json({ error: 'Cet email est déjà utilisé' });
+      }
+    }
+
+    // Vérifier unicité téléphone si changé
+    if (phone && phone !== existing.phone) {
+      const phoneExists = await prisma.user.findFirst({
+        where: { phone, associationId: req.associationId }
+      });
+      if (phoneExists) {
+        return res.status(400).json({ error: 'Ce téléphone est déjà utilisé' });
       }
     }
 

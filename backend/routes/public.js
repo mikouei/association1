@@ -1,13 +1,23 @@
 // Routes publiques (sans authentification)
 // Pour les demandes de suppression de compte accessibles sans l'app
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { prisma } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Rate limiter pour les demandes de suppression (5 requêtes / heure / IP)
+const deletionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 heure
+  max: 5,
+  message: { error: 'Trop de demandes, réessayez plus tard' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // POST /api/public/deletion-request
 // Soumettre une demande de suppression de compte
-router.post('/deletion-request', async (req, res) => {
+router.post('/deletion-request', deletionLimiter, async (req, res) => {
   try {
     const { email, phone, associationCode, message } = req.body;
 

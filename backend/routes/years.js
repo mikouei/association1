@@ -53,6 +53,19 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Année et montant mensuel requis' });
     }
 
+    const parsedYear = parseInt(year, 10);
+    const parsedAmount = parseFloat(monthlyAmount);
+    if (
+      !Number.isInteger(parsedYear) ||
+      parsedYear < 2000 ||
+      parsedYear > 2100 ||
+      !Number.isFinite(parsedAmount) ||
+      parsedAmount <= 0 ||
+      parsedAmount > 100_000_000
+    ) {
+      return res.status(400).json({ error: 'Données invalides (année 2000-2100, montant > 0)' });
+    }
+
     // Vérifier si l'année existe déjà dans l'association
     const existing = await prisma.year.findFirst({
       where: { 

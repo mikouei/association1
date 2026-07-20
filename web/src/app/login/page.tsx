@@ -1,16 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, Card, CardContent } from '@/components/ui';
-import { Buildings } from '@phosphor-icons/react';
+import { Buildings, Plus, WhatsappLogo } from '@phosphor-icons/react';
 import { api } from '@/services/api';
 import { Association } from '@/types';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mobile-bug-crush-1.preview.emergentagent.com';
+
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   
   const [step, setStep] = useState<'association' | 'credentials'>('association');
@@ -21,23 +24,42 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [loadingAssociations, setLoadingAssociations] = useState(false);
   const [error, setError] = useState('');
+  const [preselectedCode, setPreselectedCode] = useState<string | null>(null);
 
   const loadAssociations = async () => {
     setLoadingAssociations(true);
     try {
       const response = await api.get('/auth/associations');
       setAssociations(response.data);
+      return response.data as Association[];
     } catch (err) {
       setError('Impossible de charger les associations');
+      return [];
     } finally {
       setLoadingAssociations(false);
     }
   };
 
-  // Fix: Use useEffect instead of useState for side effects
+  // Charger les associations et vérifier le paramètre ?code=
   useEffect(() => {
-    loadAssociations();
-  }, []);
+    const initLogin = async () => {
+      const assocs = await loadAssociations();
+      
+      // Vérifier si un code est passé en paramètre
+      const codeParam = searchParams.get('code');
+      if (codeParam && assocs.length > 0) {
+        const matchingAssoc = assocs.find(
+          a => a.code.toUpperCase() === codeParam.toUpperCase() && a.active !== false
+        );
+        if (matchingAssoc) {
+          setSelectedAssoc(matchingAssoc);
+          setPreselectedCode(codeParam.toUpperCase());
+          setStep('credentials');
+        }
+      }
+    };
+    initLogin();
+  }, [searchParams]);
 
   const handleSelectAssociation = (assoc: Association) => {
     setSelectedAssoc(assoc);
@@ -103,13 +125,28 @@ export default function LoginPage() {
             </div>
           ) : (
             <form onSubmit={handleLogin} className="space-y-4">
-              <button
-                type="button"
-                onClick={() => setStep('association')}
-                className="text-sm text-[var(--color-secondary)] hover:text-[var(--color-primary)] mb-2"
-              >
-                ← Changer d&apos;association
-              </button>
+              {!preselectedCode && (
+                <button
+                  type="button"
+                  onClick={() => setStep('association')}
+                  className="text-sm text-[var(--color-secondary)] hover:text-[var(--color-primary)] mb-2"
+                >
+                  ← Changer d&apos;association
+                </button>
+              )}
+              {preselectedCode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreselectedCode(null);
+                    setSelectedAssoc(null);
+                    setStep('association');
+                  }}
+                  className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)] mb-2"
+                >
+                  Pas votre association ? Changer
+                </button>
+              )}
               
               <div className="p-3 bg-[var(--color-background)] rounded-[var(--radius-input)] mb-4">
                 <p className="text-sm text-[var(--color-text-muted)]">Association sélectionnée :</p>
@@ -140,13 +177,31 @@ export default function LoginPage() {
             </form>
           )}
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-3">
             <Link
-              href="/platform/login"
-              className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
+              href="/creer-association"
+              className="inline-flex items-center gap-2 text-sm text-[var(--color-primary)] hover:text-[var(--color-secondary)] font-medium"
             >
-              Accès Super Admin →
+              <Plus size={16} weight="bold" />
+              Créer mon association
             </Link>
+            <div className="border-t pt-3">
+              <Link
+                href="/platform/login"
+                className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
+              >
+                Accès Super Admin →
+              </Link>
+            </div>
+            <a
+              href="https://wa.me/2250104833352"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-green-600 hover:text-green-700"
+            >
+              <WhatsappLogo size={18} weight="fill" />
+              Besoin d&apos;aide ?
+            </a>
           </div>
         </CardContent>
       </Card>

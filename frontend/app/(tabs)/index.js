@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useRouter } from 'expo-router';
 import { 
   UserCircle, 
   Users, 
@@ -17,7 +18,10 @@ import {
   ArrowsClockwise,
   Calendar,
   WarningCircle,
-  Clock
+  Clock,
+  Rocket,
+  CurrencyCircleDollar,
+  UsersThree,
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,9 +30,11 @@ import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 export default function Dashboard() {
   const { user, association } = useAuth();
+  const router = useRouter();
   const [config, setConfig] = useState(null);
   const [memberStats, setMemberStats] = useState(null);
   const [paymentStats, setPaymentStats] = useState(null);
+  const [yearsCount, setYearsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -55,8 +61,11 @@ export default function Dashboard() {
         inactiveMembers: members.filter(m => !m.active).length,
       });
 
-      // Charger les stats de paiement pour l'année active
+      // Stocker le nombre d'années
       const years = yearsRes.data;
+      setYearsCount(years.length);
+
+      // Charger les stats de paiement pour l'année active
       const activeYear = years.find(y => y.active);
       if (activeYear) {
         try {
@@ -153,6 +162,58 @@ export default function Dashboard() {
           </View>
         </View>
       </View>
+
+      {/* Carte Premiers pas - visible uniquement si association vide */}
+      {user?.role === 'ADMIN' && (yearsCount === 0 || (memberStats && memberStats.totalMembers === 0)) && (
+        <View style={styles.onboardingCard}>
+          <View style={styles.onboardingHeader}>
+            <Rocket size={24} color={colors.primary} weight="duotone" />
+            <Text style={styles.onboardingTitle}>Bienvenue ! Encore quelques étapes</Text>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.onboardingItem}
+            onPress={() => router.push('/(tabs)/cotisations')}
+          >
+            <View style={[styles.onboardingCheck, yearsCount > 0 && styles.onboardingCheckDone]}>
+              {yearsCount > 0 ? (
+                <CheckCircle size={20} weight="fill" color={colors.success} />
+              ) : (
+                <CurrencyCircleDollar size={20} color={colors.textMuted} />
+              )}
+            </View>
+            <View style={styles.onboardingItemContent}>
+              <Text style={[styles.onboardingItemTitle, yearsCount > 0 && styles.onboardingItemDone]}>
+                Créer votre première année de cotisation
+              </Text>
+              {yearsCount === 0 && (
+                <Text style={styles.onboardingItemHint}>Définir le montant mensuel à collecter</Text>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.onboardingItem}
+            onPress={() => router.push('/(tabs)/membres')}
+          >
+            <View style={[styles.onboardingCheck, memberStats?.totalMembers > 0 && styles.onboardingCheckDone]}>
+              {memberStats?.totalMembers > 0 ? (
+                <CheckCircle size={20} weight="fill" color={colors.success} />
+              ) : (
+                <UsersThree size={20} color={colors.textMuted} />
+              )}
+            </View>
+            <View style={styles.onboardingItemContent}>
+              <Text style={[styles.onboardingItemTitle, memberStats?.totalMembers > 0 && styles.onboardingItemDone]}>
+                Ajouter vos premiers membres
+              </Text>
+              {memberStats?.totalMembers === 0 && (
+                <Text style={styles.onboardingItemHint}>Ajout manuel ou import depuis un fichier</Text>
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Statistiques membres */}
       {user?.role === 'ADMIN' && memberStats && (
@@ -417,5 +478,61 @@ const styles = StyleSheet.create({
     color: colors.textOnPrimary,
     fontSize: typography.button.fontSize,
     fontWeight: typography.button.fontWeight,
+  },
+  // Onboarding card styles
+  onboardingCard: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  onboardingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  onboardingTitle: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.primary,
+    flex: 1,
+  },
+  onboardingItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  onboardingCheck: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  onboardingCheckDone: {
+    backgroundColor: colors.successBackground,
+  },
+  onboardingItemContent: {
+    flex: 1,
+  },
+  onboardingItemTitle: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  onboardingItemDone: {
+    textDecorationLine: 'line-through',
+    color: colors.textMuted,
+  },
+  onboardingItemHint: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 });

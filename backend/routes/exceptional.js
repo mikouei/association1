@@ -287,7 +287,7 @@ router.get('/:eventId/stats/pdf', async (req, res) => {
       <tbody>
         ${contribution.payments.map(payment => `
           <tr>
-            <td>${payment.member?.name || 'Inconnu'}</td>
+            <td>${escapeHtml(payment.member?.name || 'Inconnu')}</td>
             <td class="date-col">${new Date(payment.paymentDate).toLocaleDateString('fr-FR')}</td>
             <td class="amount">${formatNumber(payment.amount)} FCFA</td>
           </tr>

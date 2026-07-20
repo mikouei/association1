@@ -143,6 +143,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Connexion directe avec un token (après création d'association en libre-service)
+  const loginWithToken = async (newToken, userData, assocData) => {
+    try {
+      // Nettoyer le token SUPER_ADMIN pour éviter les conflits
+      await removeStorageItem('platformToken');
+      
+      // Stocker le nouveau token et les données utilisateur
+      await setStorageItem('authToken', newToken);
+      await setStorageItem('user', JSON.stringify(userData));
+      if (assocData) {
+        await setStorageItem('association', JSON.stringify(assocData));
+      }
+
+      setToken(newToken);
+      setUser(userData);
+      setAssociation(assocData);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur loginWithToken:', error);
+      return { success: false, error: 'Erreur de connexion' };
+    }
+  };
+
   const refreshUser = async () => {
     try {
       const response = await api.get('/auth/me');
@@ -159,7 +183,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, association, loading, token, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, association, loading, token, login, loginWithToken, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

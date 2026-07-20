@@ -100,7 +100,14 @@ export default function AssociationsPage() {
       header: 'Nom',
       render: (assoc: Association) => (
         <div>
-          <p className="font-medium text-gray-900">{assoc.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-gray-900">{assoc.name}</p>
+            {(assoc as Association & { source?: string }).source === 'self_service' && (
+              <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full font-medium">
+                Libre-service
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-500">{assoc.code}</p>
         </div>
       ),

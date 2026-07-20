@@ -16,6 +16,7 @@ interface AuthContextType {
   
   // Association auth (ADMIN)
   login: (identifier: string, password: string, associationCode: string) => Promise<void>;
+  loginWithToken: (token: string, user: User, association: Association) => void;
   logout: () => void;
   
   // Association selection
@@ -111,6 +112,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsPlatformAuth(false);
   };
 
+  // Connexion directe avec un token (après création d'association en libre-service)
+  const loginWithToken = (token: string, userData: User, assoc: Association) => {
+    localStorage.setItem('authToken', token);
+    localStorage.removeItem('platformToken');
+    localStorage.setItem('selectedAssociation', JSON.stringify(assoc));
+    
+    setUser(userData);
+    setAssociation(assoc);
+    setSelectedAssociation(assoc);
+    setIsPlatformAuth(false);
+  };
+
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('selectedAssociation');
@@ -135,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         platformLogin,
         platformLogout,
         login,
+        loginWithToken,
         logout,
         selectAssociation,
         selectedAssociation,

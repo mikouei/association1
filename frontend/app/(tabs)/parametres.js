@@ -12,13 +12,18 @@ import {
   Platform,
   Modal,
   FlatList,
+  Share,
+  Linking,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { 
   User, Envelope, Phone, UserCircle, Pencil, CheckCircle, Plus, X, 
   ArrowLeft, FolderOpen, Eye, CloudArrowUp, Download, File, FileText,
-  SignOut, Trash, Warning, CaretRight
+  SignOut, Trash, Warning, CaretRight, QrCode, Copy, ShareNetwork,
+  WhatsappLogo, Question
 } from 'phosphor-react-native';
+import QRCode from 'react-native-qrcode-svg';
+import * as Clipboard from 'expo-clipboard';
 import api from '../../utils/api';
 import { useRouter } from 'expo-router';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
@@ -28,10 +33,16 @@ import * as DocumentPicker from 'expo-document-picker';
 import { formatNumber, formatCurrency } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
+// Domaine de l'application pour les liens d'invitation
+const APP_DOMAIN = 'https://mobile-bug-crush-1.preview.emergentagent.com';
+
 export default function Parametres() {
-  const { user, logout } = useAuth();
+  const { user, logout, association } = useAuth();
   const router = useRouter();
   const isAdmin = user?.role === 'ADMIN';
+
+  // Lien d'invitation
+  const inviteLink = association?.code ? `${APP_DOMAIN}/join/${association.code}` : '';
 
   const [config, setConfig] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -720,6 +731,79 @@ export default function Parametres() {
             </View>
           </View>
         )}
+
+        {/* Inviter des membres - Visible pour les admins uniquement */}
+        {isAdmin && association?.code && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Inviter des membres</Text>
+            <View style={styles.inviteCard}>
+              <View style={styles.inviteQRContainer}>
+                <QRCode
+                  value={inviteLink}
+                  size={120}
+                  backgroundColor="white"
+                  color={colors.secondary}
+                />
+              </View>
+              
+              <View style={styles.inviteInfo}>
+                <Text style={styles.inviteCodeLabel}>Code d'accès</Text>
+                <Text style={styles.inviteCode}>{association.code}</Text>
+                
+                <View style={styles.inviteLinkBox}>
+                  <Text style={styles.inviteLinkText} numberOfLines={1}>
+                    {inviteLink}
+                  </Text>
+                </View>
+                
+                <View style={styles.inviteActions}>
+                  <TouchableOpacity 
+                    style={styles.inviteActionBtn}
+                    onPress={async () => {
+                      await Clipboard.setStringAsync(inviteLink);
+                      Alert.alert('Copié !', 'Le lien a été copié dans le presse-papier');
+                    }}
+                  >
+                    <Copy size={18} color={colors.primary} />
+                    <Text style={styles.inviteActionText}>Copier</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.inviteActionBtn}
+                    onPress={async () => {
+                      try {
+                        await Share.share({
+                          message: `Rejoignez ${association.name || config?.name || 'notre association'} sur Kotiz !\n\nCode: ${association.code}\nLien: ${inviteLink}`,
+                        });
+                      } catch (error) {
+                        console.error('Share error:', error);
+                      }
+                    }}
+                  >
+                    <ShareNetwork size={18} color={colors.primary} />
+                    <Text style={styles.inviteActionText}>Partager</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Aide / Support */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Aide / Support</Text>
+          <TouchableOpacity 
+            style={styles.whatsappButton}
+            onPress={() => Linking.openURL('https://wa.me/2250104833352')}
+          >
+            <WhatsappLogo size={24} weight="fill" color="#25D366" />
+            <View style={styles.whatsappTextContainer}>
+              <Text style={styles.whatsappTitle}>Besoin d'aide ?</Text>
+              <Text style={styles.whatsappSubtitle}>Contactez-nous sur WhatsApp</Text>
+            </View>
+            <CaretRight size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
 
         {/* Déconnexion */}
         <View style={styles.section}>
@@ -1625,5 +1709,90 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     fontWeight: '600',
     color: colors.textOnSecondary,
+  },
+  // Styles carte invitation
+  inviteCard: {
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  inviteQRContainer: {
+    padding: spacing.sm,
+    backgroundColor: 'white',
+    borderRadius: borderRadius.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  inviteInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  inviteCodeLabel: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginBottom: 2,
+  },
+  inviteCode: {
+    fontSize: typography.h2.fontSize,
+    fontWeight: 'bold',
+    color: colors.primary,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginBottom: spacing.sm,
+  },
+  inviteLinkBox: {
+    backgroundColor: colors.borderLight,
+    borderRadius: borderRadius.button,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  inviteLinkText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+  },
+  inviteActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  inviteActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.button,
+  },
+  inviteActionText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  // Styles bouton WhatsApp
+  whatsappButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  whatsappTextContainer: {
+    flex: 1,
+  },
+  whatsappTitle: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  whatsappSubtitle: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
 });

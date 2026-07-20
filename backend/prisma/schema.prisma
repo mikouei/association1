@@ -34,6 +34,7 @@ model Association {
   active       Boolean  @default(true)
   adminEmail   String?  // Email du premier admin créé
   adminName    String?  // Nom du premier admin
+  source       String   @default("manual") // "manual" (créée par le Super Admin) ou "self_service" (auto-inscription)
   
   // Options de configuration
   memberFieldLabel    String  @default("Villa") // Libellé du champ personnalisé
@@ -48,6 +49,7 @@ model Association {
   years                    Year[]
   exceptionalContributions ExceptionalContribution[]
   config                   AssociationConfig?
+  activityLogs             ActivityLog[]
   
   @@index([code])
 }
@@ -231,4 +233,21 @@ model DeletionRequest {
   processedAt     DateTime?
   processedBy     String?
   createdAt       DateTime @default(now())
+}
+
+// Journal d'activité (traçabilité des actions admin)
+model ActivityLog {
+  id            String   @id @default(uuid())
+  associationId String
+  userId        String?
+  userName      String
+  action        String   // ex: "payment.create", "payment.update", "payment.delete", "member.create", etc.
+  targetType    String   // "MonthlyPayment", "Member", "Year", "User"
+  targetId      String?
+  details       String?  // résumé lisible
+  createdAt     DateTime @default(now())
+
+  association   Association @relation(fields: [associationId], references: [id])
+
+  @@index([associationId, createdAt])
 }

@@ -12,6 +12,7 @@ import {
   ScrollView,
   Modal,
   FlatList,
+  Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -31,14 +32,19 @@ import {
   House,
   Users,
   Shield,
-  X
+  X,
+  Plus,
+  WhatsappLogo,
 } from 'phosphor-react-native';
 import api from '../utils/api';
 import { colors, spacing, borderRadius, typography } from '../utils/theme';
+import { useLocalSearchParams } from 'expo-router';
 
 const LAST_ASSOCIATION_KEY = '@kotiz_last_association';
 
 export default function Login() {
+  const { code: preselectedCode } = useLocalSearchParams();
+  
   const [mode, setMode] = useState('password'); // 'password' ou 'token'
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -53,6 +59,7 @@ export default function Login() {
   const [loadingAssociations, setLoadingAssociations] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUsedAssociationId, setLastUsedAssociationId] = useState(null);
+  const [isPreselected, setIsPreselected] = useState(false);
   
   const { login } = useAuth();
   const router = useRouter();
@@ -72,6 +79,20 @@ export default function Login() {
 
       const response = await api.get('/auth/associations');
       let assocList = response.data;
+
+      // Si un code est passé en paramètre (deep link), sélectionner cette association
+      if (preselectedCode) {
+        const matchingAssoc = assocList.find(
+          a => a.code.toUpperCase() === preselectedCode.toString().toUpperCase() && a.active !== false
+        );
+        if (matchingAssoc) {
+          setSelectedAssociation(matchingAssoc);
+          setIsPreselected(true);
+          setAssociations(assocList);
+          setLoadingAssociations(false);
+          return;
+        }
+      }
 
       // Si une seule association, la sélectionner automatiquement
       if (assocList.length === 1) {
@@ -200,7 +221,11 @@ export default function Login() {
         {/* Sélection d'association */}
         <TouchableOpacity
           style={styles.associationSelector}
-          onPress={() => setShowAssociationPicker(true)}
+          onPress={() => {
+            if (!isPreselected) {
+              setShowAssociationPicker(true);
+            }
+          }}
           disabled={loadingAssociations}
         >
           {loadingAssociations ? (
@@ -230,6 +255,19 @@ export default function Login() {
             </View>
           )}
         </TouchableOpacity>
+
+        {/* Lien pour changer d'association si présélectionnée */}
+        {isPreselected && (
+          <TouchableOpacity 
+            style={styles.changeAssocLink}
+            onPress={() => {
+              setIsPreselected(false);
+              setShowAssociationPicker(true);
+            }}
+          >
+            <Text style={styles.changeAssocText}>Pas votre association ? Changer</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Tabs pour le mode de connexion */}
         <View style={styles.tabContainer}>
@@ -314,6 +352,15 @@ export default function Login() {
           )}
         </TouchableOpacity>
 
+        {/* Lien pour créer une association */}
+        <TouchableOpacity
+          style={styles.createAssocLink}
+          onPress={() => router.push('/register-association')}
+        >
+          <Plus size={16} color={colors.primary} weight="bold" />
+          <Text style={styles.createAssocLinkText}>Créer mon association</Text>
+        </TouchableOpacity>
+
         {/* Lien vers Platform Admin */}
         <TouchableOpacity
           style={styles.platformLink}
@@ -321,6 +368,15 @@ export default function Login() {
         >
           <Shield size={16} color={colors.accentTerracotta} weight="fill" />
           <Text style={styles.platformLinkText}>Accès Platform Admin</Text>
+        </TouchableOpacity>
+
+        {/* Lien WhatsApp */}
+        <TouchableOpacity
+          style={styles.whatsappLink}
+          onPress={() => Linking.openURL('https://wa.me/2250104833352')}
+        >
+          <WhatsappLogo size={18} weight="fill" color="#25D366" />
+          <Text style={styles.whatsappLinkText}>Besoin d'aide ?</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -522,6 +578,40 @@ const styles = StyleSheet.create({
     color: colors.accentTerracotta,
     fontSize: typography.caption.fontSize + 1,
     fontWeight: '500',
+  },
+  createAssocLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  createAssocLinkText: {
+    color: colors.primary,
+    fontSize: typography.caption.fontSize + 1,
+    fontWeight: '600',
+  },
+  whatsappLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  whatsappLinkText: {
+    color: '#25D366',
+    fontSize: typography.caption.fontSize + 1,
+  },
+  changeAssocLink: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  changeAssocText: {
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.textMuted,
   },
   // Modal styles
   modalOverlay: {

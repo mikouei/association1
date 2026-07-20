@@ -119,8 +119,8 @@ export default function CreerAssociationPage() {
           id: data.admin.id,
           email: data.admin.email,
           phone: data.admin.phone,
-          role: 'ADMIN',
-        }, data.association);
+          role: 'ADMIN',   
+      }, data.association);
         
         // Redirection après 5 secondes
         setTimeout(() => {

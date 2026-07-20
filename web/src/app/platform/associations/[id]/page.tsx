@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout';
-import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal, toast } from '@/components/ui';
 import { platformApi } from '@/services/api';
 import { ArrowLeft, Plus, Key, Trash2, UserCog, Save, AlertTriangle } from 'lucide-react';
 
@@ -94,10 +94,10 @@ export default function EditAssociationPage() {
       queryClient.invalidateQueries({ queryKey: ['platform-association', associationId] });
       queryClient.invalidateQueries({ queryKey: ['platform-associations'] });
       setIsDirty(false);
-      alert('Association mise à jour avec succès');
+      toast.success('Association mise à jour avec succès');
     },
     onError: (error: Error & { response?: { data?: { error?: string } } }) => {
-      alert(error.response?.data?.error || 'Erreur lors de la mise à jour');
+      toast.error(error.response?.data?.error || 'Erreur lors de la mise à jour');
     },
   });
 
@@ -111,10 +111,10 @@ export default function EditAssociationPage() {
       queryClient.invalidateQueries({ queryKey: ['platform-association-admins', associationId] });
       setIsAddAdminModalOpen(false);
       setNewAdminData({ email: '', password: '', phone: '' });
-      alert('Admin ajouté avec succès');
+      toast.success('Admin ajouté avec succès');
     },
     onError: (error: Error & { response?: { data?: { error?: string } } }) => {
-      alert(error.response?.data?.error || 'Erreur lors de l\'ajout');
+      toast.error(error.response?.data?.error || "Erreur lors de l'ajout");
     },
   });
 
@@ -130,10 +130,10 @@ export default function EditAssociationPage() {
     onSuccess: () => {
       setResetPasswordAdmin(null);
       setNewPassword('');
-      alert('Mot de passe modifié avec succès');
+      toast.success('Mot de passe modifié avec succès');
     },
     onError: (error: Error & { response?: { data?: { error?: string } } }) => {
-      alert(error.response?.data?.error || 'Erreur lors de la modification');
+      toast.error(error.response?.data?.error || 'Erreur lors de la modification');
     },
   });
 
@@ -145,10 +145,10 @@ export default function EditAssociationPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-association-admins', associationId] });
       setDeleteAdminConfirm(null);
-      alert('Admin supprimé avec succès');
+      toast.success('Admin supprimé avec succès');
     },
     onError: (error: Error & { response?: { data?: { error?: string } } }) => {
-      alert(error.response?.data?.error || 'Erreur lors de la suppression');
+      toast.error(error.response?.data?.error || 'Erreur lors de la suppression');
     },
   });
 
@@ -160,7 +160,7 @@ export default function EditAssociationPage() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.memberFieldLabel) {
-      alert('Le nom et le libellé du champ sont requis');
+      toast.error('Le nom et le libellé du champ sont requis');
       return;
     }
     updateMutation.mutate(formData);
@@ -169,7 +169,7 @@ export default function EditAssociationPage() {
   const handleAddAdmin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAdminData.email || !newAdminData.password) {
-      alert('Email et mot de passe requis');
+      toast.error('Email et mot de passe requis');
       return;
     }
     addAdminMutation.mutate(newAdminData);
@@ -178,7 +178,7 @@ export default function EditAssociationPage() {
   const handleResetPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 4) {
-      alert('Le mot de passe doit contenir au moins 4 caractères');
+      toast.error('Le mot de passe doit contenir au moins 4 caractères');
       return;
     }
     if (resetPasswordAdmin) {
@@ -340,7 +340,7 @@ export default function EditAssociationPage() {
                       <button
                         onClick={() => {
                           if (admins.length <= 1) {
-                            alert('Impossible de supprimer le dernier admin de l\'association');
+                            toast.error("Impossible de supprimer le dernier admin de l'association");
                             return;
                           }
                           setDeleteAdminConfirm(admin);

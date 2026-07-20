@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout';
-import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, toast } from '@/components/ui';
 import { platformApi } from '@/services/api';
 
 interface DeletionRequest {
@@ -49,7 +49,7 @@ export default function DeletionRequestsPage() {
       loadRequests();
     } catch (error) {
       console.error('Erreur traitement:', error);
-      alert('Erreur lors du traitement de la demande');
+      toast.error('Erreur lors du traitement de la demande');
     } finally {
       setProcessing(null);
     }

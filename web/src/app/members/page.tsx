@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout';
-import { Card, CardContent, Button, Input, DataTable, Badge, Modal } from '@/components/ui';
+import { Card, CardContent, Button, Input, DataTable, Badge, Modal, toast } from '@/components/ui';
 import { api } from '@/services/api';
 import { Member } from '@/types';
 import { Plus, Pencil, Trash2, Search, Key } from 'lucide-react';
@@ -85,10 +85,10 @@ export default function MembersPage() {
     onSuccess: () => {
       setResetPasswordMember(null);
       setNewPassword('');
-      alert('Mot de passe réinitialisé avec succès');
+      toast.success('Mot de passe réinitialisé avec succès');
     },
     onError: (error: Error & { response?: { data?: { error?: string } } }) => {
-      alert(error.response?.data?.error || 'Erreur lors de la réinitialisation');
+      toast.error(error.response?.data?.error || 'Erreur lors de la réinitialisation');
     },
   });
 
@@ -125,7 +125,7 @@ export default function MembersPage() {
   const handleResetPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 4) {
-      alert('Le mot de passe doit contenir au moins 4 caractères');
+      toast.error('Le mot de passe doit contenir au moins 4 caractères');
       return;
     }
     if (resetPasswordMember) {

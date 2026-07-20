@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout';
-import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal, toast } from '@/components/ui';
 import { api } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Pencil, Trash2, Save } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, Copy, QrCode, Share2, Download } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface Year {
   id: string;
@@ -17,15 +18,65 @@ interface Year {
   createdAt: string;
 }
 
+// Génère l'URL d'invitation basée sur l'environnement
+const getJoinUrl = (code: string) => {
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${baseUrl}/join/${code}`;
+};
+
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { selectedAssociation } = useAuth();
+  const qrRef = useRef<SVGSVGElement>(null);
   const [isYearModalOpen, setIsYearModalOpen] = useState(false);
   const [editingYear, setEditingYear] = useState<Year | null>(null);
   const [yearFormData, setYearFormData] = useState({
     year: new Date().getFullYear().toString(),
     monthlyAmount: '',
   });
+
+  // URL d'invitation
+  const joinCode = selectedAssociation?.code || '';
+  const joinUrl = joinCode ? getJoinUrl(joinCode) : '';
+
+  // Copier le lien dans le presse-papier
+  const copyJoinLink = async () => {
+    if (!joinUrl) return;
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+      toast.success('Lien copié dans le presse-papier !');
+    } catch {
+      toast.error('Impossible de copier le lien');
+    }
+  };
+
+  // Télécharger le QR code en PNG
+  const downloadQRCode = () => {
+    if (!qrRef.current) return;
+    const svg = qrRef.current;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = 300;
+      canvas.height = 300;
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, 300, 300);
+        const pngUrl = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pngUrl;
+        downloadLink.download = `qr-${selectedAssociation?.name || 'association'}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      }
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
 
   // État pour le libellé du champ personnalisé
   const [memberFieldLabel, setMemberFieldLabel] = useState('');
@@ -81,7 +132,7 @@ export default function SettingsPage() {
       setYearFormData({ year: new Date().getFullYear().toString(), monthlyAmount: '' });
     },
     onError: (error: any) => {
-      alert(error.response?.data?.error || 'Erreur lors de la modification');
+      toast.error(error.response?.data?.error || 'Erreur lors de la modification');
     },
   });
 
@@ -242,6 +293,84 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Inviter des membres */}
+        {joinCode && (
+          <Card data-testid="invite-members-card">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Share2 className="w-5 h-5 text-primary" />
+                <CardTitle>Inviter des membres</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* QR Code */}
+                <div className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                  <div className="p-3 bg-white rounded-lg shadow-sm">
+                    <QRCodeSVG
+                      ref={qrRef}
+                      value={joinUrl}
+                      size={150}
+                      level="H"
+                      includeMargin
+                    />
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={downloadQRCode}
+                    data-testid="download-qr-btn"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Télécharger
+                  </Button>
+                </div>
+
+                {/* Lien et instructions */}
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 block mb-2">
+                      Lien d&apos;invitation
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={joinUrl}
+                        readOnly
+                        className="flex-1 bg-gray-50 font-mono text-sm"
+                        data-testid="invite-link-input"
+                      />
+                      <Button
+                        onClick={copyJoinLink}
+                        data-testid="copy-invite-link-btn"
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copier
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-600 space-y-2">
+                    <p className="flex items-center gap-2">
+                      <QrCode className="w-4 h-4 text-gray-400" />
+                      <span>Partagez le QR code ou le lien avec vos futurs membres</span>
+                    </p>
+                    <p className="text-gray-500">
+                      En scannant le code ou en cliquant sur le lien, ils pourront rejoindre 
+                      <strong className="text-gray-700"> {selectedAssociation?.name}</strong> directement depuis l&apos;application.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-gray-400">
+                      Code d&apos;association : <code className="bg-gray-100 px-2 py-0.5 rounded">{joinCode}</code>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Gestion des années */}
         <Card>

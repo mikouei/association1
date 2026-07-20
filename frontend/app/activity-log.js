@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { 
   ClockCounterClockwise, 
@@ -22,8 +22,8 @@ import {
   ShieldCheck,
   WarningCircle,
 } from 'phosphor-react-native';
-import api from '../../utils/api';
-import { colors, spacing, borderRadius, typography } from '../../utils/theme';
+import api from '../utils/api';
+import { colors, spacing, borderRadius, typography } from '../utils/theme';
 
 const ACTION_CONFIG = {
   'member.create': { label: 'Membre créé', icon: UserPlus, color: colors.success },

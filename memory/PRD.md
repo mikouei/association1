@@ -610,3 +610,42 @@ Le guide complet est dans `/app/frontend/SENTRY_SETUP.md`
 - **Fichier** : `/app/web/public/.well-known/assetlinks.json`
 - **Status** : Préparé avec placeholder `VOTRE_SHA256_ICI`
 - **Action utilisateur requise** : Exécuter `eas credentials -p android` après build signé pour obtenir l'empreinte SHA256
+
+
+## Export PDF - 21 Juillet 2026 ✅
+
+### Backend
+- **Route** : `GET /api/members/:id/export-pdf`
+- **Query params** : `?year=YYYY` (optionnel)
+- **Sécurité** : Admin requis (401/403)
+- **Librairie** : pdfkit
+- **Contenu** : Nom membre, infos, cotisations mensuelles par année, cotisations exceptionnelles, total général
+
+### Frontend Web
+- **Fichier** : `/app/web/src/app/members/page.tsx`
+- **Bouton** : Icône FileText (vert) sur chaque membre
+- **data-testid** : `export-pdf-{memberId}`
+- **Toast** : "PDF téléchargé avec succès"
+
+### Frontend Mobile
+- **Fichier** : `/app/frontend/app/(tabs)/membres.js`
+- **Icône** : FilePdf (Phosphor)
+- **Partage** : expo-sharing pour partager/enregistrer le PDF
+
+## Mode Hors-Ligne - 21 Juillet 2026 ✅
+
+### Architecture
+- **Contexte** : `/app/frontend/context/OfflineContext.js`
+- **Provider** : Ajouté dans `_layout.js`
+- **Détection réseau** : `@react-native-community/netinfo`
+- **Stockage** : AsyncStorage
+
+### Fonctionnalités
+- Cache automatique des paiements après chargement
+- Lecture du cache quand hors-ligne ou en cas d'erreur réseau
+- Bannière "Mode hors-ligne" / "Données en cache" visible
+- Timestamp de dernière synchronisation
+
+### Fichiers intégrés
+- `/app/frontend/app/(tabs)/cotisations.js` : Utilise useOffline pour cache/lecture
+- `/app/frontend/components/OfflineIndicator.js` : Composant réutilisable

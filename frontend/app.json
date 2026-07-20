@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.frontendv1"
+      "bundleIdentifier": "com.kotiz.ci"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.anonymous.frontendv1"
+      "package": "com.kotiz.ci"
     },
     "web": {
       "bundler": "metro",

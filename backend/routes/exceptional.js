@@ -18,8 +18,8 @@ const escapeHtml = (str) =>
     .replace(/"/g, '&quot;');
 
 // GET /api/exceptional
-// Liste toutes les cotisations exceptionnelles de l'association
-router.get('/', async (req, res) => {
+// Liste toutes les cotisations exceptionnelles de l'association - ADMIN ONLY
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const { active } = req.query;
     
@@ -66,9 +66,9 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/exceptional/stats
-// Statistiques des cotisations exceptionnelles
+// Statistiques des cotisations exceptionnelles - ADMIN ONLY
 // IMPORTANT: Cette route doit être AVANT /:id pour éviter le conflit
-router.get('/stats', async (req, res) => {
+router.get('/stats', requireAdmin, async (req, res) => {
   try {
     const contributions = await prisma.exceptionalContribution.findMany({
       where: { 
@@ -120,8 +120,8 @@ const formatNumber = (num) => {
 };
 
 // GET /api/exceptional/:eventId/stats/pdf
-// Export PDF des statistiques d'un événement exceptionnel
-router.get('/:eventId/stats/pdf', async (req, res) => {
+// Export PDF des statistiques d'un événement exceptionnel - ADMIN ONLY
+router.get('/:eventId/stats/pdf', requireAdmin, async (req, res) => {
   try {
     const { eventId } = req.params;
 
@@ -314,8 +314,8 @@ router.get('/:eventId/stats/pdf', async (req, res) => {
 });
 
 // GET /api/exceptional/:id
-// Détail d'une cotisation exceptionnelle
-router.get('/:id', async (req, res) => {
+// Détail d'une cotisation exceptionnelle - ADMIN ONLY
+router.get('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 

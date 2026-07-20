@@ -6,6 +6,12 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function initPlatform() {
+  // Garde-fou : ne pas exécuter en production avec des identifiants par défaut
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ Ce script ne doit pas être exécuté en production avec des identifiants par défaut');
+    process.exit(1);
+  }
+
   console.log('🚀 Initialisation de la Platform V2 (PostgreSQL)...');
 
   try {

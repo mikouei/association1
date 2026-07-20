@@ -98,7 +98,7 @@ router.post('/login', loginLimiter, attachPrisma, async (req, res) => {
       }
 
       if (!user.active) {
-        return res.status(403).json({ error: 'Compte désactivé' });
+        return res.status(401).json({ error: 'Identifiants invalides' });
       }
 
       // Vérifier le mot de passe
@@ -109,7 +109,7 @@ router.post('/login', loginLimiter, attachPrisma, async (req, res) => {
     }
 
     // Générer le token JWT
-    const token = generateJWT(user.id, association.id, user.role);
+    const token = generateJWT(user.id, association.id, user.role, user.passwordChangedAt);
 
     res.json({
       token,

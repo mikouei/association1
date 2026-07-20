@@ -6,8 +6,8 @@ const router = express.Router();
 // Toutes les routes nécessitent authentification
 router.use(authenticateToken);
 
-// GET /api/vehicles/member/:memberId - Liste des véhicules d'un membre
-router.get('/member/:memberId', async (req, res) => {
+// GET /api/vehicles/member/:memberId - Liste des véhicules d'un membre - ADMIN ONLY
+router.get('/member/:memberId', requireAdmin, async (req, res) => {
   try {
     const { memberId } = req.params;
     

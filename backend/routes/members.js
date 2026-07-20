@@ -19,8 +19,8 @@ router.use((req, res, next) => {
 });
 
 // GET /api/members
-// Liste tous les membres de l'association (avec recherche)
-router.get('/', async (req, res) => {
+// Liste tous les membres de l'association (avec recherche) - ADMIN ONLY
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const { search, active } = req.query;
 
@@ -145,6 +145,7 @@ router.post('/', requireAdmin, async (req, res) => {
           email: email || `member_${Date.now()}@temp.local`,
           phone: phone || null,
           passwordHash,
+          passwordChangedAt: new Date(),
           role: 'MEMBER',
           token: accessToken,
           active: true
@@ -192,8 +193,8 @@ router.post('/', requireAdmin, async (req, res) => {
 });
 
 // GET /api/members/:id
-// Récupérer un membre spécifique
-router.get('/:id', async (req, res) => {
+// Récupérer un membre spécifique - ADMIN ONLY
+router.get('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -425,7 +426,7 @@ router.post('/:id/reset-password', requireAdmin, async (req, res) => {
         role: 'MEMBER',
         associationId: req.associationId
       },
-      data: { passwordHash }
+      data: { passwordHash, passwordChangedAt: new Date() }
     });
 
     res.json({ message: 'Mot de passe réinitialisé', newPassword });

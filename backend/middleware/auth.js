@@ -79,6 +79,12 @@ export const authenticateToken = async (req, res, next) => {
       return res.status(403).json({ error: 'Compte désactivé' });
     }
 
+    // Vérifier si le mot de passe a été changé après l'émission du token
+    const currentPwdTs = Math.floor(new Date(user.passwordChangedAt).getTime() / 1000);
+    if (decoded.pwdTs !== undefined && decoded.pwdTs < currentPwdTs) {
+      return res.status(401).json({ error: 'Session expirée, veuillez vous reconnecter' });
+    }
+
     // Attacher les informations à la requête
     req.prisma = prisma;
     req.user = user;
@@ -140,9 +146,14 @@ export const generateAccessToken = () => {
 /**
  * Générer un token JWT
  */
-export const generateJWT = (userId, associationId, role) => {
+export const generateJWT = (userId, associationId, role, passwordChangedAt) => {
   return jwt.sign(
-    { userId, associationId, role },
+    { 
+      userId, 
+      associationId, 
+      role, 
+      pwdTs: passwordChangedAt ? Math.floor(new Date(passwordChangedAt).getTime() / 1000) : undefined
+    },
     JWT_SECRET,
     { expiresIn: '30d' }
   );

@@ -94,8 +94,8 @@ router.post('/associations/register', registerLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Mot de passe requis' });
     }
     
-    if (adminPassword.length < 6) {
-      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
+    if (adminPassword.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
     }
     
     // Valider le format de l'email si fourni
@@ -176,6 +176,7 @@ router.post('/associations/register', registerLimiter, async (req, res) => {
           email: adminEmail || `admin_${crypto.randomUUID()}@temp.local`,
           phone: adminPhone || null,
           passwordHash,
+          passwordChangedAt: new Date(),
           role: 'ADMIN',
           active: true
         }
@@ -185,7 +186,7 @@ router.post('/associations/register', registerLimiter, async (req, res) => {
     });
     
     // Générer un JWT pour connexion automatique
-    const token = generateJWT(result.adminUser.id, result.association.id, 'ADMIN');
+    const token = generateJWT(result.adminUser.id, result.association.id, 'ADMIN', result.adminUser.passwordChangedAt);
     
     res.status(201).json({
       message: 'Association créée avec succès',

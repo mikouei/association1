@@ -13,8 +13,8 @@ const MONTHS = [
 ];
 
 // GET /api/payments/year/:yearId
-// Tous les paiements d'une année avec calculs par membre
-router.get('/year/:yearId', async (req, res) => {
+// Tous les paiements d'une année avec calculs par membre - ADMIN ONLY
+router.get('/year/:yearId', requireAdmin, async (req, res) => {
   try {
     const { yearId } = req.params;
 
@@ -92,8 +92,8 @@ router.get('/year/:yearId', async (req, res) => {
 });
 
 // GET /api/payments/member/:memberId/year/:yearId
-// Paiements d'un membre pour une année
-router.get('/member/:memberId/year/:yearId', async (req, res) => {
+// Paiements d'un membre pour une année - ADMIN ONLY
+router.get('/member/:memberId/year/:yearId', requireAdmin, async (req, res) => {
   try {
     const { memberId, yearId } = req.params;
 
@@ -371,8 +371,8 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 });
 
 // GET /api/payments/stats/year/:yearId
-// Statistiques globales d'une année
-router.get('/stats/year/:yearId', async (req, res) => {
+// Statistiques globales d'une année - ADMIN ONLY
+router.get('/stats/year/:yearId', requireAdmin, async (req, res) => {
   try {
     const { yearId } = req.params;
 

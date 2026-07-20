@@ -38,6 +38,12 @@ const authenticateSuperAdmin = async (req, res, next) => {
       return res.status(403).json({ error: 'Compte SUPER_ADMIN invalide ou désactivé' });
     }
 
+    // Vérifier si le mot de passe a été changé après l'émission du token
+    const currentPwdTs = Math.floor(new Date(superAdmin.passwordChangedAt).getTime() / 1000);
+    if (decoded.pwdTs !== undefined && decoded.pwdTs < currentPwdTs) {
+      return res.status(401).json({ error: 'Session expirée, veuillez vous reconnecter' });
+    }
+
     req.superAdmin = superAdmin;
     next();
   } catch (error) {
@@ -66,7 +72,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     if (!superAdmin.active) {
-      return res.status(401).json({ error: 'Compte désactivé' });
+      return res.status(401).json({ error: 'Identifiants invalides' });
     }
 
     const validPassword = await bcrypt.compare(password, superAdmin.passwordHash);
@@ -75,7 +81,12 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: superAdmin.id, email: superAdmin.email, role: 'SUPER_ADMIN' },
+      { 
+        id: superAdmin.id, 
+        email: superAdmin.email, 
+        role: 'SUPER_ADMIN',
+        pwdTs: Math.floor(new Date(superAdmin.passwordChangedAt).getTime() / 1000)
+      },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -114,8 +125,8 @@ router.put('/me/password', authenticateSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Mot de passe actuel et nouveau mot de passe requis' });
     }
 
-    if (newPassword.length < 4) {
-      return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 4 caractères' });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
     }
 
     // Vérifier le mot de passe actuel
@@ -136,7 +147,7 @@ router.put('/me/password', authenticateSuperAdmin, async (req, res) => {
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
     await prisma.superAdmin.update({
       where: { id: req.superAdmin.id },
-      data: { passwordHash: newPasswordHash }
+      data: { passwordHash: newPasswordHash, passwordChangedAt: new Date() }
     });
 
     res.json({ message: 'Mot de passe modifié avec succès' });
@@ -183,8 +194,8 @@ router.post('/superadmins', authenticateSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Format email invalide' });
     }
 
-    if (password.length < 4) {
-      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 4 caractères' });
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
     }
 
     // Vérifier que l'email n'existe pas déjà
@@ -202,6 +213,7 @@ router.post('/superadmins', authenticateSuperAdmin, async (req, res) => {
       data: {
         email,
         passwordHash,
+        passwordChangedAt: new Date(),
         name: name || 'Super Admin',
         active: true
       },
@@ -364,6 +376,7 @@ router.post('/associations', authenticateSuperAdmin, async (req, res) => {
           associationId: association.id,
           email: adminEmail,
           passwordHash,
+          passwordChangedAt: new Date(),
           role: 'ADMIN',
           active: true
         }
@@ -551,6 +564,7 @@ router.post('/associations/:id/admins', authenticateSuperAdmin, async (req, res)
         email,
         phone: phone || null,
         passwordHash,
+        passwordChangedAt: new Date(),
         role: 'ADMIN',
         active: true
       }
@@ -575,8 +589,8 @@ router.put('/associations/:id/admins/:adminId/password', authenticateSuperAdmin,
   try {
     const { password } = req.body;
     
-    if (!password || password.length < 4) {
-      return res.status(400).json({ error: 'Mot de passe requis (minimum 4 caractères)' });
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Mot de passe requis (minimum 8 caractères)' });
     }
 
     const association = await prisma.association.findUnique({
@@ -604,7 +618,7 @@ router.put('/associations/:id/admins/:adminId/password', authenticateSuperAdmin,
     
     await prisma.user.update({
       where: { id: req.params.adminId },
-      data: { passwordHash }
+      data: { passwordHash, passwordChangedAt: new Date() }
     });
     
     res.json({ message: 'Mot de passe modifié avec succès' });

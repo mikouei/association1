@@ -81,6 +81,7 @@ router.post('/create', async (req, res) => {
         email,
         phone: phone || null,
         passwordHash,
+        passwordChangedAt: new Date(),
         role: 'ADMIN',
         active: true
       }
@@ -203,8 +204,8 @@ router.post('/:id/reset-password', async (req, res) => {
     const { id } = req.params;
     const { newPassword } = req.body;
 
-    if (!newPassword || newPassword.length < 4) {
-      return res.status(400).json({ error: 'Mot de passe trop court (minimum 4 caractères)' });
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });
     }
 
     // Récupérer l'admin pour le log
@@ -220,7 +221,7 @@ router.post('/:id/reset-password', async (req, res) => {
         role: 'ADMIN',
         associationId: req.associationId
       },
-      data: { passwordHash }
+      data: { passwordHash, passwordChangedAt: new Date() }
     });
 
     res.json({ message: 'Mot de passe réinitialisé avec succès' });

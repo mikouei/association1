@@ -120,7 +120,6 @@ export default function CreerAssociationPage() {
           email: data.admin.email,
           phone: data.admin.phone,
           role: 'ADMIN',
-          member: null
         }, data.association);
         
         // Redirection après 5 secondes

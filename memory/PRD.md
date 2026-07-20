@@ -25,6 +25,35 @@ Kotiz (anciennement AssocManager) est une application de gestion d'associations 
 - **WCAG** : Texte foncé (#1F2937) sur fond Gold pour contraste
 - **Icônes** : Phosphor Icons (mobile: phosphor-react-native, web: @phosphor-icons/react)
 
+## Création d'association en libre-service - 20 Juillet 2026 ✅
+
+### Objectif
+Permettre à n'importe qui de créer lui-même son association sans intervention du Super Admin.
+
+### Routes Backend ajoutées
+- `GET /api/public/associations/check-code/:code` - Vérifier disponibilité d'un code (temps réel)
+- `POST /api/public/associations/register` - Créer une association + admin
+- `GET /api/public/associations/:code/info` - Infos publiques d'une association (pour liens d'invitation)
+- `GET /api/activity-log` - Journal d'activité (ADMIN only)
+
+### Schéma Prisma
+- Nouveau champ `source` sur `Association` : "manual" (Super Admin) ou "self_service"
+- Nouveau modèle `ActivityLog` pour traçabilité des actions admin
+
+### Limites de sécurité
+- `MAX_SELF_SERVICE_PER_USER` (env, défaut 5) : limite par email/téléphone
+- Rate limiters : 5/h pour register, 30/h pour check-code et info
+
+### Frontend ajouté
+- **Web** : `/creer-association` (formulaire), `/join/[code]` (page d'atterrissage), manifeste dynamique
+- **Mobile** : `register-association.js`, `join/[code].js`, carte "Premiers pas" sur dashboard
+
+### Intégrations UI
+- Badge "Libre-service" dans console Platform
+- Carte QR code "Inviter des membres" dans paramètres
+- Bouton WhatsApp d'aide sur toutes les pages publiques
+- Lien "Créer mon association" sur login
+
 ## Migration PostgreSQL - COMPLÉTÉE ✅
 
 ### Date : 15 Mars 2026

@@ -1,6 +1,7 @@
 // Routes publiques (sans authentification)
 // Pour les demandes de suppression de compte et la création d'association en libre-service
 import express from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { prisma, generateJWT } from '../middleware/auth.js';
@@ -44,7 +45,7 @@ const infoLimiter = rateLimit({
 
 // GET /api/public/associations/check-code/:code
 // Vérifier la disponibilité d'un code d'association (retour temps réel pendant saisie)
-router.get('/associations/check-code/:code', registerLimiter, async (req, res) => {
+router.get('/associations/check-code/:code', infoLimiter, async (req, res) => {
   try {
     const code = (req.params.code || '').toUpperCase();
     
@@ -168,10 +169,11 @@ router.post('/associations/register', registerLimiter, async (req, res) => {
       });
       
       // Créer l'admin de l'association
+      // Note: Si pas d'email fourni, on génère une adresse temporaire unique avec crypto
       const adminUser = await tx.user.create({
         data: {
           associationId: association.id,
-          email: adminEmail || `admin_${Date.now()}@temp.local`,
+          email: adminEmail || `admin_${crypto.randomUUID()}@temp.local`,
           phone: adminPhone || null,
           passwordHash,
           role: 'ADMIN',

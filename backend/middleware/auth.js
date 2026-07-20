@@ -1,6 +1,7 @@
 // Middleware d'authentification pour AssocManager - PostgreSQL Multi-Tenant
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import rateLimit from 'express-rate-limit';
 
 // Instance Prisma unique (singleton)
 const prisma = new PrismaClient();
@@ -11,6 +12,15 @@ if (!JWT_SECRET) {
   console.error('❌ ERREUR FATALE: JWT_SECRET doit être défini dans les variables d\'environnement');
   process.exit(1);
 }
+
+// Rate limiter pour les tentatives de connexion (5 essais / 15 min)
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: { error: 'Trop de tentatives de connexion, réessayez dans 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * Middleware d'authentification principal

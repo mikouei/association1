@@ -97,6 +97,14 @@ router.post('/', requireAdmin, async (req, res) => {
       }
     }
 
+    // Vérifier le plafond de 250 membres
+    const memberCount = await prisma.user.count({
+      where: { associationId: req.associationId, role: 'MEMBER' }
+    });
+    if (memberCount >= 250) {
+      return res.status(403).json({ error: 'Limite de 250 membres atteinte pour cette association' });
+    }
+
     // Générer un mot de passe aléatoire si non fourni
     const finalPassword = password || Math.random().toString(36).slice(-8);
     const passwordHash = await bcrypt.hash(finalPassword, 10);

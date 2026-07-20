@@ -57,6 +57,14 @@ router.post('/create', async (req, res) => {
       return res.status(400).json({ error: 'Cet email est déjà utilisé' });
     }
 
+    // Vérifier le plafond de 3 admins gratuits
+    const adminCount = await prisma.user.count({
+      where: { associationId: req.associationId, role: 'ADMIN' }
+    });
+    if (adminCount >= 3) {
+      return res.status(403).json({ error: 'Limite de 3 administrateurs atteinte pour cette association' });
+    }
+
     // Hash du mot de passe
     const passwordHash = await bcrypt.hash(password, 10);
 

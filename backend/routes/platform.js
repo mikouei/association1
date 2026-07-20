@@ -3,7 +3,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../middleware/auth.js';
+import { prisma, loginLimiter } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -49,7 +49,7 @@ const authenticateSuperAdmin = async (req, res, next) => {
 // ============ AUTH SUPER_ADMIN ============
 
 // POST /api/platform/login - Connexion SUPER_ADMIN
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -522,6 +522,14 @@ router.post('/associations/:id/admins', authenticateSuperAdmin, async (req, res)
     });
     if (existing) {
       return res.status(400).json({ error: 'Cet email existe déjà' });
+    }
+
+    // Vérifier le plafond de 3 admins gratuits (le Super Admin peut ignorer ce plafond si besoin)
+    const adminCount = await prisma.user.count({
+      where: { associationId: req.params.id, role: 'ADMIN' }
+    });
+    if (adminCount >= 3) {
+      return res.status(403).json({ error: 'Limite de 3 administrateurs atteinte pour cette association' });
     }
     
     // Créer le nouvel admin

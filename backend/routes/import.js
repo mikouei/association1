@@ -113,6 +113,16 @@ router.post('/members', async (req, res) => {
       return res.status(400).json({ error: 'Liste de membres requise' });
     }
 
+    // Vérifier le plafond de 250 membres avant import
+    const currentCount = await prisma.user.count({
+      where: { associationId: req.associationId, role: 'MEMBER' }
+    });
+    if (currentCount + members.length > 250) {
+      return res.status(403).json({ 
+        error: `Import impossible : limite de 250 membres. Actuellement ${currentCount}, vous essayez d'en ajouter ${members.length}.` 
+      });
+    }
+
     const results = [];
     const errors = [];
 

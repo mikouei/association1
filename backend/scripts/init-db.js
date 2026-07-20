@@ -6,6 +6,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// ⚠️ Ce script contient des identifiants par défaut faibles
+// NE JAMAIS exécuter en production sans avoir changé les mots de passe
+if (process.env.NODE_ENV === 'production') {
+  console.error('❌ Ce script ne doit pas être exécuté en production avec des identifiants par défaut');
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
 async function main() {

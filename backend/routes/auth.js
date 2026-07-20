@@ -7,7 +7,8 @@ import {
   attachPrisma,
   resolveAssociationByCode,
   generateJWT,
-  generateAccessToken 
+  generateAccessToken,
+  loginLimiter
 } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -35,7 +36,7 @@ router.get('/associations', attachPrisma, async (req, res) => {
 
 // POST /api/auth/login
 // Connexion utilisateur (ADMIN ou MEMBER)
-router.post('/login', attachPrisma, async (req, res) => {
+router.post('/login', loginLimiter, attachPrisma, async (req, res) => {
   try {
     const { identifier, phone, password, associationCode, accessToken } = req.body;
 

@@ -42,6 +42,7 @@ export default function Dashboard() {
   // État pour les données membre (non-admin)
   const [myPaymentData, setMyPaymentData] = useState(null);
   const [myExceptionalData, setMyExceptionalData] = useState(null);
+  const [myTontinesData, setMyTontinesData] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -156,6 +157,14 @@ export default function Dashboard() {
             setMyExceptionalData(pendingExceptional);
           } catch (e) {
             console.log('Pas de cotisations exceptionnelles:', e.message);
+          }
+          
+          // Charger mes tontines
+          try {
+            const tontinesRes = await api.get('/tontines/mine');
+            setMyTontinesData(tontinesRes.data);
+          } catch (e) {
+            console.log('Pas de tontines:', e.message);
           }
         }
       } else {
@@ -274,6 +283,47 @@ export default function Dashboard() {
           </Text>
         </TouchableOpacity>
       )}
+
+      {/* Cartes Mes Tontines - visible uniquement pour les MEMBRES */}
+      {!isAdmin && user?.member && myTontinesData && myTontinesData.length > 0 && myTontinesData.map((t) => (
+        <View key={t.tontineId} style={styles.myTontineCard}>
+          <View style={styles.myTontineHeader}>
+            <UsersThree size={24} color={colors.primary} weight="duotone" />
+            <Text style={styles.myTontineTitle}>{t.name}</Text>
+          </View>
+
+          {t.status === 'completed' ? (
+            <Text style={styles.myTontineStatusText}>Cycle terminé — tout le monde a reçu.</Text>
+          ) : (
+            <>
+              <Text style={styles.myTontineRound}>Tour {t.currentRound}</Text>
+              {t.isMyTurnNow ? (
+                <Text style={styles.myTontineTurnText}>C{"'"}est votre tour de recevoir ce cycle !</Text>
+              ) : (
+                <Text style={styles.myTontineAmountText}>
+                  À verser ce tour : {formatAmount(t.amount)} FCFA
+                </Text>
+              )}
+              <View style={[
+                styles.myTontineBadge,
+                t.isMyTurnNow
+                  ? styles.myTontineBadgeTurn
+                  : (t.currentRoundPaid ? styles.myTontineBadgePaid : styles.myTontineBadgePending)
+              ]}>
+                <Text style={styles.myTontineBadgeText}>
+                  {t.isMyTurnNow ? 'Bénéficiaire ce tour' : (t.currentRoundPaid ? 'Payé' : 'À payer')}
+                </Text>
+              </View>
+            </>
+          )}
+
+          {t.hasReceived && (
+            <Text style={styles.myTontineReceivedText}>
+              Vous avez déjà reçu au tour {t.receivedRound}.
+            </Text>
+          )}
+        </View>
+      ))}
 
       {/* Carte Premiers pas - visible uniquement si association vide */}
       {isAdmin && (yearsCount === 0 || (memberStats && memberStats.totalMembers === 0)) && (
@@ -741,5 +791,71 @@ const styles = StyleSheet.create({
     fontSize: typography.caption.fontSize + 1,
     color: colors.warning,
     fontWeight: '500',
+  },
+  // Carte "Mes Tontines" pour les membres
+  myTontineCard: {
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  myTontineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  myTontineTitle: {
+    fontSize: typography.h3.fontSize,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: spacing.sm,
+  },
+  myTontineRound: {
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
+  },
+  myTontineTurnText: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.primary,
+    marginBottom: spacing.sm,
+  },
+  myTontineAmountText: {
+    fontSize: typography.body.fontSize,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  myTontineStatusText: {
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+  },
+  myTontineBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  myTontineBadgeTurn: {
+    backgroundColor: colors.primary,
+  },
+  myTontineBadgePaid: {
+    backgroundColor: colors.success,
+  },
+  myTontineBadgePending: {
+    backgroundColor: colors.warning,
+  },
+  myTontineBadgeText: {
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+    color: colors.textOnPrimary,
+  },
+  myTontineReceivedText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.success,
+    marginTop: spacing.sm,
   },
 });

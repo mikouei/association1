@@ -825,3 +825,81 @@ formatAmount(150.50, 'USD'); // "$150.50"
 - Modal détail : Stats de paiement masquées si hasCollection=false, boutons Modifier/Supprimer toujours visibles
 
 **Fix syntaxe JSX** : Correction d'une erreur de fermeture de balise fragment (<></>) dans la modale de détail qui causait un crash au démarrage de l'app.
+
+---
+
+## Module Tontines - 21 Juillet 2026 ✅
+
+### Objectif
+Un groupe de membres verse un montant fixe à chaque tour. À chaque tour, un seul participant reçoit la totalité collectée. L'ordre tourne jusqu'à ce que tous aient reçu une fois.
+
+### Principes
+- L'ordre de passage est fixé par l'admin à la création (ordre de sélection ou tirage au sort côté client)
+- La clôture d'un tour est manuelle (pas de calcul automatique basé sur dates ou 100% payés)
+- La fréquence (mensuel/hebdomadaire) est informative uniquement (pas de cron/rappel automatique)
+- Un membre voit uniquement sa propre participation (jamais le détail des paiements des autres)
+
+### Schéma Prisma (PARTIE N)
+```prisma
+model Tontine {
+  id, associationId, name, amount, frequency, status, currentRound, timestamps
+  association -> Association
+  participants -> TontineParticipant[]
+  rounds -> TontineRound[]
+}
+
+model TontineParticipant {
+  id, tontineId, memberId, order, hasReceived, receivedRound, receivedAt, timestamps
+  @@unique([tontineId, memberId])
+  @@unique([tontineId, order])
+}
+
+model TontineRound {
+  id, tontineId, roundNumber, beneficiaryMemberId, status, closedAt, timestamps
+  @@unique([tontineId, roundNumber])
+}
+
+model TontinePayment {
+  id, roundId, memberId, amount, isPaid, paidAt, notes, timestamps
+  @@unique([roundId, memberId])
+}
+```
+
+### Routes Backend (PARTIE O) - `/api/tontines`
+| Méthode | Route | Accès | Description |
+|---------|-------|-------|-------------|
+| POST | / | ADMIN | Créer une tontine (name, amount, frequency, memberIds) |
+| GET | / | ADMIN | Lister les tontines de l'association |
+| GET | /:id | ADMIN | Détail d'une tontine (participants, rounds, paiements) |
+| PUT | /:id | ADMIN | Modifier name, amount, status |
+| DELETE | /:id | ADMIN | Supprimer une tontine |
+| POST | /:id/payments | ADMIN | Enregistrer un paiement (memberId, amount) |
+| DELETE | /payments/:paymentId | ADMIN | Annuler un paiement |
+| POST | /:id/close-round | ADMIN | Clôturer le tour et passer au suivant |
+| GET | /mine | MEMBRE | Mes tontines (données personnelles uniquement) |
+
+### Logique close-round
+1. Clôturer le round actuel (status: closed, closedAt)
+2. Marquer le bénéficiaire comme hasReceived = true
+3. Si reste des participants sans hasReceived → créer nouveau round
+4. Sinon → passer tontine en status: completed
+
+### Interface Web (PARTIE P) - `/tontines/page.tsx`
+- Liste des tontines en cartes (nom, montant, fréquence, statut, tour actuel, bénéficiaire)
+- Modal création avec sélection des membres et bouton "Tirer au sort"
+- Modal détail avec ordre de passage, paiements du tour, boutons de gestion
+- Navigation : Sidebar avec lien "Tontines" (icône UsersThree)
+
+### Mobile (PARTIE Q) - Carte "Mes Tontines"
+- Sur l'écran Accueil pour les membres participants
+- Affiche : nom, tour actuel, statut payé/à payer, "C'est votre tour" si bénéficiaire
+- Si cycle terminé : "Cycle terminé — tout le monde a reçu."
+- Si déjà reçu : "Vous avez déjà reçu au tour X."
+
+### Fichiers créés/modifiés
+- `/app/backend/routes/tontines.js` (nouveau)
+- `/app/backend/server.js` (import tontineRoutes)
+- `/app/backend/prisma/schema.prisma` (modèles Tontine*)
+- `/app/web/src/app/tontines/page.tsx` (nouveau)
+- `/app/web/src/components/layout/Sidebar.tsx` (lien Tontines)
+- `/app/frontend/app/(tabs)/index.js` (carte Mes Tontines)

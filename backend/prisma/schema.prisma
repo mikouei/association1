@@ -54,6 +54,7 @@ model Association {
   exceptionalContributions ExceptionalContribution[]
   config                   AssociationConfig?
   activityLogs             ActivityLog[]
+  tontines                 Tontine[]
   
   @@index([code])
 }
@@ -113,11 +114,13 @@ model Member {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   
-  association         Association          @relation(fields: [associationId], references: [id], onDelete: Cascade)
-  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payments            MonthlyPayment[]
-  exceptionalPayments ExceptionalPayment[]
-  vehiclePlates       VehiclePlate[]
+  association            Association          @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments               MonthlyPayment[]
+  exceptionalPayments    ExceptionalPayment[]
+  vehiclePlates          VehiclePlate[]
+  tontineParticipations  TontineParticipant[]
+  tontinePayments        TontinePayment[]
   
   @@index([associationId])
   @@index([associationId, name])
@@ -218,6 +221,82 @@ model ExceptionalPayment {
   
   @@unique([contributionId, memberId])
   @@index([contributionId])
+  @@index([memberId])
+}
+
+// ============================================
+// TONTINES
+// ============================================
+
+model Tontine {
+  id            String   @id @default(uuid())
+  associationId String
+  name          String
+  amount        Float              // Montant fixe par participant et par tour
+  frequency     String   @default("monthly") // "monthly" | "weekly" — informatif uniquement
+  status        String   @default("active")  // "active" | "completed" | "cancelled"
+  currentRound  Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  association   Association          @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  participants  TontineParticipant[]
+  rounds        TontineRound[]
+
+  @@index([associationId])
+}
+
+model TontineParticipant {
+  id            String    @id @default(uuid())
+  tontineId     String
+  memberId      String
+  order         Int                 // Position dans l'ordre de passage (1, 2, 3...)
+  hasReceived   Boolean   @default(false)
+  receivedRound Int?
+  receivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  tontine       Tontine   @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  member        Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([tontineId, memberId])
+  @@unique([tontineId, order])
+  @@index([tontineId])
+  @@index([memberId])
+}
+
+model TontineRound {
+  id                  String    @id @default(uuid())
+  tontineId           String
+  roundNumber         Int
+  beneficiaryMemberId String              // Référence simple — le membre bénéficiaire est aussi dans TontineParticipant
+  status              String    @default("open") // "open" | "closed"
+  closedAt            DateTime?
+  createdAt           DateTime  @default(now())
+
+  tontine             Tontine          @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  payments            TontinePayment[]
+
+  @@unique([tontineId, roundNumber])
+  @@index([tontineId])
+}
+
+model TontinePayment {
+  id        String    @id @default(uuid())
+  roundId   String
+  memberId  String
+  amount    Float
+  isPaid    Boolean   @default(false)
+  paidAt    DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  round     TontineRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  member    Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, memberId])
+  @@index([roundId])
   @@index([memberId])
 }
 

@@ -15,6 +15,7 @@ import {
   CaretRight,
   SignOut,
   Trash,
+  UsersThree,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -36,6 +37,7 @@ const adminNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Tableau de bord', icon: SquaresFour },
   { href: '/members', label: 'Membres', icon: Users },
   { href: '/payments', label: 'Cotisations', icon: Wallet },
+  { href: '/tontines', label: 'Tontines', icon: UsersThree },
   { href: '/admins', label: 'Administrateurs', icon: UserCircleGear },
   { href: '/settings', label: 'Paramètres', icon: Gear },
 ];

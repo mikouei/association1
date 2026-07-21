@@ -7,7 +7,7 @@ const router = express.Router();
 // Toutes les routes nécessitent authentification
 router.use(authenticateToken);
 
-const CONTRIBUTION_TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'autre'];
+const CONTRIBUTION_TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'réunion', 'autre'];
 
 // Helper pour échapper le HTML (sécurité XSS)
 const escapeHtml = (str) =>
@@ -49,6 +49,9 @@ router.get('/mine', authenticateToken, async (req, res) => {
         title: contrib.title,
         type: contrib.type,
         description: contrib.description,
+        eventDate: contrib.eventDate,
+        hasCollection: contrib.hasCollection,
+        recurrence: contrib.recurrence,
         active: contrib.active,
         createdAt: contrib.createdAt,
         myAmountPaid: myPayment ? myPayment.amount : 0,
@@ -403,10 +406,10 @@ router.get('/:id', requireAdmin, async (req, res) => {
 });
 
 // POST /api/exceptional
-// Créer une cotisation exceptionnelle (ADMIN)
+// Créer une cotisation exceptionnelle ou un événement informatif (ADMIN)
 router.post('/', requireAdmin, async (req, res) => {
   try {
-    const { title, type, description } = req.body;
+    const { title, type, description, eventDate, hasCollection, recurrence } = req.body;
 
     if (!title || !type) {
       return res.status(400).json({ error: 'Titre et type requis' });
@@ -418,12 +421,19 @@ router.post('/', requireAdmin, async (req, res) => {
       });
     }
 
+    if (recurrence && !['once', 'monthly'].includes(recurrence)) {
+      return res.status(400).json({ error: 'Périodicité invalide (once ou monthly)' });
+    }
+
     const contribution = await prisma.exceptionalContribution.create({
       data: {
         associationId: req.associationId,
         title,
         type,
         description: description || null,
+        eventDate: eventDate ? new Date(eventDate) : null,
+        hasCollection: hasCollection !== undefined ? !!hasCollection : true,
+        recurrence: recurrence || 'once',
         active: true
       }
     });
@@ -431,6 +441,7 @@ router.post('/', requireAdmin, async (req, res) => {
     res.status(201).json(contribution);
 
     // Log de l'activité
+    const activityLabel = contribution.hasCollection ? 'Cotisation exceptionnelle' : 'Événement';
     logActivity({
       associationId: req.associationId,
       userId: req.user.id,
@@ -438,7 +449,7 @@ router.post('/', requireAdmin, async (req, res) => {
       action: 'exceptional.create',
       targetType: 'ExceptionalContribution',
       targetId: contribution.id,
-      details: `Cotisation exceptionnelle créée: ${title} (${type})`
+      details: `${activityLabel} créé(e): ${title} (${type})`
     });
   } catch (error) {
     console.error('Create exceptional contribution error:', error);
@@ -447,11 +458,11 @@ router.post('/', requireAdmin, async (req, res) => {
 });
 
 // PUT /api/exceptional/:id
-// Modifier une cotisation (ADMIN)
+// Modifier une cotisation ou événement (ADMIN)
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, type, description, active } = req.body;
+    const { title, type, description, active, eventDate, hasCollection, recurrence } = req.body;
 
     // Vérifier que la cotisation appartient à l'association
     const existing = await prisma.exceptionalContribution.findFirst({
@@ -477,6 +488,14 @@ router.put('/:id', requireAdmin, async (req, res) => {
     }
     if (description !== undefined) updateData.description = description;
     if (active !== undefined) updateData.active = active;
+    if (eventDate !== undefined) updateData.eventDate = eventDate ? new Date(eventDate) : null;
+    if (hasCollection !== undefined) updateData.hasCollection = !!hasCollection;
+    if (recurrence !== undefined) {
+      if (!['once', 'monthly'].includes(recurrence)) {
+        return res.status(400).json({ error: 'Périodicité invalide (once ou monthly)' });
+      }
+      updateData.recurrence = recurrence;
+    }
 
     const contribution = await prisma.exceptionalContribution.update({
       where: { id },
@@ -486,6 +505,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     res.json(contribution);
 
     // Log de l'activité
+    const activityLabel = contribution.hasCollection ? 'Cotisation exceptionnelle' : 'Événement';
     logActivity({
       associationId: req.associationId,
       userId: req.user.id,
@@ -493,7 +513,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
       action: 'exceptional.update',
       targetType: 'ExceptionalContribution',
       targetId: contribution.id,
-      details: `Cotisation exceptionnelle modifiée: ${contribution.title}`
+      details: `${activityLabel} modifié(e): ${contribution.title}`
     });
   } catch (error) {
     console.error('Update exceptional contribution error:', error);

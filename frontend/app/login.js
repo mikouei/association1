@@ -368,7 +368,8 @@ export default function Login() {
             style={styles.changeAssocLink}
             onPress={() => {
               setIsPreselected(false);
-              setShowAssociationPicker(true);
+              setSelectedAssociation(null);
+              setSearchQuery('');
             }}
           >
             <Text style={styles.changeAssocText}>Pas votre association ? Changer</Text>

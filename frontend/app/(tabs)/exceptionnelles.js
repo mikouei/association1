@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,16 +15,15 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Heart, Gift, HandHeart, Star, SmileyMeh, Plus, X, Pencil, Trash, Download, CaretDown, CaretRight, MagnifyingGlass, User } from 'phosphor-react-native';
+import { Heart, Gift, HandHeart, Star, SmileyMeh, Plus, X, Pencil, Trash, Download, CaretDown, CaretRight, MagnifyingGlass, User, UsersThree } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber } from '../../utils/format';
-import * as FileSystemLegacy from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
-const TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'autre'];
+const TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'réunion', 'autre'];
 
 export default function Exceptionnelles() {
   const { user } = useAuth();
@@ -47,7 +46,10 @@ export default function Exceptionnelles() {
   const [formData, setFormData] = useState({
     title: '',
     type: 'décès',
-    description: ''
+    description: '',
+    hasCollection: true,
+    eventDate: '',
+    recurrence: 'once'
   });
   const [paymentData, setPaymentData] = useState({
     memberId: '',
@@ -101,16 +103,25 @@ export default function Exceptionnelles() {
   // Créer ou modifier
   const handleOpenCreateModal = () => {
     setEditingContribution(null);
-    setFormData({ title: '', type: 'décès', description: '' });
+    setFormData({ title: '', type: 'décès', description: '', hasCollection: true, eventDate: '', recurrence: 'once' });
     setModalVisible(true);
   };
 
   const handleOpenEditModal = (contribution) => {
     setEditingContribution(contribution);
+    // Formater la date pour l'affichage (JJ/MM/AAAA)
+    let formattedDate = '';
+    if (contribution.eventDate) {
+      const date = new Date(contribution.eventDate);
+      formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+    }
     setFormData({
       title: contribution.title,
       type: contribution.type,
-      description: contribution.description || ''
+      description: contribution.description || '',
+      hasCollection: contribution.hasCollection !== false, // Par défaut true
+      eventDate: formattedDate,
+      recurrence: contribution.recurrence || 'once'
     });
     setDetailModal(false);
     setTimeout(() => setModalVisible(true), 300);
@@ -122,17 +133,44 @@ export default function Exceptionnelles() {
       return;
     }
 
+    // Valider le format de la date si fournie
+    if (formData.eventDate) {
+      const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      const match = formData.eventDate.match(dateRegex);
+      if (!match) {
+        Alert.alert('Erreur', 'Format de date invalide (JJ/MM/AAAA)');
+        return;
+      }
+      const [, day, month, year] = match;
+      const date = new Date(year, month - 1, day);
+      if (isNaN(date.getTime())) {
+        Alert.alert('Erreur', 'Date invalide');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
+      // Préparer les données avec la date au format ISO
+      const payload = {
+        ...formData,
+        eventDate: formData.eventDate 
+          ? (() => {
+              const [day, month, year] = formData.eventDate.split('/');
+              return new Date(year, month - 1, day).toISOString();
+            })()
+          : null
+      };
+
       if (editingContribution) {
-        await api.put(`/exceptional/${editingContribution.id}`, formData);
-        Alert.alert('Succès', 'Cotisation modifiée');
+        await api.put(`/exceptional/${editingContribution.id}`, payload);
+        Alert.alert('Succès', formData.hasCollection ? 'Cotisation modifiée' : 'Événement modifié');
       } else {
-        await api.post('/exceptional', formData);
-        Alert.alert('Succès', 'Cotisation créée');
+        await api.post('/exceptional', payload);
+        Alert.alert('Succès', formData.hasCollection ? 'Cotisation créée' : 'Événement créé');
       }
       setModalVisible(false);
-      setFormData({ title: '', type: 'décès', description: '' });
+      setFormData({ title: '', type: 'décès', description: '', hasCollection: true, eventDate: '', recurrence: 'once' });
       setEditingContribution(null);
       loadContributions();
     } catch (error) {
@@ -337,6 +375,7 @@ export default function Exceptionnelles() {
       case 'mariage': return <Heart {...iconProps} />;
       case 'anniversaire': return <Gift {...iconProps} />;
       case 'solidarité': return <HandHeart {...iconProps} />;
+      case 'réunion': return <UsersThree {...iconProps} />;
       default: return <Star {...iconProps} />;
     }
   };
@@ -346,34 +385,62 @@ export default function Exceptionnelles() {
     m.customFieldValue?.toLowerCase().includes(memberSearch.toLowerCase())
   );
 
-  const renderContribution = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => handleShowDetail(item)}
-      data-testid={`exceptional-card-${item.id}`}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.iconContainer}>
-          {getTypeIcon(item.type)}
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardTitle}>{item.title}</Text>
-          <Text style={styles.cardType}>{item.type}</Text>
-        </View>
-      </View>
+  // Formater la date pour l'affichage
+  const formatEventDate = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+  };
 
-      <View style={styles.cardStats}>
-        <View style={styles.stat}>
-          <Text style={styles.statValue}>{formatNumber(item.totalCollected)} FCFA</Text>
-          <Text style={styles.statLabel}>Collecté</Text>
+  const renderContribution = ({ item }) => {
+    const showCollection = item.hasCollection !== false; // Par défaut true (données existantes)
+    const eventDateFormatted = formatEventDate(item.eventDate);
+    
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => handleShowDetail(item)}
+        data-testid={`exceptional-card-${item.id}`}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.iconContainer}>
+            {getTypeIcon(item.type)}
+          </View>
+          <View style={styles.cardInfo}>
+            <View style={styles.cardTitleRow}>
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              {item.recurrence === 'monthly' && (
+                <View style={styles.monthlyBadge}>
+                  <Text style={styles.monthlyBadgeText}>Mensuel</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.cardType}>{item.type}</Text>
+          </View>
         </View>
-        <View style={styles.stat}>
-          <Text style={styles.statValue}>{item.participantsCount}</Text>
-          <Text style={styles.statLabel}>Participants</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+
+        {showCollection ? (
+          <View style={styles.cardStats}>
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{formatNumber(item.totalCollected)} FCFA</Text>
+              <Text style={styles.statLabel}>Collecté</Text>
+            </View>
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{item.participantsCount}</Text>
+              <Text style={styles.statLabel}>Participants</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.cardEventInfo}>
+            {eventDateFormatted && (
+              <Text style={styles.eventDateText}>📅 {eventDateFormatted}</Text>
+            )}
+            <Text style={styles.noCollectionText}>Événement informatif</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -483,6 +550,82 @@ export default function Exceptionnelles() {
                 />
               </View>
 
+              {/* Date de l'événement */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Date de l{"'"}événement (optionnel)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="JJ/MM/AAAA"
+                  placeholderTextColor={colors.textMuted}
+                  value={formData.eventDate}
+                  onChangeText={(text) => setFormData({ ...formData, eventDate: text })}
+                  keyboardType="numeric"
+                  maxLength={10}
+                />
+              </View>
+
+              {/* Collecte d'argent Oui/Non */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Cette annonce implique-t-elle une collecte d{"'"}argent ?</Text>
+                <View style={styles.toggleRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.toggleButton,
+                      formData.hasCollection && styles.toggleButtonActive
+                    ]}
+                    onPress={() => setFormData({ ...formData, hasCollection: true })}
+                  >
+                    <Text style={[
+                      styles.toggleButtonText,
+                      formData.hasCollection && styles.toggleButtonTextActive
+                    ]}>Oui</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.toggleButton,
+                      !formData.hasCollection && styles.toggleButtonActive
+                    ]}
+                    onPress={() => setFormData({ ...formData, hasCollection: false })}
+                  >
+                    <Text style={[
+                      styles.toggleButtonText,
+                      !formData.hasCollection && styles.toggleButtonTextActive
+                    ]}>Non</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Périodicité */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Périodicité</Text>
+                <View style={styles.toggleRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.toggleButton,
+                      formData.recurrence === 'once' && styles.toggleButtonActive
+                    ]}
+                    onPress={() => setFormData({ ...formData, recurrence: 'once' })}
+                  >
+                    <Text style={[
+                      styles.toggleButtonText,
+                      formData.recurrence === 'once' && styles.toggleButtonTextActive
+                    ]}>Ponctuel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.toggleButton,
+                      formData.recurrence === 'monthly' && styles.toggleButtonActive
+                    ]}
+                    onPress={() => setFormData({ ...formData, recurrence: 'monthly' })}
+                  >
+                    <Text style={[
+                      styles.toggleButtonText,
+                      formData.recurrence === 'monthly' && styles.toggleButtonTextActive
+                    ]}>Mensuel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               <TouchableOpacity
                 style={[styles.submitButton, saving && styles.submitButtonDisabled]}
                 onPress={handleSave}
@@ -533,18 +676,31 @@ export default function Exceptionnelles() {
                   <Text style={styles.detailDescription}>{selectedContribution.description}</Text>
                 )}
 
-                <View style={styles.statsRow}>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statBoxValue}>{formatNumber(selectedContribution.totalCollected)}</Text>
-                    <Text style={styles.statBoxLabel}>FCFA collectés</Text>
+                {selectedContribution.hasCollection === false ? (
+                  <View style={styles.eventDetailSection}>
+                    <Text style={styles.eventDetailDate}>
+                      {selectedContribution.eventDate
+                        ? new Date(selectedContribution.eventDate).toLocaleDateString('fr-FR')
+                        : 'Pas de date renseignée'}
+                    </Text>
+                    {selectedContribution.recurrence === 'monthly' && (
+                      <Text style={styles.eventDetailRecurrence}>Se répète tous les mois</Text>
+                    )}
                   </View>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statBoxValue}>{selectedContribution.participantsCount}</Text>
-                    <Text style={styles.statBoxLabel}>Participants</Text>
+                ) : (
+                  <View style={styles.statsRow}>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statBoxValue}>{formatNumber(selectedContribution.totalCollected)}</Text>
+                      <Text style={styles.statBoxLabel}>FCFA collectés</Text>
+                    </View>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statBoxValue}>{selectedContribution.participantsCount}</Text>
+                      <Text style={styles.statBoxLabel}>Participants</Text>
+                    </View>
                   </View>
-                </View>
+                )}
 
-                {/* Actions Admin */}
+                {/* Actions Admin (Modifier / Supprimer) — toujours disponibles, même sans collecte */}
                 {isAdmin && (
                   <View style={styles.actionRow}>
                     <TouchableOpacity
@@ -565,62 +721,66 @@ export default function Exceptionnelles() {
                   </View>
                 )}
 
-                {/* Bouton Télécharger PDF (visible pour tous) */}
-                <TouchableOpacity
-                  style={[styles.downloadPdfButton, downloadingPdf && styles.downloadPdfButtonDisabled]}
-                  onPress={handleDownloadPdf}
-                  disabled={downloadingPdf}
-                >
-                  {downloadingPdf ? (
-                    <ActivityIndicator size="small" color={colors.textOnSecondary} />
-                  ) : (
-                    <>
-                      <Download size={20} color={colors.textOnSecondary} />
-                      <Text style={styles.downloadPdfText}>Télécharger statistiques (PDF)</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                {selectedContribution.hasCollection !== false && (
+                  <>
+                    {/* Bouton Télécharger PDF (visible pour tous) */}
+                    <TouchableOpacity
+                      style={[styles.downloadPdfButton, downloadingPdf && styles.downloadPdfButtonDisabled]}
+                      onPress={handleDownloadPdf}
+                      disabled={downloadingPdf}
+                    >
+                      {downloadingPdf ? (
+                        <ActivityIndicator size="small" color={colors.textOnSecondary} />
+                      ) : (
+                        <>
+                          <Download size={20} color={colors.textOnSecondary} />
+                          <Text style={styles.downloadPdfText}>Télécharger statistiques (PDF)</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
 
-                <View style={styles.paymentsSection}>
-                  <View style={styles.paymentsSectionHeader}>
-                    <Text style={styles.sectionTitle}>Paiements</Text>
-                    {isAdmin && (
-                      <TouchableOpacity
-                        style={styles.addPaymentButton}
-                        onPress={handleOpenPaymentModal}
-                      >
-                        <Plus size={20} color={colors.textOnSecondary} />
-                        <Text style={styles.addPaymentText}>Ajouter</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {selectedContribution.payments && selectedContribution.payments.length > 0 ? (
-                    selectedContribution.payments.map((payment) => (
-                      <View key={payment.id} style={styles.paymentItem}>
-                        <View style={styles.paymentInfo}>
-                          <Text style={styles.paymentName}>{payment.member.name}</Text>
-                          <Text style={styles.paymentDate}>
-                            {new Date(payment.paymentDate).toLocaleDateString('fr-FR')}
-                          </Text>
-                        </View>
-                        <View style={styles.paymentRight}>
-                          <Text style={styles.paymentAmount}>{formatNumber(payment.amount)} FCFA</Text>
-                          {isAdmin && (
-                            <TouchableOpacity
-                              onPress={() => handleDeletePayment(payment)}
-                              style={styles.paymentDeleteButton}
-                            >
-                              <Trash size={18} color={colors.error} />
-                            </TouchableOpacity>
-                          )}
-                        </View>
+                    <View style={styles.paymentsSection}>
+                      <View style={styles.paymentsSectionHeader}>
+                        <Text style={styles.sectionTitle}>Paiements</Text>
+                        {isAdmin && (
+                          <TouchableOpacity
+                            style={styles.addPaymentButton}
+                            onPress={handleOpenPaymentModal}
+                          >
+                            <Plus size={20} color={colors.textOnSecondary} />
+                            <Text style={styles.addPaymentText}>Ajouter</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
-                    ))
-                  ) : (
-                    <Text style={styles.noPayments}>Aucun paiement enregistré</Text>
-                  )}
-                </View>
+
+                      {selectedContribution.payments && selectedContribution.payments.length > 0 ? (
+                        selectedContribution.payments.map((payment) => (
+                          <View key={payment.id} style={styles.paymentItem}>
+                            <View style={styles.paymentInfo}>
+                              <Text style={styles.paymentName}>{payment.member.name}</Text>
+                              <Text style={styles.paymentDate}>
+                                {new Date(payment.paymentDate).toLocaleDateString('fr-FR')}
+                              </Text>
+                            </View>
+                            <View style={styles.paymentRight}>
+                              <Text style={styles.paymentAmount}>{formatNumber(payment.amount)} FCFA</Text>
+                              {isAdmin && (
+                                <TouchableOpacity
+                                  onPress={() => handleDeletePayment(payment)}
+                                  style={styles.paymentDeleteButton}
+                                >
+                                  <Trash size={18} color={colors.error} />
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.noPayments}>Aucun paiement enregistré</Text>
+                      )}
+                    </View>
+                  </>
+                )}
               </ScrollView>
             )}
           </View>
@@ -1167,5 +1327,144 @@ const styles = StyleSheet.create({
     color: colors.textOnSecondary,
     fontSize: typography.body.fontSize,
     fontWeight: '600',
+  },
+  // Styles pour les événements sans collecte
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recurrenceBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginLeft: spacing.sm,
+  },
+  recurrenceBadgeText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textOnPrimary,
+    fontWeight: '600',
+  },
+  eventInfoRow: {
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  eventInfoText: {
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+  },
+  collectionToggleRow: {
+    flexDirection: 'row',
+  },
+  collectionToggleButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
+  },
+  collectionToggleButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  collectionToggleText: {
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  collectionToggleTextActive: {
+    color: colors.textOnPrimary,
+  },
+  eventDetailSection: {
+    paddingVertical: spacing.md,
+  },
+  eventDetailDate: {
+    fontSize: typography.h3.fontSize,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  eventDetailRecurrence: {
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  // Styles existants pour cartes événements (reprise)
+  cardEventInfo: {
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  eventDateText: {
+    fontSize: typography.body.fontSize,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  noCollectionText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+  monthlyBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginLeft: spacing.sm,
+  },
+  monthlyBadgeText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textOnPrimary,
+    fontWeight: '600',
+  },
+  monthlyBadgeLarge: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    marginLeft: spacing.sm,
+  },
+  detailTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  eventInfoBox: {
+    backgroundColor: colors.background,
+    padding: spacing.lg,
+    borderRadius: borderRadius.card,
+    marginBottom: spacing.lg,
+  },
+  eventInfoNote: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: spacing.sm,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  toggleButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  toggleButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  toggleButtonText: {
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  toggleButtonTextActive: {
+    color: colors.textOnPrimary,
   },
 });

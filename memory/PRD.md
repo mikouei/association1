@@ -801,3 +801,27 @@ formatAmount(150.50, 'USD'); // "$150.50"
 - Connexion réussie (mot de passe ou Google) → reset compteur
 - Reset mot de passe par admin → reset verrouillage
 **Message** : "Compte temporairement bloqué suite à plusieurs tentatives échouées. Réessayez dans X minute(s)."
+
+### Partie K - Fix crash login mobile (setShowAssociationPicker)
+**Cause** : La fonction `setShowAssociationPicker` était référencée mais n'existait plus après refactoring du sélecteur d'association
+**Fix** : Suppression des références obsolètes dans login.js
+
+### Partie L & M - Événements sans collecte (Backend + Mobile) - 21 Juillet 2026 ✅
+**Objectif** : Permettre de créer des événements informatifs (réunions, etc.) qui n'impliquent pas de collecte d'argent.
+
+**Schéma Prisma (ExceptionalContribution)** :
+- `eventDate DateTime?` - Date de l'événement (optionnel)
+- `hasCollection Boolean @default(true)` - true = cotisation, false = annonce informative
+- `recurrence String @default("once")` - "once" (ponctuel) | "monthly" (mensuel)
+
+**Backend (/api/exceptional)** :
+- Type "réunion" ajouté à la liste des types autorisés
+- POST / et PUT /:id acceptent `hasCollection`, `eventDate`, `recurrence`
+- GET /mine retourne ces nouveaux champs
+
+**Frontend Mobile (exceptionnelles.js)** :
+- Formulaire : Toggle "Collecte d'argent Oui/Non", champ date, toggle "Ponctuel/Mensuel"
+- Carte liste : Badge "Mensuel" si recurrence=monthly, date + "Événement informatif" si hasCollection=false
+- Modal détail : Stats de paiement masquées si hasCollection=false, boutons Modifier/Supprimer toujours visibles
+
+**Fix syntaxe JSX** : Correction d'une erreur de fermeture de balise fragment (<></>) dans la modale de détail qui causait un crash au démarrage de l'app.

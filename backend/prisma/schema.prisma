@@ -187,8 +187,11 @@ model ExceptionalContribution {
   id            String               @id @default(uuid())
   associationId String
   title         String               // "Décès M. Dupont", "Mariage Marie"
-  type          String               // décès, mariage, anniversaire, solidarité, autre
+  type          String               // décès, mariage, anniversaire, solidarité, réunion, autre
   description   String?
+  eventDate     DateTime?            // Date de l'événement (optionnel)
+  hasCollection Boolean              @default(true)  // true = cotisation, false = annonce informative
+  recurrence    String               @default("once") // "once" (ponctuel) | "monthly" (mensuel)
   active        Boolean              @default(true)
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt

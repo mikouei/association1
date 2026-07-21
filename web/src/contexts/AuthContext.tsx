@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { platformApi, api } from '@/services/api';
 import { User, Association, LoginResponse, PlatformLoginResponse } from '@/types';
 
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isPlatformAuth, setIsPlatformAuth] = useState(false);
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     checkAuth();
@@ -164,6 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       upsertLinkedAccount(token, user, association);
     }
     
+    // Vider le cache des queries pour éviter les fuites de données
+    queryClient.clear();
+    
     setUser(user);
     setIsPlatformAuth(false);
   };
@@ -177,6 +182,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Ajouter/mettre à jour ce compte dans linkedAccounts
     upsertLinkedAccount(token, userData, assoc);
     
+    // Vider le cache des queries pour éviter les fuites de données
+    queryClient.clear();
+    
     setUser(userData);
     setAssociation(assoc);
     setSelectedAssociation(assoc);
@@ -187,6 +195,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('authToken');
     localStorage.removeItem('selectedAssociation');
     localStorage.removeItem('linkedAccounts'); // Vider tous les comptes liés
+    
+    // Vider le cache des queries pour éviter les fuites de données
+    queryClient.clear();
+    
     setUser(null);
     setAssociation(null);
     setSelectedAssociation(null);
@@ -207,6 +219,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Réécrire les clés de session active
       localStorage.setItem('authToken', targetAccount.token);
       localStorage.setItem('selectedAssociation', JSON.stringify(targetAccount.association));
+      
+      // Vider le cache des queries pour éviter les fuites de données
+      queryClient.clear();
       
       // Mettre à jour les états
       setUser(targetAccount.user);

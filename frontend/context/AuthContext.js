@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import api from '../utils/api';
+import { useOffline } from './OfflineContext';
 
 const AuthContext = createContext();
 
@@ -72,6 +73,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
   const [linkedAccounts, setLinkedAccounts] = useState([]);
+  
+  // Récupérer clearCache depuis OfflineContext
+  const { clearCache } = useOffline();
 
   // Charger l'utilisateur depuis le cache au démarrage
   useEffect(() => {
@@ -189,6 +193,10 @@ export const AuthProvider = ({ children }) => {
       await removeStorageItem('user');
       await removeStorageItem('association');
       await removeStorageItem('linkedAccounts'); // Vider tous les comptes liés
+      
+      // Vider le cache des données hors-ligne pour éviter les fuites entre associations
+      await clearCache();
+      
       setToken(null);
       setUser(null);
       setAssociation(null);
@@ -242,6 +250,9 @@ export const AuthProvider = ({ children }) => {
           await setStorageItem('association', JSON.stringify(targetAccount.association));
         }
         
+        // Vider le cache des données hors-ligne pour éviter les fuites entre associations
+        await clearCache();
+        
         // Mettre à jour les états
         setToken(targetAccount.token);
         setUser(targetAccount.user);
@@ -270,7 +281,7 @@ export const AuthProvider = ({ children }) => {
       // Si le compte retiré était actif
       if (wasActive) {
         if (accounts.length > 0) {
-          // Basculer sur le premier compte restant
+          // Basculer sur le premier compte restant (clearCache sera appelé dans switchAccount)
           await switchAccount(accounts[0].association?.id);
         } else {
           // Plus aucun compte, déconnexion complète

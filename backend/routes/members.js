@@ -122,6 +122,11 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(403).json({ error: 'Limite de 250 membres atteinte pour cette association' });
     }
 
+    // Valider la longueur du mot de passe si fourni
+    if (password && password.length < 8) {
+      return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });
+    }
+
     // Générer un mot de passe aléatoire si non fourni
     const finalPassword = password || crypto.randomBytes(6).toString('base64url');
     const passwordHash = await bcrypt.hash(finalPassword, 10);
@@ -408,8 +413,8 @@ router.post('/:id/reset-password', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { newPassword } = req.body;
 
-    if (!newPassword || newPassword.length < 4) {
-      return res.status(400).json({ error: 'Mot de passe trop court (minimum 4 caractères)' });
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });
     }
 
     // Récupérer le membre pour le log
@@ -815,6 +820,60 @@ router.get('/:id/export-pdf', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Export PDF error:', error);
     res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
+  }
+});
+
+// POST /api/members/link-admin
+// Attacher un profil Membre à un compte ADMIN déjà existant (au lieu de créer un second compte)
+router.post('/link-admin', requireAdmin, async (req, res) => {
+  try {
+    const { adminUserId, name, customFieldValue } = req.body;
+
+    if (!adminUserId || !name) {
+      return res.status(400).json({ error: 'Administrateur et nom requis' });
+    }
+
+    const adminUser = await prisma.user.findFirst({
+      where: {
+        id: adminUserId,
+        associationId: req.associationId,
+        role: 'ADMIN'
+      },
+      include: { member: true }
+    });
+
+    if (!adminUser) {
+      return res.status(404).json({ error: 'Administrateur introuvable' });
+    }
+
+    if (adminUser.member) {
+      return res.status(400).json({ error: 'Cet administrateur a déjà un profil membre' });
+    }
+
+    const member = await prisma.member.create({
+      data: {
+        associationId: req.associationId,
+        userId: adminUser.id,
+        name,
+        customFieldValue: customFieldValue || null,
+        active: true
+      }
+    });
+
+    res.status(201).json(member);
+
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'member.link_admin',
+      targetType: 'Member',
+      targetId: member.id,
+      details: `Profil membre créé pour l'administrateur existant: ${name}`
+    });
+  } catch (error) {
+    console.error('Link admin as member error:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du profil membre' });
   }
 });
 

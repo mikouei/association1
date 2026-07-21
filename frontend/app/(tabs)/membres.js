@@ -59,6 +59,11 @@ export default function Membres() {
   });
   const [saving, setSaving] = useState(false);
   
+  // Mode création: 'new' ou 'admin'
+  const [createMode, setCreateMode] = useState('new');
+  const [adminsWithoutMember, setAdminsWithoutMember] = useState([]);
+  const [selectedAdminId, setSelectedAdminId] = useState('');
+  
   // Selection mode for bulk delete
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -120,6 +125,18 @@ export default function Membres() {
     }
   };
 
+  // Charger la liste des admins sans profil membre
+  const loadAdminsWithoutMember = async () => {
+    try {
+      const response = await api.get('/admin/list');
+      const admins = response.data || [];
+      setAdminsWithoutMember(admins.filter(a => !a.member));
+    } catch (error) {
+      console.error('Erreur chargement admins:', error);
+      setAdminsWithoutMember([]);
+    }
+  };
+
   // Fonction pour charger les membres (premier chargement)
   const loadMembers = async () => {
     try {
@@ -168,7 +185,7 @@ export default function Membres() {
     loadMembers();
   };
 
-  const handleAddMember = () => {
+  const handleAddMember = async () => {
     setEditingMember(null);
     setFormData({
       name: '',
@@ -177,6 +194,9 @@ export default function Membres() {
       phone: '',
       password: ''
     });
+    setCreateMode('new');
+    setSelectedAdminId('');
+    await loadAdminsWithoutMember();
     setModalVisible(true);
   };
 
@@ -189,6 +209,8 @@ export default function Membres() {
       phone: member.phone || '',
       password: ''
     });
+    setCreateMode('new');
+    setSelectedAdminId('');
     setModalVisible(true);
   };
 
@@ -198,9 +220,17 @@ export default function Membres() {
       return;
     }
 
-    if (!editingMember && !formData.email && !formData.phone) {
-      Alert.alert('Erreur', 'Email ou téléphone requis');
-      return;
+    // Validation selon le mode
+    if (!editingMember) {
+      if (createMode === 'admin') {
+        if (!selectedAdminId) {
+          Alert.alert('Erreur', 'Veuillez sélectionner un administrateur');
+          return;
+        }
+      } else if (!formData.email && !formData.phone) {
+        Alert.alert('Erreur', 'Email ou téléphone requis');
+        return;
+      }
     }
 
     setSaving(true);
@@ -214,8 +244,17 @@ export default function Membres() {
           phone: formData.phone
         });
         Alert.alert('Succès', 'Membre modifié avec succès');
+      } else if (createMode === 'admin') {
+        // Rattachement admin existant
+        await api.post('/members/link-admin', {
+          adminUserId: selectedAdminId,
+          name: formData.name,
+          customFieldValue: formData.customFieldValue
+        });
+        Alert.alert('Succès', 'Profil membre créé pour l\'administrateur');
+        await loadAdminsWithoutMember();
       } else {
-        // Création
+        // Création nouveau compte
         const response = await api.post('/members', formData);
         Alert.alert(
           'Membre créé!',
@@ -224,6 +263,8 @@ export default function Membres() {
         );
       }
       setModalVisible(false);
+      setCreateMode('new');
+      setSelectedAdminId('');
       await refreshMembers();
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
@@ -547,7 +588,8 @@ export default function Membres() {
                   <Car size={22} color={colors.accentTerracotta} weight="fill" />
                 </TouchableOpacity>
               )}
-              {isAdmin && (
+              {/* Bouton PDF temporairement masqué : "Impossible d'enregistrer le PDF" côté mobile, non corrigé pour l'instant */}
+              {false && isAdmin && (
                 <TouchableOpacity
                   style={styles.pdfButton}
                   onPress={() => handleExportPDF(item)}
@@ -701,6 +743,71 @@ export default function Membres() {
               showsVerticalScrollIndicator={true}
               contentContainerStyle={styles.modalScrollContent}
             >
+              {/* Sélecteur de mode (uniquement en création) */}
+              {!editingMember && (
+                <View style={styles.modeSelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.modeButton,
+                      createMode === 'new' && styles.modeButtonActive
+                    ]}
+                    onPress={() => { setCreateMode('new'); setSelectedAdminId(''); }}
+                  >
+                    <Text style={[
+                      styles.modeButtonText,
+                      createMode === 'new' && styles.modeButtonTextActive
+                    ]}>Nouveau compte</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.modeButton,
+                      createMode === 'admin' && styles.modeButtonActive,
+                      adminsWithoutMember.length === 0 && styles.modeButtonDisabled
+                    ]}
+                    onPress={() => adminsWithoutMember.length > 0 && setCreateMode('admin')}
+                    disabled={adminsWithoutMember.length === 0}
+                  >
+                    <Text style={[
+                      styles.modeButtonText,
+                      createMode === 'admin' && styles.modeButtonTextActive,
+                      adminsWithoutMember.length === 0 && styles.modeButtonTextDisabled
+                    ]}>Admin existant</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Mode Admin existant */}
+              {!editingMember && createMode === 'admin' && (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Sélectionner un administrateur *</Text>
+                  <View style={styles.pickerContainer}>
+                    {adminsWithoutMember.map((admin) => (
+                      <TouchableOpacity
+                        key={admin.id}
+                        style={[
+                          styles.adminPickerItem,
+                          selectedAdminId === admin.id && styles.adminPickerItemSelected
+                        ]}
+                        onPress={() => setSelectedAdminId(admin.id)}
+                      >
+                        <Text style={[
+                          styles.adminPickerText,
+                          selectedAdminId === admin.id && styles.adminPickerTextSelected
+                        ]}>
+                          {admin.email} {admin.phone ? `(${admin.phone})` : ''}
+                        </Text>
+                        {selectedAdminId === admin.id && (
+                          <CheckCircle size={20} color={colors.primary} weight="fill" />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={styles.helperText}>
+                    Seuls les administrateurs sans profil membre sont affichés.
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Nom complet *</Text>
                 <TextInput
@@ -724,43 +831,48 @@ export default function Membres() {
                 />
               </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Téléphone</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="+237 6XX XX XX XX"
-                  placeholderTextColor={colors.textMuted}
-                  value={formData.phone}
-                  onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                  keyboardType="phone-pad"
-                />
-              </View>
+              {/* Champs compte uniquement en mode 'new' */}
+              {(editingMember || createMode === 'new') && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Téléphone</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="+237 6XX XX XX XX"
+                      placeholderTextColor={colors.textMuted}
+                      value={formData.phone}
+                      onChangeText={(text) => setFormData({ ...formData, phone: text })}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="email@exemple.com"
-                  placeholderTextColor={colors.textMuted}
-                  value={formData.email}
-                  onChangeText={(text) => setFormData({ ...formData, email: text })}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.label}>Email</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="email@exemple.com"
+                      placeholderTextColor={colors.textMuted}
+                      value={formData.email}
+                      onChangeText={(text) => setFormData({ ...formData, email: text })}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
 
-              {!editingMember && (
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Mot de passe (optionnel)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Laisser vide pour auto-génération"
-                    placeholderTextColor={colors.textMuted}
-                    value={formData.password}
-                    onChangeText={(text) => setFormData({ ...formData, password: text })}
-                    secureTextEntry
-                  />
-                </View>
+                  {!editingMember && (
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.label}>Mot de passe (optionnel)</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Laisser vide pour auto-génération"
+                        placeholderTextColor={colors.textMuted}
+                        value={formData.password}
+                        onChangeText={(text) => setFormData({ ...formData, password: text })}
+                        secureTextEntry
+                      />
+                    </View>
+                  )}
+                </>
               )}
 
               {editingMember && (
@@ -1355,5 +1467,74 @@ const styles = StyleSheet.create({
   },
   checkboxContainer: {
     marginRight: spacing.md,
+  },
+  // Styles pour le sélecteur de mode (Nouveau compte / Admin existant)
+  modeSelector: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.button,
+    padding: 4,
+    marginBottom: spacing.lg,
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.button - 2,
+    alignItems: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: colors.backgroundWhite,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  modeButtonDisabled: {
+    opacity: 0.5,
+  },
+  modeButtonText: {
+    fontSize: typography.caption.fontSize + 1,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  modeButtonTextActive: {
+    color: colors.text,
+  },
+  modeButtonTextDisabled: {
+    color: colors.textMuted,
+  },
+  pickerContainer: {
+    marginTop: spacing.sm,
+  },
+  adminPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.card,
+    marginBottom: spacing.sm,
+  },
+  adminPickerItemSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.backgroundWhite,
+  },
+  adminPickerText: {
+    flex: 1,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
+  },
+  adminPickerTextSelected: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  helperText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
 });

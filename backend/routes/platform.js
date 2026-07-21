@@ -523,6 +523,10 @@ router.post('/associations/:id/admins', authenticateSuperAdmin, async (req, res)
       return res.status(400).json({ error: 'Email et mot de passe requis' });
     }
 
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });
+    }
+
     // Valider le format de l'email
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ error: 'Format email invalide' });

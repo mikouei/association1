@@ -1,0 +1,39 @@
+{
+  "summary": "Backend + frontend (web Next.js) verification of the batch of 5 fixes (parts B, C, E — A/D non-testable via automation). All backend endpoints pass (12/12 pytest cases). Web UI shows the new 'Nouveau compte' / 'Admin existant' selector inside the 'Nouveau membre' modal, the admin selector populates correctly from GET /admin/list?filter(!member), and the duplicate-phone submission now surfaces a visible toast 'Ce téléphone est déjà utilisé' (Part B - no more silent errors). Login flow with admin@delete-test.local / admin123 on DELETE-TEST is unchanged.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_batch_fixes.py",
+    "/app/test_reports/pytest/batch_fixes_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "web/src/app/members/page.tsx: the two mode-toggle buttons ('Nouveau compte' / 'Admin existant') and the admin <select> do NOT have data-testid attributes. Add data-testid='member-mode-new-btn', 'member-mode-admin-btn' and 'member-admin-select' so future automation is stable against text/localisation changes.",
+    "backend/routes/members.js POST / (line 173-193): res.status(201).json(...) is called BEFORE logActivity(). If logActivity throws (or the promise rejects) after res is sent, Express will log an unhandled 'Cannot set headers after they are sent' — wrap logActivity in try/catch or use setImmediate. Same pattern exists in every route (put, deactivate, activate, reset-password, link-admin).",
+    "backend/routes/members.js POST /link-admin (line 828): the endpoint has NO cap check — an admin can be turned into a member even if the association is already at 250 members. Consider counting members and reject with 403 like POST /members does (line 118).",
+    "backend/routes/members.js POST /link-admin: does NOT log an error toast payload; frontend already handles onError, but the endpoint could return field-specific errors (e.g. name too short, customFieldValue required policy). Currently only 'Administrateur et nom requis' — acceptable but minimal.",
+    "backend/routes/admin.js POST /create (line 42): does not validate email uniqueness across the WHOLE platform, only inside the association. This is by-design for multi-tenancy but be aware two associations can have the same admin email, and JWT will pick one associationId — verified via auth.js login logic (should include associationCode).",
+    "web/src/app/members/page.tsx handleSubmit (line ~167): the linkAdminMutation is invoked without validating that `selectedAdminId` is non-empty in a UX-friendly way (only HTML5 `required`). If user submits with keyboard shortcut the toast will show the backend 400 — acceptable but a client-side check + inline field error would be cleaner.",
+    "Frontend web app is NOT under supervisor — remains started manually via `cd /app/web && nohup yarn dev --port 3002 > /tmp/web.log 2>&1 &`. Consider adding a supervisor entry so it survives container restarts (currently only expo/backend are supervised)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_batch_fixes.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 pytest cases pass — login, duplicate phone/email 400, /admin/list includes member field, /members/link-admin create + duplicate 400 + missing-field 400 + not-found 404, password validation 6/7 chars rejected, 8 chars accepted, for members and admins)",
+    "frontend": "100% on the 3 testable UI checks — modal shows Nouveau compte/Admin existant tabs, Admin existant loads admin dropdown with only admins without a member profile (1 option available), duplicate-phone submission triggers visible toast 'Ce téléphone est déjà utilisé'."
+  },
+  "test_credentials": "admin@delete-test.local / admin123 on association DELETE-TEST (from /app/memory/test_credentials.md).",
+  "seed_data_creation": "Created TEST_PhoneDup1 member during UI test; deleted after via API. No residual test data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Web Next.js app runs at http://localhost:3002 (started manually with `cd /app/web && yarn dev --port 3002`). Backend at :8001 via supervisor. Login on web is two-step: pick association card THEN fill credentials + click 'Se connecter'. The 'Admin existant' tab in Membres modal is disabled if there is no admin without a member profile (adminsWithoutMember.length === 0). Backend endpoint POST /api/members/link-admin creates a Member row linked to an existing ADMIN user; DELETE /api/members/{userId} removes the underlying user + member; be careful not to delete the current admin during tests.",
+  "rca_of_the_issue": "N/A — this iteration is a batch-fix verification. All fixes work as intended: Part B (visible toast on member creation errors), Part C (Admin can become member via new modal tab + POST /members/link-admin), Part E (password min 8 chars enforced on both /members and /admin/create). Parts A (mobile PDF button hidden) and D (React state reset on association switch) are not automatable through Playwright and were skipped as instructed."
+}

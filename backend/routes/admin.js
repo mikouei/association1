@@ -24,7 +24,8 @@ router.get('/list', async (req, res) => {
         phone: true,
         active: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        member: { select: { id: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -44,6 +45,10 @@ router.post('/create', async (req, res) => {
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email et mot de passe requis' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });
     }
 
     // Valider le format de l'email

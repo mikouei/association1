@@ -6,14 +6,23 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, Button, Input, DataTable, Badge, Modal, toast } from '@/components/ui';
 import { api } from '@/services/api';
 import { Member } from '@/types';
-import { Plus, Pencil, Trash2, Search, Key, FileText } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Key, FileText, UserCog } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+
+interface Admin {
+  id: string;
+  email: string;
+  phone: string | null;
+  member: { id: string } | null;
+}
 
 export default function MembersPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [createMode, setCreateMode] = useState<'new' | 'admin'>('new');
+  const [selectedAdminId, setSelectedAdminId] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     customFieldValue: '',
@@ -44,6 +53,17 @@ export default function MembersPage() {
     },
   });
 
+  // Liste des admins sans profil membre
+  const { data: admins } = useQuery({
+    queryKey: ['admins'],
+    queryFn: async () => {
+      const response = await api.get('/admin/list');
+      return response.data as Admin[];
+    },
+  });
+
+  const adminsWithoutMember = admins?.filter(a => !a.member) || [];
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await api.post('/members', data);
@@ -53,6 +73,9 @@ export default function MembersPage() {
       queryClient.invalidateQueries({ queryKey: ['members'] });
       setIsCreateModalOpen(false);
       resetForm();
+    },
+    onError: (error: Error & { response?: { data?: { error?: string } } }) => {
+      toast.error(error.response?.data?.error || 'Erreur lors de la création du membre');
     },
   });
 
@@ -66,6 +89,9 @@ export default function MembersPage() {
       setEditingMember(null);
       resetForm();
     },
+    onError: (error: Error & { response?: { data?: { error?: string } } }) => {
+      toast.error(error.response?.data?.error || 'Erreur lors de la modification du membre');
+    },
   });
 
   const deleteMutation = useMutation({
@@ -74,6 +100,9 @@ export default function MembersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
+    },
+    onError: (error: Error & { response?: { data?: { error?: string } } }) => {
+      toast.error(error.response?.data?.error || 'Erreur lors de la suppression du membre');
     },
   });
 
@@ -92,6 +121,22 @@ export default function MembersPage() {
     },
   });
 
+  const linkAdminMutation = useMutation({
+    mutationFn: async (data: { adminUserId: string; name: string; customFieldValue: string }) => {
+      const response = await api.post('/members/link-admin', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['admins'] });
+      setIsCreateModalOpen(false);
+      resetForm();
+    },
+    onError: (error: Error & { response?: { data?: { error?: string } } }) => {
+      toast.error(error.response?.data?.error || "Erreur lors du rattachement de l'administrateur");
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -100,6 +145,8 @@ export default function MembersPage() {
       email: '',
       password: '',
     });
+    setCreateMode('new');
+    setSelectedAdminId('');
   };
 
   const handleEdit = (member: Member) => {
@@ -117,6 +164,12 @@ export default function MembersPage() {
     e.preventDefault();
     if (editingMember) {
       updateMutation.mutate({ id: editingMember.id, data: formData });
+    } else if (createMode === 'admin' && selectedAdminId) {
+      linkAdminMutation.mutate({
+        adminUserId: selectedAdminId,
+        name: formData.name,
+        customFieldValue: formData.customFieldValue,
+      });
     } else {
       createMutation.mutate(formData);
     }
@@ -124,8 +177,8 @@ export default function MembersPage() {
 
   const handleResetPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword || newPassword.length < 4) {
-      toast.error('Le mot de passe doit contenir au moins 4 caractères');
+    if (!newPassword || newPassword.length < 8) {
+      toast.error('Le mot de passe doit contenir au moins 8 caractères');
       return;
     }
     if (resetPasswordMember) {
@@ -292,36 +345,110 @@ export default function MembersPage() {
           title={editingMember ? 'Modifier le membre' : 'Nouveau membre'}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Nom complet"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-            <Input
-              label={config?.memberFieldLabel || 'Villa'}
-              value={formData.customFieldValue}
-              onChange={(e) => setFormData({ ...formData, customFieldValue: e.target.value })}
-            />
-            <Input
-              label="Téléphone"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            />
-            <Input
-              label="Email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
+            {/* Sélecteur de mode (uniquement en création) */}
             {!editingMember && (
-              <Input
-                label="Mot de passe"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-              />
+              <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => { setCreateMode('new'); setSelectedAdminId(''); }}
+                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                    createMode === 'new'
+                      ? 'bg-white shadow text-gray-900'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Nouveau compte
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreateMode('admin')}
+                  disabled={adminsWithoutMember.length === 0}
+                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                    createMode === 'admin'
+                      ? 'bg-white shadow text-gray-900'
+                      : 'text-gray-600 hover:text-gray-900'
+                  } ${adminsWithoutMember.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span className="flex items-center justify-center gap-1">
+                    <UserCog className="w-4 h-4" />
+                    Admin existant
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Mode Admin existant */}
+            {!editingMember && createMode === 'admin' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sélectionner un administrateur
+                  </label>
+                  <select
+                    value={selectedAdminId}
+                    onChange={(e) => setSelectedAdminId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    required
+                  >
+                    <option value="">-- Choisir un administrateur --</option>
+                    {adminsWithoutMember.map((admin) => (
+                      <option key={admin.id} value={admin.id}>
+                        {admin.email} {admin.phone ? `(${admin.phone})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Seuls les administrateurs sans profil membre sont affichés.
+                  </p>
+                </div>
+                <Input
+                  label="Nom complet"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+                <Input
+                  label={config?.memberFieldLabel || 'Villa'}
+                  value={formData.customFieldValue}
+                  onChange={(e) => setFormData({ ...formData, customFieldValue: e.target.value })}
+                />
+              </div>
+            )}
+
+            {/* Mode Nouveau compte (ou édition) */}
+            {(editingMember || createMode === 'new') && (
+              <>
+                <Input
+                  label="Nom complet"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+                <Input
+                  label={config?.memberFieldLabel || 'Villa'}
+                  value={formData.customFieldValue}
+                  onChange={(e) => setFormData({ ...formData, customFieldValue: e.target.value })}
+                />
+                <Input
+                  label="Téléphone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+                {!editingMember && (
+                  <Input
+                    label="Mot de passe"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  />
+                )}
+              </>
             )}
             
             {/* Bouton Réinitialiser le mot de passe (visible uniquement en mode édition) */}
@@ -350,7 +477,7 @@ export default function MembersPage() {
               </Button>
               <Button
                 type="submit"
-                loading={createMutation.isPending || updateMutation.isPending}
+                loading={createMutation.isPending || updateMutation.isPending || linkAdminMutation.isPending}
               >
                 {editingMember ? 'Modifier' : 'Créer'}
               </Button>

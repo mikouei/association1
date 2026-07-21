@@ -75,11 +75,11 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <OfflineProvider>
+      <OfflineProvider>
+        <AuthProvider>
           <RootLayoutNav />
-        </OfflineProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </OfflineProvider>
     </ErrorBoundary>
   );
 }

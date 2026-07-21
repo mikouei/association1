@@ -104,7 +104,7 @@ export default function TabsLayout() {
           name="annonces"
           options={{
             title: 'Annonces',
-            href: isAdmin ? '/annonces' : null,
+            href: null, // Masqué temporairement - réactiver avec: isAdmin ? '/annonces' : null
             tabBarIcon: ({ color, focused }) => (
               <Bell size={24} color={color} weight={focused ? 'fill' : 'regular'} />
             ),

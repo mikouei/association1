@@ -1070,3 +1070,32 @@ Les notifications push nécessitent un build EAS (pas Expo Go). Le test en previ
 - `/app/backend/routes/public.js` (Y)
 - `/app/backend/routes/auth.js` (Y)
 
+
+
+---
+
+## Fix Notifications Push & Clavier Annonces - 21 Juillet 2026 ✅
+
+### Problème A - Notifications push jamais enregistrées ✅
+**Symptôme** : "Appareils connectés: 0", toutes les annonces affichent "0 envoyé(s)".
+
+**Cause** : `registerForPushNotifications()` n'était appelé QUE lors d'une connexion classique par mot de passe (`login()`). Elle n'était PAS appelée :
+- Au démarrage de l'app avec session existante (`loadUser()`)
+- Dans `loginWithToken()` (Google, token membre, inscription)
+- Dans `switchAccount()`
+
+**Solution** : Déplacé l'appel dans le `useEffect` qui dépend de `[token]`, couvrant ainsi TOUS les cas où une session devient active.
+
+**Note Expo SDK 54** : Depuis le SDK 53, Expo Go ne supporte plus les notifications push. Un **development build** (via EAS Build) est nécessaire pour tester les notifications.
+
+### Problème B - Clavier cache le formulaire "Nouvelle annonce" ✅
+**Symptôme** : Le clavier recouvre les champs Message/Destinataires/Envoyer.
+
+**Cause** : La modale "Nouvelle annonce" était la seule de l'app à ne pas utiliser `KeyboardAvoidingView`.
+
+**Solution** : Ajout de `KeyboardAvoidingView` avec `behavior={Platform.OS === 'ios' ? 'padding' : 'height'}` autour du contenu de la modale.
+
+### Fichiers modifiés
+- `/app/frontend/context/AuthContext.js` (Problème A)
+- `/app/frontend/app/(tabs)/annonces.js` (Problème B)
+

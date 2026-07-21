@@ -92,6 +92,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (isWeb || !token) return;
 
+    // Enregistrer (ou ré-enregistrer) le token push à chaque fois qu'une session devient active
+    // Couvre : démarrage avec session existante, login classique, login Google, login par token membre, changement de compte
+    registerForPushNotifications().catch(err => {
+      console.log('Push registration failed (non-blocking):', err.message);
+    });
+
     // Effacer le badge quand l'app revient au premier plan
     const handleAppStateChange = (nextAppState) => {
       if (nextAppState === 'active') {
@@ -211,12 +217,8 @@ export const AuthProvider = ({ children }) => {
       setUser(newUser);
       setAssociation(newAssociation);
 
-      // Enregistrer les notifications push (non-bloquant)
-      if (!isWeb) {
-        registerForPushNotifications().catch(err => {
-          console.log('Push registration failed (non-blocking):', err.message);
-        });
-      }
+      // Note: L'enregistrement des notifications push est maintenant géré automatiquement
+      // par le useEffect qui dépend de [token] - plus besoin de le faire ici
 
       return { success: true };
     } catch (error) {

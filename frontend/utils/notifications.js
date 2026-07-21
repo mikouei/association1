@@ -13,7 +13,7 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldSetBadge: true, // Active les badges
   }),
 });
 
@@ -94,10 +94,53 @@ export async function unregisterPushNotifications() {
       data: { token: pushToken.data },
     });
     
+    // Réinitialiser le badge à 0
+    await setBadgeCount(0);
+    
     console.log('Token désenregistré');
   } catch (error) {
     console.log('Erreur désenregistrement token:', error.message);
   }
+}
+
+/**
+ * Définit le nombre du badge sur l'icône de l'app
+ * @param {number} count - Nombre à afficher (0 pour effacer)
+ */
+export async function setBadgeCount(count) {
+  try {
+    await Notifications.setBadgeCountAsync(count);
+  } catch (error) {
+    console.log('Erreur mise à jour badge:', error.message);
+  }
+}
+
+/**
+ * Récupère le nombre actuel du badge
+ * @returns {Promise<number>}
+ */
+export async function getBadgeCount() {
+  try {
+    return await Notifications.getBadgeCountAsync();
+  } catch (error) {
+    console.log('Erreur lecture badge:', error.message);
+    return 0;
+  }
+}
+
+/**
+ * Incrémente le badge de 1
+ */
+export async function incrementBadge() {
+  const current = await getBadgeCount();
+  await setBadgeCount(current + 1);
+}
+
+/**
+ * Efface le badge (met à 0)
+ */
+export async function clearBadge() {
+  await setBadgeCount(0);
 }
 
 /**
@@ -106,7 +149,11 @@ export async function unregisterPushNotifications() {
  * @returns {function} Fonction pour supprimer le listener
  */
 export function addNotificationReceivedListener(callback) {
-  const subscription = Notifications.addNotificationReceivedListener(callback);
+  const subscription = Notifications.addNotificationReceivedListener(notification => {
+    // Incrémenter le badge quand une notification est reçue
+    incrementBadge();
+    callback(notification);
+  });
   return () => subscription.remove();
 }
 
@@ -116,7 +163,11 @@ export function addNotificationReceivedListener(callback) {
  * @returns {function} Fonction pour supprimer le listener
  */
 export function addNotificationResponseListener(callback) {
-  const subscription = Notifications.addNotificationResponseReceivedListener(callback);
+  const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+    // Effacer le badge quand l'utilisateur clique sur une notification
+    clearBadge();
+    callback(response);
+  });
   return () => subscription.remove();
 }
 
@@ -129,6 +180,7 @@ export async function sendLocalNotification(title, body, data = {}) {
       title,
       body,
       data,
+      badge: 1, // Afficher un badge
     },
     trigger: null, // Immédiat
   });
@@ -137,6 +189,10 @@ export async function sendLocalNotification(title, body, data = {}) {
 export default {
   registerForPushNotifications,
   unregisterPushNotifications,
+  setBadgeCount,
+  getBadgeCount,
+  incrementBadge,
+  clearBadge,
   addNotificationReceivedListener,
   addNotificationResponseListener,
   sendLocalNotification,

@@ -962,3 +962,38 @@ Les notifications push nécessitent un build EAS (pas Expo Go). Le test en previ
 - `/app/frontend/app/(tabs)/annonces.js` (nouveau)
 - `/app/frontend/app/(tabs)/_layout.js` (onglet Annonces)
 - `/app/frontend/context/AuthContext.js` (register/unregister push)
+
+---
+
+## Corrections et améliorations - 21 Juillet 2026 ✅
+
+### Export PDF Mobile - CORRIGÉ
+**Problème** : Le code utilisait `FileReader` et blob incompatibles avec React Native.
+**Solution** : 
+- Utilisation de `FileSystem.downloadAsync` avec token d'authentification depuis AsyncStorage
+- Téléchargement direct du PDF dans `documentDirectory`
+- Partage via `expo-sharing`
+
+**Fichiers modifiés** :
+- `/app/frontend/app/(tabs)/membres.js` (handleExportPDF)
+
+### Rappels automatiques de cotisation
+**Fonctionnalité** : Service pour envoyer des rappels aux membres en retard de paiement.
+- Route `/api/platform/send-reminders` pour déclenchement manuel (Super Admin)
+- Service `reminderService.js` prêt pour intégration cron externe
+- Programmation possible le 5 de chaque mois à 9h00
+
+**Fichiers créés** :
+- `/app/backend/utils/reminderService.js`
+- `/app/backend/routes/platform.js` (route send-reminders)
+
+### Badge notification sur l'icône
+**Fonctionnalité** : Badge sur l'icône de l'app pour les notifications non lues.
+- `shouldSetBadge: true` dans le handler de notifications
+- Fonctions `setBadgeCount`, `getBadgeCount`, `incrementBadge`, `clearBadge`
+- Badge incrémenté à la réception d'une notification
+- Badge effacé quand l'utilisateur clique sur une notification ou ouvre l'app
+
+**Fichiers modifiés** :
+- `/app/frontend/utils/notifications.js` (fonctions badge)
+- `/app/frontend/context/AuthContext.js` (listener AppState pour effacer badge)

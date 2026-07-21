@@ -1,9 +1,14 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import api from '../utils/api';
 import { useOffline } from './OfflineContext';
-import { registerForPushNotifications, unregisterPushNotifications } from '../utils/notifications';
+import { 
+  registerForPushNotifications, 
+  unregisterPushNotifications,
+  clearBadge,
+  addNotificationResponseListener
+} from '../utils/notifications';
 
 const AuthContext = createContext();
 
@@ -82,6 +87,34 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     loadUser();
   }, []);
+
+  // Gestion des notifications et badges
+  useEffect(() => {
+    if (isWeb || !token) return;
+
+    // Effacer le badge quand l'app revient au premier plan
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active') {
+        clearBadge();
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Listener pour les notifications cliquées (efface le badge)
+    const responseUnsubscribe = addNotificationResponseListener((response) => {
+      console.log('Notification cliquée:', response.notification.request.content.title);
+      clearBadge();
+    });
+
+    // Effacer le badge au démarrage si l'app est active
+    clearBadge();
+
+    return () => {
+      appStateSubscription.remove();
+      responseUnsubscribe();
+    };
+  }, [token]);
 
   // Fonction interne : ajouter ou mettre à jour un compte lié
   const upsertLinkedAccount = async (newToken, newUser, newAssociation) => {

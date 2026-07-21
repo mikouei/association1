@@ -778,4 +778,38 @@ router.put('/deletion-requests/:id', authenticateSuperAdmin, async (req, res) =>
   }
 });
 
+// ============================================
+// RAPPELS AUTOMATIQUES
+// ============================================
+
+import { sendMonthlyReminders } from '../utils/reminderService.js';
+
+// POST /api/platform/send-reminders
+// Déclencher manuellement les rappels mensuels pour toutes les associations
+router.post('/send-reminders', authenticateSuperAdmin, async (req, res) => {
+  try {
+    console.log('[Platform] Déclenchement manuel des rappels par', req.superAdmin.email);
+    
+    const results = await sendMonthlyReminders();
+    
+    const totalSent = results.reduce((sum, r) => sum + (r.success || 0), 0);
+    const totalFailed = results.reduce((sum, r) => sum + (r.failed || 0), 0);
+    const totalTargeted = results.reduce((sum, r) => sum + (r.targetedMembers || 0), 0);
+    
+    res.json({
+      success: true,
+      summary: {
+        associationsProcessed: results.length,
+        totalTargetedMembers: totalTargeted,
+        totalSent,
+        totalFailed,
+      },
+      details: results,
+    });
+  } catch (error) {
+    console.error('Erreur envoi rappels:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'envoi des rappels' });
+  }
+});
+
 export default router;

@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import { 
   User, 
@@ -491,40 +492,55 @@ export default function Membres() {
     try {
       Alert.alert('PDF', 'Génération du relevé en cours...');
       
-      const response = await api.get(`/members/${member.id}/export-pdf`, {
-        responseType: 'blob'
-      });
-      
-      // Convertir le blob en base64
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const base64Data = reader.result.split(',')[1];
-          const fileName = `releve-${member.name.replace(/\s+/g, '_')}-${Date.now()}.pdf`;
-          const fileUri = FileSystem.documentDirectory + fileName;
-          
-          await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-            encoding: FileSystem.EncodingType.Base64
-          });
-          
-          if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(fileUri, {
-              mimeType: 'application/pdf',
-              dialogTitle: `Relevé de ${member.name}`
-            });
-          } else {
-            Alert.alert('Succès', `PDF enregistré: ${fileName}`);
-          }
-        } catch (err) {
-          console.error('File save error:', err);
-          Alert.alert('Erreur', 'Impossible d\'enregistrer le PDF');
+      // Sur mobile, télécharger le fichier PDF directement
+      if (Platform.OS !== 'web') {
+        const safeFileName = member.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const filename = `releve_${safeFileName}_${Date.now()}.pdf`;
+        const fileUri = FileSystem.documentDirectory + filename;
+        
+        // Récupérer le token depuis AsyncStorage
+        const authToken = await AsyncStorage.getItem('authToken');
+        if (!authToken) {
+          Alert.alert('Erreur', 'Session expirée, veuillez vous reconnecter');
+          return;
         }
-      };
-      reader.readAsDataURL(response.data);
+        
+        // Télécharger le PDF depuis l'API
+        const downloadResult = await FileSystem.downloadAsync(
+          `${api.defaults.baseURL}/members/${member.id}/export-pdf`,
+          fileUri,
+          {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+            },
+          }
+        );
+        
+        if (downloadResult.status !== 200) {
+          throw new Error('Erreur lors du téléchargement');
+        }
+        
+        // Partager le fichier
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(downloadResult.uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: `Relevé de ${member.name}`,
+            UTI: 'com.adobe.pdf'
+          });
+        } else {
+          Alert.alert('Info', 'Le partage n\'est pas disponible sur cet appareil.');
+        }
+        return;
+      }
+      
+      // Sur le web, ouvrir dans un nouvel onglet
+      const url = `${api.defaults.baseURL}/members/${member.id}/export-pdf`;
+      window.open(url, '_blank');
       
     } catch (error) {
       console.error('Export PDF error:', error);
-      Alert.alert('Erreur', 'Impossible de générer le PDF');
+      Alert.alert('Erreur', 'Impossible de générer le PDF: ' + error.message);
     }
   };
   // ========== FIN EXPORT PDF ==========

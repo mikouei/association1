@@ -3,12 +3,25 @@ import { Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Application from 'expo-application';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { AuthProvider } from '../context/AuthContext';
 import { OfflineProvider } from '../context/OfflineContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 const REFERRER_PROCESSED_KEY = '@kotiz_referrer_processed';
 const PRESELECTED_ASSOC_KEY = '@kotiz_preselected_association';
+
+// Configuration Google Sign-In au démarrage
+// Le webClientId est le même que celui utilisé côté backend et web
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
+if (GOOGLE_WEB_CLIENT_ID) {
+  GoogleSignin.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+  });
+} else {
+  console.warn('[Kotiz] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID non défini - Google Sign-In désactivé');
+}
 
 function RootLayoutNav() {
   const router = useRouter();

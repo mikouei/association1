@@ -34,6 +34,7 @@ import {
 import api from '../utils/api';
 import { colors, spacing, borderRadius, typography } from '../utils/theme';
 import * as Clipboard from 'expo-clipboard';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 const LAST_ASSOCIATION_KEY = '@kotiz_last_association';
 
@@ -56,6 +57,7 @@ export default function RegisterAssociation() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [codeStatus, setCodeStatus] = useState('idle'); // 'idle' | 'checking' | 'available' | 'taken' | 'format'
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(null);
   const [showTypeModal, setShowTypeModal] = useState(false);
 
@@ -91,6 +93,50 @@ export default function RegisterAssociation() {
     
     return () => clearTimeout(timer);
   }, [code]);
+
+  // Création via Google
+  const handleGoogleCredential = async (idToken) => {
+    // Validations minimales
+    if (!name.trim()) {
+      Alert.alert('Erreur', 'Veuillez d\'abord saisir le nom de l\'association');
+      return;
+    }
+    if (!code.trim() || codeStatus !== 'available') {
+      Alert.alert('Erreur', 'Veuillez choisir un code valide et disponible');
+      return;
+    }
+
+    setGoogleLoading(true);
+
+    try {
+      const response = await api.post('/public/associations/register-google', {
+        idToken,
+        name: name.trim(),
+        type,
+        code: code.toUpperCase().trim(),
+      });
+
+      const { token, association, admin } = response.data;
+
+      // Afficher le succès avec le code
+      setSuccess({
+        code: association.code,
+        name: association.name,
+        token,
+        admin,
+        association,
+      });
+    } catch (error) {
+      const message = error.response?.data?.error || 'Erreur lors de la création';
+      Alert.alert('Erreur', message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = (message) => {
+    Alert.alert('Erreur Google', message);
+  };
 
   const handleSubmit = async () => {
     // Validations
@@ -293,6 +339,28 @@ export default function RegisterAssociation() {
           </View>
 
           <View style={styles.separator} />
+
+          {/* Section Google - Création rapide */}
+          <Text style={styles.sectionTitle}>Créer rapidement avec Google</Text>
+          <View style={styles.googleSection}>
+            <GoogleSignInButton
+              onCredential={handleGoogleCredential}
+              onError={handleGoogleError}
+              disabled={googleLoading || codeStatus !== 'available' || !name.trim()}
+            />
+            {(codeStatus !== 'available' || !name.trim()) && (
+              <Text style={styles.googleHint}>
+                Remplissez le nom et le code ci-dessus
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>ou créer avec email/mot de passe</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           <Text style={styles.sectionTitle}>Votre compte administrateur</Text>
 
           {/* Nom admin */}
@@ -552,6 +620,32 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginVertical: spacing.md,
+  },
+  googleSection: {
+    alignItems: 'center',
+    marginVertical: spacing.md,
+  },
+  googleHint: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    paddingHorizontal: spacing.md,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
   sectionTitle: {
     fontSize: typography.body.fontSize,

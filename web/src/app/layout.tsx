@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui';
@@ -19,6 +20,10 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
+        <Script 
+          src="https://accounts.google.com/gsi/client" 
+          strategy="afterInteractive"
+        />
         <Providers>
           {children}
           <Toaster />

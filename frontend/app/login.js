@@ -39,6 +39,7 @@ import {
 import api from '../utils/api';
 import { colors, spacing, borderRadius, typography } from '../utils/theme';
 import { useLocalSearchParams } from 'expo-router';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 const LAST_ASSOCIATION_KEY = '@kotiz_last_association';
 const PRESELECTED_ASSOC_KEY = '@kotiz_preselected_association';
@@ -51,6 +52,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
   // Association selection
@@ -62,7 +64,7 @@ export default function Login() {
   const [lastUsedAssociationId, setLastUsedAssociationId] = useState(null);
   const [isPreselected, setIsPreselected] = useState(false);
   
-  const { login } = useAuth();
+  const { login, loginWithToken } = useAuth();
   const router = useRouter();
 
   // Charger la liste des associations au démarrage
@@ -187,6 +189,57 @@ export default function Login() {
     }
   };
 
+  // Connexion via Google
+  const handleGoogleCredential = async (idToken) => {
+    if (!selectedAssociation) {
+      Alert.alert('Erreur', 'Veuillez d\'abord sélectionner une association');
+      return;
+    }
+
+    setGoogleLoading(true);
+
+    try {
+      const response = await api.post('/auth/google', {
+        idToken,
+        associationCode: selectedAssociation.code
+      });
+
+      const { token, user, association } = response.data;
+
+      // Sauvegarder la dernière association utilisée
+      await AsyncStorage.setItem(LAST_ASSOCIATION_KEY, association.id);
+
+      // Connecter l'utilisateur
+      loginWithToken(token, user, association);
+      
+      router.replace('/(tabs)');
+    } catch (error) {
+      const errorData = error.response?.data;
+      
+      if (errorData?.code === 'NO_ACCOUNT') {
+        Alert.alert(
+          'Compte non trouvé',
+          'Aucun compte Google trouvé pour cette association. Voulez-vous créer votre propre association ?',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { 
+              text: 'Créer mon association', 
+              onPress: () => router.push('/register-association')
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Erreur', errorData?.error || 'Erreur de connexion Google');
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = (message) => {
+    Alert.alert('Erreur Google', message);
+  };
+
   const renderAssociationItem = ({ item }) => (
     <TouchableOpacity
       style={styles.associationItem}
@@ -287,6 +340,26 @@ export default function Login() {
             <Text style={styles.changeAssocText}>Pas votre association ? Changer</Text>
           </TouchableOpacity>
         )}
+
+        {/* Bouton Google Sign-In */}
+        <View style={styles.googleSection}>
+          <GoogleSignInButton
+            onCredential={handleGoogleCredential}
+            onError={handleGoogleError}
+            disabled={googleLoading || !selectedAssociation}
+          />
+          {!selectedAssociation && (
+            <Text style={styles.googleHint}>
+              Sélectionnez d'abord une association
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>ou</Text>
+          <View style={styles.dividerLine} />
+        </View>
 
         {/* Tabs pour le mode de connexion */}
         <View style={styles.tabContainer}>
@@ -523,6 +596,31 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.md,
     fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+  },
+  googleSection: {
+    marginBottom: spacing.lg,
+    alignItems: 'center',
+  },
+  googleHint: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    paddingHorizontal: spacing.md,
+    fontSize: typography.caption.fontSize,
     color: colors.textMuted,
   },
   tabContainer: {

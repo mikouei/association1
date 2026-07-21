@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Buildings, Check, X, CircleNotch, WhatsappLogo } from '@phosphor-icons/react';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
+import { toast } from 'sonner';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mobile-bug-crush-1.preview.emergentagent.com';
 
@@ -25,6 +27,7 @@ export default function CreerAssociationPage() {
   
   const [codeStatus, setCodeStatus] = useState<CodeStatus>('idle');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState<{ code: string; name: string } | null>(null);
 
@@ -62,6 +65,66 @@ export default function CreerAssociationPage() {
     
     return () => clearTimeout(timer);
   }, [code, checkCodeAvailability]);
+
+  // Création via Google
+  const handleGoogleCredential = async (idToken: string) => {
+    setError('');
+
+    if (!name.trim()) {
+      setError('Veuillez d\'abord saisir le nom de l\'association');
+      return;
+    }
+
+    if (codeStatus !== 'available') {
+      setError('Veuillez choisir un code valide et disponible');
+      return;
+    }
+
+    setGoogleLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/public/associations/register-google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idToken,
+          name,
+          type,
+          code: code.toUpperCase()
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de la création');
+      }
+
+      // Afficher le succès
+      setSuccess({ code: data.code, name: data.association.name });
+      toast.success('Association créée avec succès !');
+
+      // Connecter l'utilisateur
+      if (data.token) {
+        loginWithToken(data.token, {
+          id: data.admin.id,
+          email: data.admin.email,
+          phone: data.admin.phone,
+          role: 'ADMIN',
+        }, data.association);
+
+        // Redirection après 5 secondes
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 5000);
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || 'Erreur lors de la création');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,7 +315,38 @@ export default function CreerAssociationPage() {
           </div>
 
           <hr className="my-6" />
-          <p className="text-sm font-medium text-[var(--color-text)] -mt-2 mb-4">Votre compte administrateur</p>
+
+          {/* Bouton Google - Rapide et sans mot de passe */}
+          <div className="mb-6">
+            <p className="text-sm font-medium text-[var(--color-text)] mb-3">
+              Créer rapidement avec Google
+            </p>
+            <div className="flex justify-center">
+              <GoogleSignInButton 
+                onCredential={handleGoogleCredential}
+                onError={(err) => setError(err)}
+                text="continue_with"
+                disabled={googleLoading || codeStatus !== 'available' || !name.trim()}
+                width={300}
+              />
+            </div>
+            {(codeStatus !== 'available' || !name.trim()) && (
+              <p className="text-xs text-center text-[var(--color-text-muted)] mt-2">
+                Remplissez le nom et le code de l&apos;association ci-dessus
+              </p>
+            )}
+          </div>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[var(--color-border)]" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-[var(--color-text-muted)]">ou créer avec email/mot de passe</span>
+            </div>
+          </div>
+
+          <p className="text-sm font-medium text-[var(--color-text)] mb-4">Votre compte administrateur</p>
 
           <div>
             <label className="block text-sm font-medium text-[var(--color-text)] mb-1">

@@ -5,6 +5,8 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { prisma, generateJWT } from '../middleware/auth.js';
+import { verifyGoogleIdToken, isGoogleAuthConfigured } from '../middleware/googleAuth.js';
+import { getSupportedCurrencies } from '../utils/currency.js';
 
 const router = express.Router();
 
@@ -30,6 +32,15 @@ const registerLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate limiter pour rejoindre une association (même niveau que registerLimiter)
+const joinLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 heure
+  max: 5,
+  message: { error: 'Trop de tentatives, réessayez plus tard' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Rate limiter léger pour les infos publiques (évite brute-force de codes)
 const infoLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 heure
@@ -42,6 +53,18 @@ const infoLimiter = rateLimit({
 // ============================================
 // ROUTES DE CRÉATION D'ASSOCIATION EN LIBRE-SERVICE
 // ============================================
+
+// GET /api/public/currencies
+// Liste des devises supportées
+router.get('/currencies', (req, res) => {
+  try {
+    const currencies = getSupportedCurrencies();
+    res.json(currencies);
+  } catch (error) {
+    console.error('Error fetching currencies:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 // GET /api/public/associations/check-code/:code
 // Vérifier la disponibilité d'un code d'association (retour temps réel pendant saisie)
@@ -75,7 +98,7 @@ router.get('/associations/check-code/:code', infoLimiter, async (req, res) => {
 // Créer une association en libre-service + premier admin
 router.post('/associations/register', registerLimiter, async (req, res) => {
   try {
-    const { name, type, code, adminName, adminEmail, adminPhone, adminPassword } = req.body;
+    const { name, type, code, adminName, adminEmail, adminPhone, adminPassword, currency } = req.body;
     
     // Validation des champs requis (dans l'ordre spécifié)
     if (!name || !code) {
@@ -102,6 +125,12 @@ router.post('/associations/register', registerLimiter, async (req, res) => {
     if (adminEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
       return res.status(400).json({ error: 'Format email invalide' });
     }
+    
+    // Valider la devise si fournie
+    const validCurrencies = ['XOF', 'EUR', 'USD'];
+    const selectedCurrency = currency && validCurrencies.includes(currency.toUpperCase()) 
+      ? currency.toUpperCase() 
+      : 'XOF';
     
     // Normaliser et valider le code
     const normalizedCode = code.toUpperCase();
@@ -163,6 +192,7 @@ router.post('/associations/register', registerLimiter, async (req, res) => {
           adminEmail: adminEmail || null,
           adminName,
           source: 'self_service',
+          currency: selectedCurrency,
           memberFieldLabel: defaultMemberFieldLabel,
           enableVehiclePlates: false
         }
@@ -207,6 +237,268 @@ router.post('/associations/register', registerLimiter, async (req, res) => {
   } catch (error) {
     console.error('Register association error:', error);
     res.status(500).json({ error: 'Erreur lors de la création de l\'association' });
+  }
+});
+
+// POST /api/public/associations/register-google
+// Créer une association en libre-service via Google OAuth
+router.post('/associations/register-google', registerLimiter, async (req, res) => {
+  try {
+    const { idToken, name, type, code, currency } = req.body;
+    
+    // Vérifier que Google Auth est configuré
+    if (!isGoogleAuthConfigured()) {
+      return res.status(500).json({ error: 'Authentification Google non configurée sur ce serveur' });
+    }
+
+    // Vérifier le token Google en premier
+    let googlePayload;
+    try {
+      googlePayload = await verifyGoogleIdToken(idToken);
+    } catch (error) {
+      if (error.message === 'EMAIL_NOT_VERIFIED') {
+        return res.status(401).json({ error: 'Cet email Google n\'est pas vérifié' });
+      }
+      return res.status(401).json({ error: 'Jeton Google invalide ou expiré' });
+    }
+
+    const { googleId, email: adminEmail, name: adminName } = googlePayload;
+
+    // Validation des champs requis (dans l'ordre spécifié)
+    if (!name || !code) {
+      return res.status(400).json({ error: 'Nom et code de l\'association requis' });
+    }
+    
+    // Valider la devise si fournie
+    const validCurrencies = ['XOF', 'EUR', 'USD'];
+    const selectedCurrency = currency && validCurrencies.includes(currency.toUpperCase()) 
+      ? currency.toUpperCase() 
+      : 'XOF';
+    
+    // Normaliser et valider le code
+    const normalizedCode = code.toUpperCase();
+    const codeRegex = /^[A-Z0-9-]{3,20}$/;
+    if (!codeRegex.test(normalizedCode)) {
+      return res.status(400).json({ error: 'Code invalide (3-20 caractères, lettres majuscules, chiffres et tirets uniquement)' });
+    }
+    
+    // Vérifier que le code n'existe pas déjà
+    const existingCode = await prisma.association.findUnique({
+      where: { code: normalizedCode }
+    });
+    if (existingCode) {
+      return res.status(400).json({ error: 'Ce code existe déjà' });
+    }
+    
+    // Limite PAR PERSONNE : vérifier combien d'associations self_service cette personne a déjà créées
+    const existingSelfServiceCount = await prisma.user.count({
+      where: {
+        role: 'ADMIN',
+        association: { source: 'self_service' },
+        email: adminEmail
+      }
+    });
+    
+    if (existingSelfServiceCount >= MAX_SELF_SERVICE_PER_USER) {
+      return res.status(403).json({
+        error: `Vous avez atteint la limite de ${MAX_SELF_SERVICE_PER_USER} associations créées en libre-service avec cet email. Contactez-nous pour créer une association supplémentaire.`
+      });
+    }
+    
+    // Générer un hash de mot de passe aléatoire (le compte ne pourra pas se connecter par mot de passe)
+    const randomPassword = crypto.randomBytes(32).toString('hex');
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+    
+    // Déterminer le libellé du champ personnalisé selon le type d'association
+    const associationType = (type || 'association').toLowerCase();
+    let defaultMemberFieldLabel = 'Villa';
+    if (associationType === 'amicale' || associationType === 'association') {
+      defaultMemberFieldLabel = 'Fonction';
+    }
+    
+    // Créer l'association et son premier admin en transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Créer l'association
+      const association = await tx.association.create({
+        data: {
+          name,
+          type: type || 'association',
+          code: normalizedCode,
+          active: true,
+          adminEmail: adminEmail,
+          adminName: adminName || '',
+          source: 'self_service',
+          currency: selectedCurrency,
+          memberFieldLabel: defaultMemberFieldLabel,
+          enableVehiclePlates: false
+        }
+      });
+      
+      // Créer l'admin de l'association avec googleId
+      const adminUser = await tx.user.create({
+        data: {
+          associationId: association.id,
+          email: adminEmail,
+          phone: null,
+          passwordHash,
+          googleId,
+          passwordChangedAt: new Date(),
+          role: 'ADMIN',
+          active: true
+        }
+      });
+      
+      return { association, adminUser };
+    });
+    
+    // Générer un JWT pour connexion automatique
+    const token = generateJWT(result.adminUser.id, result.association.id, 'ADMIN', result.adminUser.passwordChangedAt);
+    
+    res.status(201).json({
+      message: 'Association créée avec succès',
+      token,
+      code: result.association.code,
+      association: {
+        id: result.association.id,
+        name: result.association.name,
+        code: result.association.code,
+        type: result.association.type
+      },
+      admin: {
+        id: result.adminUser.id,
+        email: result.adminUser.email,
+        phone: result.adminUser.phone
+      }
+    });
+  } catch (error) {
+    console.error('Register association with Google error:', error);
+    res.status(500).json({ error: 'Erreur lors de la création de l\'association' });
+  }
+});
+
+// POST /api/public/associations/:code/join-google
+// Rejoindre une association existante en tant que MEMBRE via Google OAuth
+router.post('/associations/:code/join-google', joinLimiter, async (req, res) => {
+  try {
+    const code = (req.params.code || '').toUpperCase();
+    const { idToken } = req.body;
+
+    // Vérifier que Google Auth est configuré
+    if (!isGoogleAuthConfigured()) {
+      return res.status(500).json({ error: 'Authentification Google non configurée sur ce serveur' });
+    }
+
+    // Résoudre l'association
+    const association = await prisma.association.findUnique({
+      where: { code }
+    });
+    
+    if (!association || !association.active) {
+      return res.status(404).json({ error: 'Association introuvable' });
+    }
+
+    // Vérifier le token Google
+    let googlePayload;
+    try {
+      googlePayload = await verifyGoogleIdToken(idToken);
+    } catch (error) {
+      if (error.message === 'EMAIL_NOT_VERIFIED') {
+        return res.status(401).json({ error: 'Cet email Google n\'est pas vérifié' });
+      }
+      return res.status(401).json({ error: 'Jeton Google invalide ou expiré' });
+    }
+
+    const { googleId, email, name: memberName } = googlePayload;
+
+    // Chercher un User existant dans cette association avec OR: [{ googleId }, { email }]
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        associationId: association.id,
+        OR: [
+          { googleId },
+          { email }
+        ]
+      }
+    });
+
+    if (existingUser) {
+      if (existingUser.active) {
+        return res.status(409).json({ 
+          error: 'Vous avez déjà un compte pour cette association. Connectez-vous plutôt.',
+          code: 'ALREADY_MEMBER'
+        });
+      } else {
+        // Compte désactivé - message uniforme
+        return res.status(403).json({ error: 'Identifiants invalides' });
+      }
+    }
+
+    // Vérifier le plafond de 250 membres
+    const memberCount = await prisma.user.count({
+      where: { associationId: association.id, role: 'MEMBER' }
+    });
+    if (memberCount >= 250) {
+      return res.status(403).json({ error: 'Limite de 250 membres atteinte pour cette association' });
+    }
+
+    // Générer un hash de mot de passe aléatoire
+    const randomPassword = crypto.randomBytes(32).toString('hex');
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+    // Créer User + Member en transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          associationId: association.id,
+          email,
+          phone: null,
+          passwordHash,
+          googleId,
+          role: 'MEMBER',
+          active: true,
+          passwordChangedAt: new Date()
+        }
+      });
+
+      const member = await tx.member.create({
+        data: {
+          associationId: association.id,
+          userId: user.id,
+          name: memberName || email.split('@')[0], // Fallback sur partie locale de l'email
+          customFieldValue: null,
+          source: 'self_service',
+          active: true
+        }
+      });
+
+      return { user, member };
+    });
+
+    // Générer le JWT
+    const token = generateJWT(result.user.id, association.id, 'MEMBER', result.user.passwordChangedAt);
+
+    res.status(201).json({
+      token,
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        phone: null,
+        role: 'MEMBER',
+        member: {
+          id: result.member.id,
+          name: result.member.name,
+          customFieldValue: null
+        }
+      },
+      association: {
+        id: association.id,
+        name: association.name,
+        code: association.code
+      }
+    });
+  } catch (error) {
+    console.error('Join association with Google error:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'inscription' });
   }
 });
 

@@ -10,6 +10,7 @@ import {
   generateAccessToken,
   loginLimiter
 } from '../middleware/auth.js';
+import { verifyGoogleIdToken, isGoogleAuthConfigured } from '../middleware/googleAuth.js';
 
 const router = express.Router();
 
@@ -132,6 +133,107 @@ router.post('/login', loginLimiter, attachPrisma, async (req, res) => {
   }
 });
 
+// POST /api/auth/google
+// Connexion via Google OAuth (équivalent Google de /login)
+router.post('/google', loginLimiter, attachPrisma, async (req, res) => {
+  try {
+    const { idToken, associationCode } = req.body;
+
+    // Validation des champs requis
+    if (!idToken) {
+      return res.status(400).json({ error: 'Token Google requis' });
+    }
+    if (!associationCode) {
+      return res.status(400).json({ error: 'Code association requis' });
+    }
+
+    // Vérifier que Google Auth est configuré
+    if (!isGoogleAuthConfigured()) {
+      return res.status(500).json({ error: 'Authentification Google non configurée sur ce serveur' });
+    }
+
+    // Résoudre l'association par son code
+    const association = await resolveAssociationByCode(associationCode);
+    
+    if (!association) {
+      return res.status(404).json({ error: 'Association non trouvée' });
+    }
+
+    if (!association.active) {
+      return res.status(403).json({ error: 'Association désactivée' });
+    }
+
+    // Vérifier le token Google
+    let googlePayload;
+    try {
+      googlePayload = await verifyGoogleIdToken(idToken);
+    } catch (error) {
+      if (error.message === 'EMAIL_NOT_VERIFIED') {
+        return res.status(401).json({ error: 'Cet email Google n\'est pas vérifié' });
+      }
+      return res.status(401).json({ error: 'Jeton Google invalide ou expiré' });
+    }
+
+    const { googleId, email } = googlePayload;
+
+    // Chercher l'utilisateur par googleId OU email dans cette association
+    let user = await prisma.user.findFirst({
+      where: {
+        associationId: association.id,
+        OR: [
+          { googleId },
+          { email }
+        ]
+      },
+      include: { member: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ 
+        error: 'Aucun compte trouvé pour cet email Google dans cette association',
+        code: 'NO_ACCOUNT'
+      });
+    }
+
+    if (!user.active) {
+      // Message uniforme pour ne pas révéler si un compte désactivé existe
+      return res.status(401).json({ error: 'Identifiants invalides' });
+    }
+
+    // Si l'utilisateur existe mais n'a pas encore de googleId lié (compte créé par mot de passe)
+    // → lier le googleId maintenant (liaison automatique)
+    if (!user.googleId) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { googleId },
+        include: { member: true }
+      });
+    }
+
+    // Générer le token JWT
+    const token = generateJWT(user.id, association.id, user.role, user.passwordChangedAt);
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        member: user.member
+      },
+      association: {
+        id: association.id,
+        name: association.name,
+        code: association.code
+      }
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // GET /api/auth/me
 // Profil utilisateur connecté
 router.get('/me', authenticateToken, async (req, res) => {
@@ -165,13 +267,15 @@ router.get('/association-settings', authenticateToken, async (req, res) => {
   try {
     res.json({
       enableVehiclePlates: req.association.enableVehiclePlates || false,
-      customFieldLabel: req.association.memberFieldLabel || 'Villa'
+      customFieldLabel: req.association.memberFieldLabel || 'Villa',
+      currency: req.association.currency || 'XOF'
     });
   } catch (error) {
     console.error('Get association settings error:', error);
     res.json({
       enableVehiclePlates: false,
-      customFieldLabel: 'Villa'
+      customFieldLabel: 'Villa',
+      currency: 'XOF'
     });
   }
 });
@@ -185,7 +289,7 @@ router.put('/association-settings', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
     }
 
-    const { memberFieldLabel, enableVehiclePlates } = req.body;
+    const { memberFieldLabel, enableVehiclePlates, currency } = req.body;
 
     const updateData = {};
     
@@ -202,6 +306,15 @@ router.put('/association-settings', authenticateToken, async (req, res) => {
       updateData.enableVehiclePlates = Boolean(enableVehiclePlates);
     }
 
+    // Devise
+    if (currency !== undefined) {
+      const validCurrencies = ['XOF', 'EUR', 'USD'];
+      if (!validCurrencies.includes(currency.toUpperCase())) {
+        return res.status(400).json({ error: 'Devise non supportée. Choisissez parmi: XOF, EUR, USD' });
+      }
+      updateData.currency = currency.toUpperCase();
+    }
+
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: 'Aucun paramètre à modifier' });
     }
@@ -214,7 +327,8 @@ router.put('/association-settings', authenticateToken, async (req, res) => {
     res.json({
       message: 'Paramètres mis à jour',
       enableVehiclePlates: updatedAssociation.enableVehiclePlates,
-      customFieldLabel: updatedAssociation.memberFieldLabel
+      customFieldLabel: updatedAssociation.memberFieldLabel,
+      currency: updatedAssociation.currency
     });
   } catch (error) {
     console.error('Update association settings error:', error);

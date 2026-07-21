@@ -36,6 +36,7 @@ model Association {
   adminEmail   String?  // Email du premier admin créé
   adminName    String?  // Nom du premier admin
   source       String   @default("manual") // "manual" (créée par le Super Admin) ou "self_service" (auto-inscription)
+  currency     String   @default("XOF") // Devise: XOF (FCFA), EUR, USD
   
   // Options de configuration
   memberFieldLabel    String  @default("Villa") // Libellé du champ personnalisé
@@ -78,6 +79,7 @@ model User {
   email             String
   phone             String?
   passwordHash      String
+  googleId          String?  // "sub" du token Google, unique PAR ASSOCIATION (pas globalement, cf. multi-association)
   role              String   @default("MEMBER") // "ADMIN" ou "MEMBER"
   token             String?  // Token d'accès pour les membres
   active            Boolean  @default(true)
@@ -90,6 +92,7 @@ model User {
   
   @@unique([associationId, email])
   @@unique([associationId, phone])
+  @@unique([associationId, googleId])
   @@index([associationId])
   @@index([token])
 }
@@ -101,6 +104,7 @@ model Member {
   userId              String   @unique
   name                String
   customFieldValue    String?  // Villa, Groupe, Section, etc.
+  source              String   @default("manual") // "manual" (ajouté par un admin) ou "self_service" (a rejoint lui-même via le lien d'invitation + Google)
   active              Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

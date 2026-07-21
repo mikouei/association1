@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Buildings, AndroidLogo, WhatsappLogo, Warning } from '@phosphor-icons/react';
+import { useAuth } from '@/contexts/AuthContext';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
+import { toast } from 'sonner';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mobile-bug-crush-1.preview.emergentagent.com';
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://mobile-bug-crush-1.preview.emergentagent.com';
 
 interface AssociationInfo {
   name: string;
@@ -16,11 +18,16 @@ interface AssociationInfo {
 
 export default function JoinPage() {
   const params = useParams();
+  const router = useRouter();
+  const { loginWithToken } = useAuth();
   const code = (params.code as string)?.toUpperCase();
   
   const [association, setAssociation] = useState<AssociationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [showLoginHighlight, setShowLoginHighlight] = useState(false);
 
   useEffect(() => {
     const fetchAssociationInfo = async () => {
@@ -97,6 +104,42 @@ export default function JoinPage() {
     );
   }
 
+  // Rejoindre via Google
+  const handleGoogleCredential = async (idToken: string) => {
+    setJoinError(null);
+    setGoogleLoading(true);
+    setShowLoginHighlight(false);
+
+    try {
+      const response = await fetch(`${API_URL}/api/public/associations/${code}/join-google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.code === 'ALREADY_MEMBER') {
+          setJoinError(`Vous avez déjà un compte pour ${association.name}.`);
+          setShowLoginHighlight(true);
+          return;
+        }
+        throw new Error(data.error || 'Erreur lors de l\'inscription');
+      }
+
+      // Connecter l'utilisateur
+      loginWithToken(data.token, data.user, data.association);
+      toast.success(`Bienvenue dans ${association.name} !`);
+      router.push('/dashboard');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setJoinError(error.message || 'Erreur lors de l\'inscription');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--color-secondary)] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
@@ -119,12 +162,47 @@ export default function JoinPage() {
           </p>
         </div>
 
+        {joinError && (
+          <div className="mb-4 p-3 bg-[var(--color-error-bg)] border border-[var(--color-error)] text-[var(--color-error)] text-sm rounded-lg">
+            {joinError}
+          </div>
+        )}
+
         <div className="space-y-3">
+          {/* Bouton Google pour créer un compte membre */}
+          <div className="mb-4">
+            <p className="text-sm text-[var(--color-text-muted)] mb-3">
+              Nouveau ? Rejoignez {association.name} en un clic
+            </p>
+            <div className="flex justify-center">
+              <GoogleSignInButton 
+                onCredential={handleGoogleCredential}
+                onError={(err) => setJoinError(err)}
+                text="signup_with"
+                disabled={googleLoading}
+                width={280}
+              />
+            </div>
+          </div>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[var(--color-border)]" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-[var(--color-text-muted)]">ou</span>
+            </div>
+          </div>
+
           <Link
             href={`/login?code=${code}`}
-            className="block w-full py-3 bg-[var(--color-primary)] text-[var(--color-text-on-primary)] font-medium rounded-[var(--radius-button)] hover:opacity-90 transition-opacity"
+            className={`block w-full py-3 font-medium rounded-[var(--radius-button)] transition-all ${
+              showLoginHighlight 
+                ? 'bg-[var(--color-primary)] text-[var(--color-text-on-primary)] ring-2 ring-offset-2 ring-[var(--color-primary)]' 
+                : 'bg-gray-100 text-[var(--color-text)] hover:bg-gray-200'
+            }`}
           >
-            Se connecter à {association.name}
+            {showLoginHighlight ? '→ ' : ''}Se connecter à {association.name}
           </Link>
           
           <a
@@ -139,7 +217,7 @@ export default function JoinPage() {
         </div>
 
         <p className="text-xs text-[var(--color-text-muted)] mt-6">
-          Utilisez ce lien pour rejoindre l&apos;association. Vous devrez ensuite vous connecter avec vos identifiants.
+          Créez votre compte avec Google pour rejoindre l&apos;association, ou connectez-vous si vous avez déjà un compte.
         </p>
 
         <div className="mt-6 pt-4 border-t">

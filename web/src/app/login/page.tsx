@@ -8,13 +8,13 @@ import { Button, Input, Card, CardContent } from '@/components/ui';
 import { Buildings, Plus, WhatsappLogo } from '@phosphor-icons/react';
 import { api } from '@/services/api';
 import { Association } from '@/types';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mobile-bug-crush-1.preview.emergentagent.com';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
+import { toast } from 'sonner';
 
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login, loginWithToken } = useAuth();
   
   const [step, setStep] = useState<'association' | 'credentials'>('association');
   const [associations, setAssociations] = useState<Association[]>([]);
@@ -22,6 +22,7 @@ function LoginPageContent() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [loadingAssociations, setLoadingAssociations] = useState(false);
   const [error, setError] = useState('');
   const [preselectedCode, setPreselectedCode] = useState<string | null>(null);
@@ -32,7 +33,7 @@ function LoginPageContent() {
       const response = await api.get('/auth/associations');
       setAssociations(response.data);
       return response.data as Association[];
-    } catch (err) {
+    } catch {
       setError('Impossible de charger les associations');
       return [];
     } finally {
@@ -85,6 +86,36 @@ function LoginPageContent() {
     }
   };
 
+  // Connexion via Google
+  const handleGoogleCredential = async (idToken: string) => {
+    if (!selectedAssoc) return;
+
+    setGoogleLoading(true);
+    setError('');
+
+    try {
+      const response = await api.post('/auth/google', {
+        idToken,
+        associationCode: selectedAssoc.code
+      });
+
+      const { token, user, association } = response.data;
+      loginWithToken(token, user, association);
+      toast.success('Connexion réussie');
+      router.push('/dashboard');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string; code?: string } } };
+      
+      if (error.response?.data?.code === 'NO_ACCOUNT') {
+        setError('Aucun compte Google trouvé pour cette association. Voulez-vous créer votre association ?');
+      } else {
+        setError(error.response?.data?.error || 'Erreur de connexion Google');
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--color-secondary)] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -100,6 +131,11 @@ function LoginPageContent() {
           {error && (
             <div className="mb-4 p-3 bg-[var(--color-error-bg)] border border-[var(--color-error)] text-[var(--color-error)] text-sm rounded-[var(--radius-input)]">
               {error}
+              {error.includes('créer votre association') && (
+                <Link href="/creer-association" className="block mt-2 text-[var(--color-primary)] underline">
+                  → Créer mon association
+                </Link>
+              )}
             </div>
           )}
 
@@ -124,7 +160,7 @@ function LoginPageContent() {
               )}
             </div>
           ) : (
-            <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-4">
               {!preselectedCode && (
                 <button
                   type="button"
@@ -153,28 +189,50 @@ function LoginPageContent() {
                 <p className="font-medium text-[var(--color-text)]">{selectedAssoc?.name}</p>
               </div>
 
-              <Input
-                label="Email ou Téléphone"
-                type="text"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="email@exemple.com"
-                required
-              />
+              {/* Bouton Google Sign-In */}
+              <div className="flex justify-center">
+                <GoogleSignInButton 
+                  onCredential={handleGoogleCredential}
+                  onError={(err) => setError(err)}
+                  text="continue_with"
+                  disabled={googleLoading}
+                  width={280}
+                />
+              </div>
 
-              <Input
-                label="Mot de passe"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[var(--color-border)]" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-[var(--color-text-muted)]">ou</span>
+                </div>
+              </div>
 
-              <Button type="submit" className="w-full" loading={loading}>
-                Se connecter
-              </Button>
-            </form>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <Input
+                  label="Email ou Téléphone"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="email@exemple.com"
+                  required
+                />
+
+                <Input
+                  label="Mot de passe"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+
+                <Button type="submit" className="w-full" loading={loading}>
+                  Se connecter
+                </Button>
+              </form>
+            </div>
           )}
 
           <div className="mt-6 text-center space-y-3">

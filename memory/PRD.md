@@ -673,3 +673,89 @@ Permet à un utilisateur de se connecter à plusieurs associations et de bascule
 ### Tests
 - Testing agent iteration 14 : 100% (5/5)
 - data-testid : `linked-accounts-card`, `add-account-btn`, `switch-account-{id}`, `remove-account-{id}`
+
+## Authentification Google OAuth - 21 Juillet 2026 ✅ (Code prêt, config manuelle requise)
+
+### Objectif
+Ajouter "Se connecter avec Google" comme méthode d'authentification alternative, en plus de l'email/téléphone + mot de passe.
+
+### Cas d'usage couverts
+1. **Créer une association via Google** : `/creer-association` (web) et `/register-association` (mobile)
+2. **Se connecter à un compte existant via Google** : `/login` (web et mobile)
+3. **Rejoindre une association en tant que MEMBRE via Google** : `/join/[code]` (web et mobile) - Nouveau bouton "Créer mon compte avec Google"
+
+### Backend
+- **Dépendance** : `google-auth-library`
+- **Variable d'env** : `GOOGLE_CLIENT_ID` (optionnel, warning si absent)
+- **Schéma Prisma** :
+  - `User.googleId` (String?, unique par association : `@@unique([associationId, googleId])`)
+  - `Member.source` ("manual" ou "self_service")
+- **Routes ajoutées** :
+  - `POST /api/auth/google` - Connexion via Google
+  - `POST /api/public/associations/register-google` - Créer association via Google
+  - `POST /api/public/associations/:code/join-google` - Rejoindre en tant que membre via Google
+
+### Web (Next.js)
+- **Script Google GIS** : Chargé dans `layout.tsx` via `next/script`
+- **Composant** : `GoogleSignInButton.tsx` (réutilisable)
+- **Pages modifiées** : `login/page.tsx`, `creer-association/page.tsx`, `join/[code]/page.tsx`
+- **Variable d'env** : `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+
+### Mobile (Expo/React Native)
+- **Package** : `@react-native-google-signin/google-signin`
+- **Config** : Plugin ajouté dans `app.json`
+- **Composant** : `GoogleSignInButton.js`
+- **Fichiers modifiés** : `_layout.js`, `login.js`, `register-association.js`, `join/[code].js`
+- **Variable d'env** : `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+- **Note** : Nécessite un development build EAS (pas testable dans Expo Go)
+
+### Règles métier
+- **Liaison automatique** : Si un compte existe avec le même email, il est lié au googleId dès que Google confirme `email_verified: true`
+- **Multi-tenant** : Un même googleId peut être associé à plusieurs associations (contrainte `@@unique([associationId, googleId])`)
+- **Mot de passe** : Les comptes créés via Google ont un hash aléatoire (connexion par mot de passe impossible)
+
+### Configuration requise (manuelle)
+1. Créer projet Google Cloud Console
+2. Configurer écran de consentement OAuth (type "Externe", scopes: email, profile, openid)
+3. Créer Client ID "Web application" → Utiliser partout (backend, web, mobile)
+4. Créer Client ID "Android" avec SHA-1 du keystore EAS
+5. Définir les variables d'environnement : `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+
+## Multi-Devises - 21 Juillet 2026 ✅
+
+### Objectif
+Permettre aux associations de choisir leur devise (FCFA, EUR, USD) avec formatage adapté.
+
+### Backend
+- **Schéma Prisma** : `Association.currency` (String, défaut "XOF")
+- **Routes modifiées** :
+  - `POST /api/public/associations/register` : Accepte `currency`
+  - `POST /api/public/associations/register-google` : Accepte `currency`
+  - `GET /api/auth/association-settings` : Retourne `currency`
+  - `PUT /api/auth/association-settings` : Accepte `currency`
+  - `GET /api/public/currencies` : Liste les devises supportées
+
+### Utilitaires
+- **Backend** : `/app/backend/utils/currency.js`
+- **Web** : `/app/web/src/utils/currency.ts`
+- **Mobile** : `/app/frontend/utils/currency.js`
+
+### Devises supportées
+| Code | Symbole | Position | Décimales | Nom |
+|------|---------|----------|-----------|-----|
+| XOF | FCFA | Après | 0 | Franc CFA |
+| EUR | € | Après | 2 | Euro |
+| USD | $ | Avant | 2 | Dollar US |
+
+### API Formatage
+```javascript
+import { formatAmount } from '@/utils/currency';
+formatAmount(15000, 'XOF'); // "15 000 FCFA"
+formatAmount(150.50, 'EUR'); // "150,50 €"
+formatAmount(150.50, 'USD'); // "$150.50"
+```
+
+### UI (à implémenter)
+- Sélecteur de devise dans formulaire de création d'association
+- Option de changement de devise dans les paramètres admin
+

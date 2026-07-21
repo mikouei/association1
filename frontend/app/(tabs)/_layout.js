@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography } from '../../utils/theme';
-import { House, Wallet, CalendarDots, Users, ShieldCheck, GearSix } from 'phosphor-react-native';
+import { House, Wallet, CalendarDots, Users, ShieldCheck, GearSix, Bell } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '../../components/ErrorBoundary';
 
@@ -97,6 +97,16 @@ export default function TabsLayout() {
             href: isAdmin ? '/admin' : null,
             tabBarIcon: ({ color, focused }) => (
               <ShieldCheck size={24} color={color} weight={focused ? 'fill' : 'regular'} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="annonces"
+          options={{
+            title: 'Annonces',
+            href: isAdmin ? '/annonces' : null,
+            tabBarIcon: ({ color, focused }) => (
+              <Bell size={24} color={color} weight={focused ? 'fill' : 'regular'} />
             ),
           }}
         />

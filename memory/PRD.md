@@ -903,3 +903,62 @@ model TontinePayment {
 - `/app/web/src/app/tontines/page.tsx` (nouveau)
 - `/app/web/src/components/layout/Sidebar.tsx` (lien Tontines)
 - `/app/frontend/app/(tabs)/index.js` (carte Mes Tontines)
+
+---
+
+## Module Notifications Push - 21 Juillet 2026 ✅
+
+### Objectif
+Permettre aux admins d'envoyer des annonces ciblées aux membres via notifications push, avec rappels de cotisation automatiques.
+
+### Fonctionnalités
+1. **Annonces générales** : Message à tous les membres
+2. **Annonces ciblées** : Message à des membres sélectionnés
+3. **Rappels de cotisation** : Notification aux membres en retard pour un mois donné
+4. **Notifications automatiques** : Lors de la création d'une cotisation exceptionnelle
+
+### Schéma Prisma
+```prisma
+model PushToken {
+  id, userId, token (ExponentPushToken[...]), platform, timestamps
+  @@unique([userId, token])
+}
+
+model Announcement {
+  id, associationId, senderId, title, body, type, targetType, targetIds, sentCount, timestamps
+}
+```
+
+### Routes Backend `/api/notifications`
+| Méthode | Route | Accès | Description |
+|---------|-------|-------|-------------|
+| POST | /register | AUTH | Enregistrer un token push |
+| DELETE | /unregister | AUTH | Supprimer un token push |
+| GET | /announcements | ADMIN | Historique des annonces |
+| POST | /announcements | ADMIN | Envoyer une annonce |
+| POST | /reminder | ADMIN | Envoyer un rappel de cotisation |
+| GET | /stats | ADMIN | Statistiques des notifications |
+
+### Frontend Mobile
+- **Nouvel onglet "Annonces"** (admin uniquement)
+- Statistiques : appareils connectés, couverture, annonces récentes
+- Formulaire création avec sélection des destinataires
+- Modal rappel cotisation avec sélection mois/année
+- Historique des annonces envoyées
+
+### Intégration automatique
+- Enregistrement du token push au login
+- Désenregistrement au logout
+- Notification auto lors de la création d'une cotisation exceptionnelle (hasCollection: true)
+
+### Note technique
+Les notifications push nécessitent un build EAS (pas Expo Go). Le test en preview est limité à l'envoi backend et l'interface d'envoi.
+
+### Fichiers créés/modifiés
+- `/app/backend/utils/pushNotifications.js` (nouveau)
+- `/app/backend/routes/notifications.js` (nouveau)
+- `/app/backend/routes/exceptional.js` (notification auto)
+- `/app/frontend/utils/notifications.js` (nouveau)
+- `/app/frontend/app/(tabs)/annonces.js` (nouveau)
+- `/app/frontend/app/(tabs)/_layout.js` (onglet Annonces)
+- `/app/frontend/context/AuthContext.js` (register/unregister push)

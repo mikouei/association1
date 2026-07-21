@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
+import { sendToAssociationMembers } from '../utils/pushNotifications.js';
 
 const router = express.Router();
 
@@ -451,6 +452,25 @@ router.post('/', requireAdmin, async (req, res) => {
       targetId: contribution.id,
       details: `${activityLabel} créé(e): ${title} (${type})`
     });
+
+    // Envoyer une notification push aux membres (si c'est une cotisation avec collecte)
+    if (contribution.hasCollection) {
+      try {
+        await sendToAssociationMembers(
+          prisma,
+          req.associationId,
+          'Nouvelle cotisation exceptionnelle',
+          `${title} - ${type}`,
+          { 
+            type: 'exceptional_contribution',
+            contributionId: contribution.id 
+          },
+          [req.user.id] // Exclure l'admin qui a créé
+        );
+      } catch (pushError) {
+        console.error('Push notification error (non-blocking):', pushError);
+      }
+    }
   } catch (error) {
     console.error('Create exceptional contribution error:', error);
     res.status(500).json({ error: 'Erreur lors de la création de la cotisation' });

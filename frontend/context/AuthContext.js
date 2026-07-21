@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import api from '../utils/api';
 import { useOffline } from './OfflineContext';
+import { registerForPushNotifications, unregisterPushNotifications } from '../utils/notifications';
 
 const AuthContext = createContext();
 
@@ -177,6 +178,13 @@ export const AuthProvider = ({ children }) => {
       setUser(newUser);
       setAssociation(newAssociation);
 
+      // Enregistrer les notifications push (non-bloquant)
+      if (!isWeb) {
+        registerForPushNotifications().catch(err => {
+          console.log('Push registration failed (non-blocking):', err.message);
+        });
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Erreur login:', error);
@@ -189,6 +197,13 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Désenregistrer les notifications push (non-bloquant)
+      if (!isWeb) {
+        unregisterPushNotifications().catch(err => {
+          console.log('Push unregister failed (non-blocking):', err.message);
+        });
+      }
+      
       await removeStorageItem('authToken');
       await removeStorageItem('user');
       await removeStorageItem('association');

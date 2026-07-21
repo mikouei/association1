@@ -217,9 +217,9 @@ export default function TontinesPage() {
       case 'active':
         return <Badge variant="success">Active</Badge>;
       case 'completed':
-        return <Badge variant="secondary">Terminée</Badge>;
+        return <Badge variant="info">Terminée</Badge>;
       case 'cancelled':
-        return <Badge variant="destructive">Annulée</Badge>;
+        return <Badge variant="danger">Annulée</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -446,7 +446,7 @@ export default function TontinesPage() {
         </Modal>
 
         {/* Modal Détail */}
-        <Modal isOpen={!!detailModal} onClose={() => setDetailModal(null)} className="max-w-3xl">
+        <Modal isOpen={!!detailModal} onClose={() => setDetailModal(null)} size="xl">
           {loadingDetail ? (
             <div className="flex justify-center py-12">
               <LoadingSpinner />
@@ -611,7 +611,7 @@ export default function TontinesPage() {
                   </Button>
                 )}
                 <Button
-                  variant="destructive"
+                  variant="danger"
                   onClick={() => {
                     if (window.confirm('Êtes-vous sûr de vouloir supprimer définitivement cette tontine ?')) {
                       deleteMutation.mutate(tontineDetail.id);

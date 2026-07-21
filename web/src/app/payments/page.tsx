@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal, LoadingSpinner } from '@/components/ui';
@@ -42,12 +42,19 @@ export default function PaymentsPage() {
     queryKey: ['years'],
     queryFn: async () => {
       const response = await api.get('/years');
-      const yearsData = response.data as Year[];
-      const active = yearsData.find(y => y.active);
-      if (active && !selectedYear) setSelectedYear(active);
-      return yearsData;
+      return response.data as Year[];
     },
   });
+
+  // Sélectionne automatiquement l'année active (ou la première disponible) dès que
+  // `years` est disponible — y compris quand la donnée vient du cache React Query
+  // (staleTime 60s dans providers.tsx) et que queryFn ne se réexécute pas.
+  useEffect(() => {
+    if (years && years.length > 0 && !selectedYear) {
+      const active = years.find(y => y.active) || years[0];
+      setSelectedYear(active);
+    }
+  }, [years, selectedYear]);
 
   const { data: payments, isLoading: loadingPayments } = useQuery({
     queryKey: ['payments', selectedYear?.id],

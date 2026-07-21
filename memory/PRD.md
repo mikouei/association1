@@ -1099,3 +1099,14 @@ Les notifications push nécessitent un build EAS (pas Expo Go). Le test en previ
 - `/app/frontend/context/AuthContext.js` (Problème A)
 - `/app/frontend/app/(tabs)/annonces.js` (Problème B)
 
+
+
+### Fix Page Cotisations Web - Cache React Query - 21 Juillet 2026 ✅
+**Symptôme** : Page /payments affiche "0 FCFA/mois" et "0 membre(s)" de façon intermittente, alors que le sélecteur d'année montre bien "2026 - 1000 FCFA/mois".
+
+**Cause** : `setSelectedYear()` était appelé dans `queryFn` de la requête `years`. Or avec `staleTime: 60s` (dans providers.tsx), React Query sert les données depuis le cache sans réexécuter `queryFn`. Résultat : `selectedYear` reste `null`, la requête `payments` ne se déclenche pas.
+
+**Solution** : Déplacé la sélection automatique de l'année dans un `useEffect` séparé qui dépend de `[years, selectedYear]` — s'exécute même quand `years` vient du cache.
+
+**Fichier modifié** : `/app/web/src/app/payments/page.tsx`
+

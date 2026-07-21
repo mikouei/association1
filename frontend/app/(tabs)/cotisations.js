@@ -141,10 +141,13 @@ export default function Cotisations() {
         }
       }
 
-      const paymentsRes = await api.get(`/payments/year/${yearId}`);
+      // Appeler l'URL selon le rôle
+      const url = isAdmin ? `/payments/year/${yearId}` : `/payments/my/year/${yearId}`;
+      const paymentsRes = await api.get(url);
       let members = paymentsRes.data.members;
       
-      if (user?.role !== 'ADMIN' && user?.member) {
+      // Filtre client côté membre (garde-fou supplémentaire, déjà filtré côté serveur)
+      if (!isAdmin && user?.member) {
         members = members.filter(m => m.id === user.member.id || m.userId === user.id);
       }
       
@@ -462,10 +465,10 @@ export default function Cotisations() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Modal Sélection d'année */}
+      {/* Modal Sélection d'année - Popup centrée */}
       <Modal
         visible={yearSelectorModal}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => setYearSelectorModal(false)}
       >
@@ -789,15 +792,18 @@ const styles = StyleSheet.create({
   },
   yearModalContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: spacing.lg,
   },
   yearModalContent: {
     backgroundColor: colors.backgroundWhite,
-    borderTopLeftRadius: borderRadius.card,
-    borderTopRightRadius: borderRadius.card,
+    borderRadius: borderRadius.card,
     padding: spacing.xl,
-    maxHeight: '60%',
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '70%',
   },
   yearModalHeader: {
     flexDirection: 'row',

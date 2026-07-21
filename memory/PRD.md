@@ -759,3 +759,45 @@ formatAmount(150.50, 'USD'); // "$150.50"
 - Sélecteur de devise dans formulaire de création d'association
 - Option de changement de devise dans les paramètres admin
 
+## Correctifs Batch - 21 Juillet 2026 ✅
+
+### Partie A - Routes "mes données" pour MEMBRE
+**Objectif** : Permettre à un membre de voir SES propres cotisations sans accéder aux données des autres.
+
+**Routes ajoutées** :
+- `GET /api/payments/my/year/:yearId` - Mes paiements pour une année (MEMBRE)
+- `GET /api/exceptional/mine` - Mes cotisations exceptionnelles (MEMBRE)
+
+**Logique** : Filtrage côté serveur sur `userId: req.user.id` - impossible de voir les données des autres.
+
+### Partie B - Mobile : Accès membre aux cotisations
+- `cotisations.js` : Appelle `/payments/my/year/:yearId` si non-admin
+- `exceptionnelles.js` : Appelle `/exceptional/mine` si non-admin
+- `index.js` (Accueil) : Nouvelle carte "Mes cotisations" avec barre de progression pour les MEMBRES
+
+### Partie C - Web : Fix crash payments/page.tsx
+**Cause** : Interface TypeScript incorrecte (`memberId`/`memberName`/`months[]` vs `id`/`name`/`paymentsByMonth{}`)
+**Fix** : Aligné l'interface et le code de rendu avec la forme réelle renvoyée par le backend.
+
+### Partie D - Mobile UX : Transparence register-association.js
+**Cause** : `colors.surface` n'existe pas dans theme.js
+**Fix** : Remplacé par `colors.backgroundWhite`
+
+### Partie E - Mobile UX : Sélecteur d'association (login.js)
+**Changement** : Remplacé le bouton + modal par un TextInput de recherche inline avec suggestions (2+ caractères)
+
+### Partie F - Mobile UX : Popup "Sélectionner une année" (cotisations.js)
+**Changement** : `animationType="slide"` → `animationType="fade"`, popup centrée
+
+### Partie G - Mobile : Barre d'onglets (_layout.js)
+**Cause** : Hauteur fixe (64px) sans tenir compte de la zone de sécurité Android
+**Fix** : Utilisation de `useSafeAreaInsets()` pour adapter `paddingBottom` et `height` dynamiquement
+
+### Partie H - Verrouillage compte après 5 tentatives
+**Schéma Prisma** : `User.failedLoginAttempts` (Int), `User.lockedUntil` (DateTime?)
+**Logique** :
+- Mot de passe incorrect → incrémenter compteur
+- 5ème échec → `lockedUntil = now + 30 min`
+- Connexion réussie (mot de passe ou Google) → reset compteur
+- Reset mot de passe par admin → reset verrouillage
+**Message** : "Compte temporairement bloqué suite à plusieurs tentatives échouées. Réessayez dans X minute(s)."

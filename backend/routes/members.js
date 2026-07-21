@@ -431,7 +431,12 @@ router.post('/:id/reset-password', requireAdmin, async (req, res) => {
         role: 'MEMBER',
         associationId: req.associationId
       },
-      data: { passwordHash, passwordChangedAt: new Date() }
+      data: { 
+        passwordHash, 
+        passwordChangedAt: new Date(),
+        failedLoginAttempts: 0,
+        lockedUntil: null
+      }
     });
 
     res.json({ message: 'Mot de passe réinitialisé', newPassword });

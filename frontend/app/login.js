@@ -10,8 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Modal,
-  FlatList,
   Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -58,7 +56,6 @@ export default function Login() {
   // Association selection
   const [associations, setAssociations] = useState([]);
   const [selectedAssociation, setSelectedAssociation] = useState(null);
-  const [showAssociationPicker, setShowAssociationPicker] = useState(false);
   const [loadingAssociations, setLoadingAssociations] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUsedAssociationId, setLastUsedAssociationId] = useState(null);
@@ -240,36 +237,6 @@ export default function Login() {
     Alert.alert('Erreur Google', message);
   };
 
-  const renderAssociationItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.associationItem}
-      onPress={() => {
-        setSelectedAssociation(item);
-        setShowAssociationPicker(false);
-        setSearchQuery('');
-      }}
-    >
-      <View style={styles.associationItemContent}>
-        <View style={[styles.associationIcon, { backgroundColor: getAssociationColor(item.type) }]}>
-          {item.type === 'syndicat' ? (
-            <Buildings size={20} color={colors.textOnSecondary} weight="fill" />
-          ) : item.type === 'amicale' ? (
-            <Users size={20} color={colors.textOnSecondary} weight="fill" />
-          ) : (
-            <House size={20} color={colors.textOnSecondary} weight="fill" />
-          )}
-        </View>
-        <View style={styles.associationInfo}>
-          <Text style={styles.associationName}>{item.name}</Text>
-          <Text style={styles.associationCode}>{item.code}</Text>
-        </View>
-      </View>
-      {selectedAssociation?.id === item.id && (
-        <CheckCircle size={24} color={colors.success} weight="fill" />
-      )}
-    </TouchableOpacity>
-  );
-
   const getAssociationColor = (type) => {
     switch (type) {
       case 'syndicat': return colors.warning;
@@ -290,19 +257,9 @@ export default function Login() {
           <Text style={styles.subtitle}>Gestion de cotisations</Text>
         </View>
 
-        {/* Sélection d'association */}
-        <TouchableOpacity
-          style={styles.associationSelector}
-          onPress={() => {
-            if (!isPreselected) {
-              setShowAssociationPicker(true);
-            }
-          }}
-          disabled={loadingAssociations}
-        >
-          {loadingAssociations ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : selectedAssociation ? (
+        {/* Sélection d'association - Recherche inline */}
+        {selectedAssociation && !isPreselected ? (
+          <View style={styles.selectedAssociationCard}>
             <View style={styles.selectedAssociation}>
               <View style={[styles.associationIcon, { backgroundColor: getAssociationColor(selectedAssociation.type) }]}>
                 {selectedAssociation.type === 'syndicat' ? (
@@ -317,16 +274,93 @@ export default function Login() {
                 <Text style={styles.selectedAssociationName}>{selectedAssociation.name}</Text>
                 <Text style={styles.selectedAssociationCode}>{selectedAssociation.code}</Text>
               </View>
-              <CaretDown size={24} color={colors.textMuted} />
             </View>
-          ) : (
-            <View style={styles.placeholderContainer}>
-              <Buildings size={20} color={colors.textMuted} />
-              <Text style={styles.placeholderText}>Sélectionner une association</Text>
-              <CaretDown size={24} color={colors.textMuted} />
+            <TouchableOpacity 
+              style={styles.clearSelectionButton}
+              onPress={() => {
+                setSelectedAssociation(null);
+                setSearchQuery('');
+              }}
+            >
+              <XCircle size={24} color={colors.textMuted} weight="fill" />
+            </TouchableOpacity>
+          </View>
+        ) : isPreselected && selectedAssociation ? (
+          <View style={styles.selectedAssociationCard}>
+            <View style={styles.selectedAssociation}>
+              <View style={[styles.associationIcon, { backgroundColor: getAssociationColor(selectedAssociation.type) }]}>
+                {selectedAssociation.type === 'syndicat' ? (
+                  <Buildings size={20} color={colors.textOnSecondary} weight="fill" />
+                ) : selectedAssociation.type === 'amicale' ? (
+                  <Users size={20} color={colors.textOnSecondary} weight="fill" />
+                ) : (
+                  <House size={20} color={colors.textOnSecondary} weight="fill" />
+                )}
+              </View>
+              <View style={styles.selectedAssociationText}>
+                <Text style={styles.selectedAssociationName}>{selectedAssociation.name}</Text>
+                <Text style={styles.selectedAssociationCode}>{selectedAssociation.code}</Text>
+              </View>
             </View>
-          )}
-        </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.searchAssociationContainer}>
+            <View style={styles.searchInputContainer}>
+              <MagnifyingGlass size={20} color={colors.textMuted} />
+              <TextInput
+                style={styles.searchAssociationInput}
+                placeholder="Code ou nom de votre association"
+                placeholderTextColor={colors.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <XCircle size={20} color={colors.textMuted} weight="fill" />
+                </TouchableOpacity>
+              )}
+            </View>
+            
+            {/* Liste de suggestions (affichée seulement si 2+ caractères) */}
+            {searchQuery.length >= 2 && filteredAssociations.length > 0 && (
+              <View style={styles.suggestionsList}>
+                {filteredAssociations.slice(0, 5).map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.suggestionItem}
+                    onPress={() => {
+                      setSelectedAssociation(item);
+                      setSearchQuery('');
+                    }}
+                  >
+                    <View style={[styles.suggestionIcon, { backgroundColor: getAssociationColor(item.type) }]}>
+                      {item.type === 'syndicat' ? (
+                        <Buildings size={16} color={colors.textOnSecondary} weight="fill" />
+                      ) : item.type === 'amicale' ? (
+                        <Users size={16} color={colors.textOnSecondary} weight="fill" />
+                      ) : (
+                        <House size={16} color={colors.textOnSecondary} weight="fill" />
+                      )}
+                    </View>
+                    <View style={styles.suggestionInfo}>
+                      <Text style={styles.suggestionName}>{item.name}</Text>
+                      <Text style={styles.suggestionCode}>{item.code}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            
+            {/* Message si pas de résultat */}
+            {searchQuery.length >= 2 && filteredAssociations.length === 0 && (
+              <View style={styles.noResultContainer}>
+                <Text style={styles.noResultText}>Aucune association trouvée</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Lien pour changer d'association si présélectionnée */}
         {isPreselected && (
@@ -471,58 +505,6 @@ export default function Login() {
           <Text style={styles.whatsappLinkText}>Besoin d'aide ?</Text>
         </TouchableOpacity>
       </ScrollView>
-
-      {/* Modal de sélection d'association */}
-      <Modal
-        visible={showAssociationPicker}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowAssociationPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choisir une association</Text>
-              <TouchableOpacity onPress={() => setShowAssociationPicker(false)}>
-                <X size={28} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.searchContainer}>
-              <MagnifyingGlass size={20} color={colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Rechercher..."
-                placeholderTextColor={colors.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {searchQuery ? (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <XCircle size={20} color={colors.textMuted} weight="fill" />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            <FlatList
-              data={filteredAssociations}
-              renderItem={renderAssociationItem}
-              keyExtractor={(item) => item.id}
-              style={styles.associationList}
-              ListEmptyComponent={() => (
-                <View style={styles.emptyContainer}>
-                  <Buildings size={48} color={colors.border} />
-                  <Text style={styles.emptyText}>
-                    {searchQuery ? 'Aucune association trouvée' : 'Aucune association disponible'}
-                  </Text>
-                </View>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -563,9 +545,90 @@ const styles = StyleSheet.create({
     minHeight: 60,
     justifyContent: 'center',
   },
+  selectedAssociationCard: {
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   selectedAssociation: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  clearSelectionButton: {
+    padding: spacing.xs,
+  },
+  searchAssociationContainer: {
+    marginBottom: spacing.lg,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
+  },
+  searchAssociationInput: {
+    flex: 1,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
+    paddingVertical: spacing.sm,
+  },
+  suggestionsList: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  suggestionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  suggestionInfo: {
+    marginLeft: spacing.md,
+    flex: 1,
+  },
+  suggestionName: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  suggestionCode: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+  },
+  noResultContainer: {
+    padding: spacing.lg,
+    alignItems: 'center',
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    marginTop: spacing.sm,
+  },
+  noResultText: {
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
   },
   associationIcon: {
     width: 40,

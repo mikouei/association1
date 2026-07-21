@@ -11,6 +11,15 @@ export const formatNumber = (num) => {
 };
 
 /**
+ * Formate un montant (alias de formatNumber pour compatibilité)
+ * @param {number} amount - Le montant à formater
+ * @returns {string} - Le montant formaté (ex: "15 000")
+ */
+export const formatAmount = (amount) => {
+  return formatNumber(amount);
+};
+
+/**
  * Formate un montant en FCFA
  * @param {number} amount - Le montant à formater
  * @returns {string} - Le montant formaté (ex: "15 000 FCFA")
@@ -31,6 +40,7 @@ export const formatPercentage = (percentage) => {
 
 export default {
   formatNumber,
+  formatAmount,
   formatCurrency,
   formatPercentage
 };

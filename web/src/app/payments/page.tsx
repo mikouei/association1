@@ -9,10 +9,12 @@ import { formatCurrency, MONTHS } from '@/lib/utils';
 import { CreditCard, Check } from 'lucide-react';
 
 interface MemberPayment {
-  memberId: string;
-  memberName: string;
+  id: string;
+  userId: string;
+  name: string;
   customFieldValue?: string;
-  months: { month: number; amountPaid: number; isPaid: boolean }[];
+  phone?: string;
+  paymentsByMonth: Record<number, { paid: boolean; amountPaid: number; payments: unknown[] }>;
   totalPaid: number;
   totalDue: number;
   remaining: number;
@@ -70,7 +72,7 @@ export default function PaymentsPage() {
   });
 
   const openPaymentModal = (member: MemberPayment, month: number) => {
-    const monthData = member.months.find(m => m.month === month);
+    const monthData = member.paymentsByMonth[month];
     setPaymentAmount(monthData?.amountPaid?.toString() || selectedYear?.monthlyAmount.toString() || '');
     setPaymentModal({ isOpen: true, member, month });
   };
@@ -80,7 +82,7 @@ export default function PaymentsPage() {
     if (!paymentModal.member || !selectedYear) return;
 
     paymentMutation.mutate({
-      memberId: paymentModal.member.memberId,
+      memberId: paymentModal.member.id,
       yearId: selectedYear.id,
       month: paymentModal.month,
       amountPaid: parseFloat(paymentAmount),
@@ -156,13 +158,13 @@ export default function PaymentsPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {payments?.members?.map((member) => (
-                      <tr key={member.memberId} className="hover:bg-gray-50">
+                      <tr key={member.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
-                          <p className="font-medium text-gray-900">{member.memberName}</p>
+                          <p className="font-medium text-gray-900">{member.name}</p>
                           <p className="text-xs text-gray-500">{member.customFieldValue}</p>
                         </td>
                         {MONTHS.map((_, idx) => {
-                          const monthData = member.months.find(m => m.month === idx + 1);
+                          const monthData = member.paymentsByMonth[idx + 1];
                           const isPaid = monthData && monthData.amountPaid >= (selectedYear?.monthlyAmount || 0);
                           
                           return (
@@ -217,7 +219,7 @@ export default function PaymentsPage() {
           <form onSubmit={handlePayment} className="space-y-4">
             <div className="p-4 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600">Membre</p>
-              <p className="font-medium text-gray-900">{paymentModal.member?.memberName}</p>
+              <p className="font-medium text-gray-900">{paymentModal.member?.name}</p>
               <p className="text-sm text-gray-500">{paymentModal.member?.customFieldValue}</p>
             </div>
 

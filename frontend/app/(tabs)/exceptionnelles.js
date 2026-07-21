@@ -62,13 +62,18 @@ export default function Exceptionnelles() {
   useFocusEffect(
     useCallback(() => {
       loadContributions();
-      loadMembers();
-    }, [])
+      // loadMembers uniquement pour les admins (sélection d'un membre pour un paiement)
+      if (isAdmin) {
+        loadMembers();
+      }
+    }, [isAdmin])
   );
 
   const loadContributions = async () => {
     try {
-      const response = await api.get('/exceptional');
+      // Appeler l'URL selon le rôle
+      const url = isAdmin ? '/exceptional' : '/exceptional/mine';
+      const response = await api.get(url);
       setContributions(response.data);
     } catch (error) {
       console.error('Erreur chargement:', error);

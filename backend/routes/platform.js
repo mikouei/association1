@@ -75,9 +75,32 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Identifiants invalides' });
     }
 
+    // Vérifier si le compte est verrouillé
+    if (superAdmin.lockedUntil && superAdmin.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((superAdmin.lockedUntil - new Date()) / 60000);
+      return res.status(403).json({
+        error: `Compte temporairement bloqué suite à plusieurs tentatives échouées. Réessayez dans ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`
+      });
+    }
+
     const validPassword = await bcrypt.compare(password, superAdmin.passwordHash);
     if (!validPassword) {
+      // Incrémenter le compteur d'échecs
+      const attempts = (superAdmin.failedLoginAttempts || 0) + 1;
+      const updateData = { failedLoginAttempts: attempts };
+      if (attempts >= 5) {
+        updateData.lockedUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+      }
+      await prisma.superAdmin.update({ where: { id: superAdmin.id }, data: updateData });
       return res.status(401).json({ error: 'Identifiants invalides' });
+    }
+
+    // Connexion réussie - réinitialiser le compteur d'échecs
+    if (superAdmin.failedLoginAttempts > 0 || superAdmin.lockedUntil) {
+      await prisma.superAdmin.update({
+        where: { id: superAdmin.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null }
+      });
     }
 
     const token = jwt.sign(
@@ -147,7 +170,12 @@ router.put('/me/password', authenticateSuperAdmin, async (req, res) => {
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
     await prisma.superAdmin.update({
       where: { id: req.superAdmin.id },
-      data: { passwordHash: newPasswordHash, passwordChangedAt: new Date() }
+      data: { 
+        passwordHash: newPasswordHash, 
+        passwordChangedAt: new Date(),
+        failedLoginAttempts: 0,
+        lockedUntil: null
+      }
     });
 
     res.json({ message: 'Mot de passe modifié avec succès' });
@@ -622,7 +650,12 @@ router.put('/associations/:id/admins/:adminId/password', authenticateSuperAdmin,
     
     await prisma.user.update({
       where: { id: req.params.adminId },
-      data: { passwordHash, passwordChangedAt: new Date() }
+      data: { 
+        passwordHash, 
+        passwordChangedAt: new Date(),
+        failedLoginAttempts: 0,
+        lockedUntil: null
+      }
     });
     
     res.json({ message: 'Mot de passe modifié avec succès' });

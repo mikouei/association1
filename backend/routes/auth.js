@@ -102,10 +102,33 @@ router.post('/login', loginLimiter, attachPrisma, async (req, res) => {
         return res.status(401).json({ error: 'Identifiants invalides' });
       }
 
+      // Vérifier si le compte est verrouillé
+      if (user.lockedUntil && user.lockedUntil > new Date()) {
+        const minutesLeft = Math.ceil((user.lockedUntil - new Date()) / 60000);
+        return res.status(403).json({
+          error: `Compte temporairement bloqué suite à plusieurs tentatives échouées. Réessayez dans ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`
+        });
+      }
+
       // Vérifier le mot de passe
       const validPassword = await bcrypt.compare(password, user.passwordHash);
       if (!validPassword) {
+        // Incrémenter le compteur d'échecs
+        const attempts = (user.failedLoginAttempts || 0) + 1;
+        const updateData = { failedLoginAttempts: attempts };
+        if (attempts >= 5) {
+          updateData.lockedUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+        }
+        await prisma.user.update({ where: { id: user.id }, data: updateData });
         return res.status(401).json({ error: 'Identifiants invalides' });
+      }
+
+      // Connexion réussie - réinitialiser le compteur d'échecs
+      if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedLoginAttempts: 0, lockedUntil: null }
+        });
       }
     }
 
@@ -207,6 +230,14 @@ router.post('/google', loginLimiter, attachPrisma, async (req, res) => {
         where: { id: user.id },
         data: { googleId },
         include: { member: true }
+      });
+    }
+
+    // Connexion Google réussie - réinitialiser le compteur d'échecs s'il y en avait
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null }
       });
     }
 

@@ -16,14 +16,16 @@ datasource db {
 
 // Super Administrateur de la plateforme
 model SuperAdmin {
-  id                String   @id @default(uuid())
-  email             String   @unique
-  passwordHash      String
-  name              String   @default("Super Admin")
-  active            Boolean  @default(true)
-  passwordChangedAt DateTime @default(now())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String
+  name                String    @default("Super Admin")
+  active              Boolean   @default(true)
+  passwordChangedAt   DateTime  @default(now())
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }
 
 // Association (tenant)
@@ -74,18 +76,20 @@ model AssociationConfig {
 
 // Utilisateurs (ADMIN et MEMBER)
 model User {
-  id                String   @id @default(uuid())
-  associationId     String
-  email             String
-  phone             String?
-  passwordHash      String
-  googleId          String?  // "sub" du token Google, unique PAR ASSOCIATION (pas globalement, cf. multi-association)
-  role              String   @default("MEMBER") // "ADMIN" ou "MEMBER"
-  token             String?  // Token d'accès pour les membres
-  active            Boolean  @default(true)
-  passwordChangedAt DateTime @default(now())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String    @id @default(uuid())
+  associationId       String
+  email               String
+  phone               String?
+  passwordHash        String
+  googleId            String?  // "sub" du token Google, unique PAR ASSOCIATION (pas globalement, cf. multi-association)
+  role                String    @default("MEMBER") // "ADMIN" ou "MEMBER"
+  token               String?  // Token d'accès pour les membres
+  active              Boolean   @default(true)
+  passwordChangedAt   DateTime  @default(now())
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
   
   association   Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
   member        Member?

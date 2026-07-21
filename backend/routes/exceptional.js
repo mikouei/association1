@@ -17,6 +17,52 @@ const escapeHtml = (str) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
+// GET /api/exceptional/mine
+// Mes cotisations exceptionnelles - ACCESSIBLE À TOUT UTILISATEUR CONNECTÉ
+router.get('/mine', authenticateToken, async (req, res) => {
+  try {
+    const member = await prisma.member.findFirst({
+      where: { 
+        userId: req.user.id,
+        associationId: req.associationId
+      }
+    });
+    
+    if (!member) {
+      return res.status(404).json({ error: 'Aucun profil membre associé à ce compte' });
+    }
+    
+    const contributions = await prisma.exceptionalContribution.findMany({
+      where: { associationId: req.associationId },
+      include: {
+        payments: {
+          where: { memberId: member.id }  // <-- uniquement SES propres paiements
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    const formatted = contributions.map(contrib => {
+      const myPayment = contrib.payments[0] || null;
+      return {
+        id: contrib.id,
+        title: contrib.title,
+        type: contrib.type,
+        description: contrib.description,
+        active: contrib.active,
+        createdAt: contrib.createdAt,
+        myAmountPaid: myPayment ? myPayment.amount : 0,
+        myPaidAt: myPayment ? myPayment.createdAt : null,
+      };
+    });
+    
+    res.json(formatted);
+  } catch (error) {
+    console.error('List my exceptional contributions error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des cotisations' });
+  }
+});
+
 // GET /api/exceptional
 // Liste toutes les cotisations exceptionnelles de l'association - ADMIN ONLY
 router.get('/', requireAdmin, async (req, res) => {

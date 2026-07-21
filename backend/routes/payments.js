@@ -12,6 +12,88 @@ const MONTHS = [
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
 
+// GET /api/payments/my/year/:yearId
+// Mes paiements d'une année - ACCESSIBLE À TOUT UTILISATEUR CONNECTÉ (retourne uniquement SES propres données)
+router.get('/my/year/:yearId', async (req, res) => {
+  try {
+    const { yearId } = req.params;
+
+    // Récupérer l'année (vérifier qu'elle appartient à l'association)
+    const year = await prisma.year.findFirst({
+      where: { 
+        id: yearId,
+        associationId: req.associationId
+      }
+    });
+
+    if (!year) {
+      return res.status(404).json({ error: 'Année introuvable' });
+    }
+
+    // Récupérer uniquement le membre du compte connecté
+    const members = await prisma.member.findMany({
+      where: { 
+        associationId: req.associationId,
+        userId: req.user.id,  // <-- uniquement SES propres données
+        active: true 
+      },
+      include: {
+        user: true,
+        payments: {
+          where: { yearId }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    if (members.length === 0) {
+      return res.status(404).json({ error: 'Aucun profil membre associé à ce compte' });
+    }
+
+    // Calculer les données pour le membre
+    const membersData = members.map(member => {
+      const paymentsByMonth = {};
+      
+      for (let month = 1; month <= 12; month++) {
+        const monthPayments = member.payments.filter(p => p.month === month);
+        const totalPaid = monthPayments.reduce((sum, p) => sum + p.amountPaid, 0);
+        
+        paymentsByMonth[month] = {
+          paid: totalPaid >= year.monthlyAmount,
+          amountPaid: totalPaid,
+          payments: monthPayments
+        };
+      }
+
+      const totalPaid = member.payments.reduce((sum, p) => sum + p.amountPaid, 0);
+      const totalDue = year.monthlyAmount * 12;
+      const remaining = totalDue - totalPaid;
+      const percentage = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
+
+      return {
+        id: member.id,
+        userId: member.userId,
+        name: member.name,
+        customFieldValue: member.customFieldValue,
+        phone: member.user.phone,
+        paymentsByMonth,
+        totalPaid,
+        totalDue,
+        remaining,
+        percentage: Math.round(percentage * 100) / 100
+      };
+    });
+
+    res.json({
+      year,
+      members: membersData
+    });
+  } catch (error) {
+    console.error('Get my year payments error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des paiements' });
+  }
+});
+
 // GET /api/payments/year/:yearId
 // Tous les paiements d'une année avec calculs par membre - ADMIN ONLY
 router.get('/year/:yearId', requireAdmin, async (req, res) => {

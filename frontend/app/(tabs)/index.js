@@ -25,18 +25,23 @@ import {
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
-import { formatNumber, formatCurrency } from '../../utils/format';
+import { formatNumber, formatCurrency, formatAmount } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 export default function Dashboard() {
   const { user, association } = useAuth();
   const router = useRouter();
+  const isAdmin = user?.role === 'ADMIN';
   const [config, setConfig] = useState(null);
   const [memberStats, setMemberStats] = useState(null);
   const [paymentStats, setPaymentStats] = useState(null);
   const [yearsCount, setYearsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // État pour les données membre (non-admin)
+  const [myPaymentData, setMyPaymentData] = useState(null);
+  const [myExceptionalData, setMyExceptionalData] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -46,20 +51,34 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [configRes, membersRes, yearsRes] = await Promise.all([
+      // Requêtes communes à tous les rôles
+      const commonRequests = [
         api.get('/config'),
-        api.get('/members'),
         api.get('/years'),
-      ]);
+      ];
+      
+      // Requêtes réservées aux admins
+      if (isAdmin) {
+        commonRequests.push(api.get('/members'));
+      }
+      
+      const results = await Promise.all(commonRequests);
+      
+      const configRes = results[0];
+      const yearsRes = results[1];
+      const membersRes = isAdmin ? results[2] : null;
 
       setConfig(configRes.data);
       
-      const members = membersRes.data;
-      setMemberStats({
-        totalMembers: members.length,
-        activeMembers: members.filter(m => m.active).length,
-        inactiveMembers: members.filter(m => !m.active).length,
-      });
+      // Stats membres uniquement pour les admins
+      if (isAdmin && membersRes) {
+        const members = membersRes.data;
+        setMemberStats({
+          totalMembers: members.length,
+          activeMembers: members.filter(m => m.active).length,
+          inactiveMembers: members.filter(m => !m.active).length,
+        });
+      }
 
       // Stocker le nombre d'années
       const years = yearsRes.data;
@@ -68,41 +87,76 @@ export default function Dashboard() {
       // Charger les stats de paiement pour l'année active
       const activeYear = years.find(y => y.active);
       if (activeYear) {
-        try {
-          const paymentsRes = await api.get(`/payments/year/${activeYear.id}`);
-          const paymentMembers = paymentsRes.data.members || paymentsRes.data;
-          
-          const totalMembers = paymentMembers.length;
-          const monthlyAmount = activeYear.monthlyAmount;
-          const totalExpected = totalMembers * monthlyAmount * 12;
-          
-          let totalCollected = 0;
-          let membersFullyPaid = 0;
-          
-          paymentMembers.forEach(member => {
-            const memberTotal = member.totalPaid || 0;
-            totalCollected += memberTotal;
-            if (memberTotal >= monthlyAmount * 12) {
-              membersFullyPaid++;
+        if (isAdmin) {
+          // Stats admin - tous les membres
+          try {
+            const paymentsRes = await api.get(`/payments/year/${activeYear.id}`);
+            const paymentMembers = paymentsRes.data.members || paymentsRes.data;
+            
+            const totalMembers = paymentMembers.length;
+            const monthlyAmount = activeYear.monthlyAmount;
+            const totalExpected = totalMembers * monthlyAmount * 12;
+            
+            let totalCollected = 0;
+            let membersFullyPaid = 0;
+            
+            paymentMembers.forEach(member => {
+              const memberTotal = member.totalPaid || 0;
+              totalCollected += memberTotal;
+              if (memberTotal >= monthlyAmount * 12) {
+                membersFullyPaid++;
+              }
+            });
+            
+            const remaining = totalExpected - totalCollected;
+            const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+            
+            setPaymentStats({
+              year: activeYear.year,
+              monthlyAmount,
+              totalExpected,
+              totalCollected,
+              remaining,
+              rate,
+              membersFullyPaid,
+              membersPending: totalMembers - membersFullyPaid,
+            });
+          } catch (e) {
+            console.log('Pas de stats paiement:', e.message);
+            setPaymentStats({ noYear: false, error: true });
+          }
+        } else {
+          // Stats membre - ses propres données
+          try {
+            const myPaymentsRes = await api.get(`/payments/my/year/${activeYear.id}`);
+            const myData = myPaymentsRes.data.members?.[0];
+            
+            if (myData) {
+              const monthlyAmount = activeYear.monthlyAmount;
+              const totalDue = monthlyAmount * 12;
+              const paidMonths = Object.values(myData.paymentsByMonth || {}).filter(m => m.paid).length;
+              
+              setMyPaymentData({
+                year: activeYear.year,
+                monthlyAmount,
+                totalPaid: myData.totalPaid || 0,
+                totalDue,
+                paidMonths,
+                percentage: myData.percentage || 0,
+              });
             }
-          });
+          } catch (e) {
+            console.log('Pas de données paiement membre:', e.message);
+          }
           
-          const remaining = totalExpected - totalCollected;
-          const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
-          
-          setPaymentStats({
-            year: activeYear.year,
-            monthlyAmount,
-            totalExpected,
-            totalCollected,
-            remaining,
-            rate,
-            membersFullyPaid,
-            membersPending: totalMembers - membersFullyPaid,
-          });
-        } catch (e) {
-          console.log('Pas de stats paiement:', e.message);
-          setPaymentStats({ noYear: false, error: true });
+          // Charger les cotisations exceptionnelles
+          try {
+            const exceptionalRes = await api.get('/exceptional/mine');
+            const pendingExceptional = exceptionalRes.data.filter(c => c.active && c.myAmountPaid === 0);
+            setMyExceptionalData(pendingExceptional);
+          } catch (e) {
+            console.log('Pas de cotisations exceptionnelles:', e.message);
+          }
         }
       } else {
         setPaymentStats({ noYear: true, yearCount: years.length });
@@ -163,8 +217,66 @@ export default function Dashboard() {
         </View>
       </View>
 
+      {/* Carte Mes Cotisations - visible uniquement pour les MEMBRES */}
+      {!isAdmin && user?.member && myPaymentData && (
+        <View style={styles.myPaymentCard}>
+          <View style={styles.myPaymentHeader}>
+            <CurrencyCircleDollar size={24} color={colors.primary} weight="duotone" />
+            <Text style={styles.myPaymentTitle}>Mes cotisations {myPaymentData.year}</Text>
+          </View>
+          
+          <View style={styles.myPaymentProgress}>
+            <View style={styles.progressBarContainer}>
+              <View 
+                style={[
+                  styles.progressBar, 
+                  { width: `${Math.min(myPaymentData.percentage, 100)}%` }
+                ]} 
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {myPaymentData.paidMonths}/12 mois payés
+            </Text>
+          </View>
+          
+          <View style={styles.myPaymentStats}>
+            <View style={styles.myPaymentStat}>
+              <Text style={styles.myPaymentStatLabel}>Payé</Text>
+              <Text style={styles.myPaymentStatValue}>{formatAmount(myPaymentData.totalPaid)} FCFA</Text>
+            </View>
+            <View style={styles.myPaymentStatDivider} />
+            <View style={styles.myPaymentStat}>
+              <Text style={styles.myPaymentStatLabel}>Restant</Text>
+              <Text style={[styles.myPaymentStatValue, { color: myPaymentData.totalDue - myPaymentData.totalPaid > 0 ? colors.warning : colors.success }]}>
+                {formatAmount(myPaymentData.totalDue - myPaymentData.totalPaid)} FCFA
+              </Text>
+            </View>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.myPaymentButton}
+            onPress={() => router.push('/(tabs)/cotisations')}
+          >
+            <Text style={styles.myPaymentButtonText}>Voir le détail</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Alerte cotisation exceptionnelle en attente */}
+      {!isAdmin && user?.member && myExceptionalData && myExceptionalData.length > 0 && (
+        <TouchableOpacity 
+          style={styles.exceptionalAlert}
+          onPress={() => router.push('/(tabs)/exceptionnelles')}
+        >
+          <WarningCircle size={20} color={colors.warning} weight="fill" />
+          <Text style={styles.exceptionalAlertText}>
+            Cotisation exceptionnelle en attente : {myExceptionalData[0].title}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Carte Premiers pas - visible uniquement si association vide */}
-      {user?.role === 'ADMIN' && (yearsCount === 0 || (memberStats && memberStats.totalMembers === 0)) && (
+      {isAdmin && (yearsCount === 0 || (memberStats && memberStats.totalMembers === 0)) && (
         <View style={styles.onboardingCard}>
           <View style={styles.onboardingHeader}>
             <Rocket size={24} color={colors.primary} weight="duotone" />
@@ -534,5 +646,100 @@ const styles = StyleSheet.create({
     fontSize: typography.caption.fontSize,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  // Carte "Mes cotisations" pour les membres
+  myPaymentCard: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  myPaymentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  myPaymentTitle: {
+    fontSize: typography.body.fontSize,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  myPaymentProgress: {
+    marginBottom: spacing.md,
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: colors.borderLight,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    textAlign: 'right',
+  },
+  myPaymentStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  myPaymentStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  myPaymentStatDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: colors.border,
+  },
+  myPaymentStatLabel: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginBottom: 2,
+  },
+  myPaymentStatValue: {
+    fontSize: typography.body.fontSize,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  myPaymentButton: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.button,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  myPaymentButtonText: {
+    color: colors.textOnPrimary,
+    fontSize: typography.button.fontSize,
+    fontWeight: '600',
+  },
+  // Alerte cotisation exceptionnelle
+  exceptionalAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.warningBg,
+    borderRadius: borderRadius.button,
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  exceptionalAlertText: {
+    flex: 1,
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.warning,
+    fontWeight: '500',
   },
 });

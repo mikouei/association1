@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.backgroundWhite,
     borderRadius: borderRadius.input,
     borderWidth: 1,
     borderColor: colors.border,
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   selectContainer: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.backgroundWhite,
     borderRadius: borderRadius.input,
     borderWidth: 1,
     borderColor: colors.border,
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   modalContent: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.backgroundWhite,
     borderRadius: borderRadius.card,
     width: '100%',
     maxWidth: 320,

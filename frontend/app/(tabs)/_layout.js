@@ -2,11 +2,17 @@ import { Tabs } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography } from '../../utils/theme';
 import { House, Wallet, CalendarDots, Users, ShieldCheck, GearSix } from 'phosphor-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '../../components/ErrorBoundary';
 
 export default function TabsLayout() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const insets = useSafeAreaInsets();
+  
+  // Calculer le padding et la hauteur selon la zone de sécurité
+  const bottomPadding = Math.max(8, insets.bottom);
+  const tabBarHeight = 56 + bottomPadding;
 
   return (
     <ErrorBoundary>
@@ -20,8 +26,8 @@ export default function TabsLayout() {
             borderTopColor: colors.border,
             borderTopWidth: 1,
             paddingTop: 8,
-            paddingBottom: 8,
-            height: 64,
+            paddingBottom: bottomPadding,
+            height: tabBarHeight,
             elevation: 8,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -2 },

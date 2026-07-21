@@ -14,10 +14,11 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-// Rate limiter pour les tentatives de connexion (5 essais / 15 min)
+// Rate limiter pour les tentatives de connexion (15 essais / 15 min)
+// Augmenté à 15 pour que le verrouillage DB (5 tentatives) soit visible avant le rate-limit IP
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 15,
   message: { error: 'Trop de tentatives de connexion, réessayez dans 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,

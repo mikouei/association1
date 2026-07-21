@@ -997,3 +997,76 @@ Les notifications push nécessitent un build EAS (pas Expo Go). Le test en previ
 **Fichiers modifiés** :
 - `/app/frontend/utils/notifications.js` (fonctions badge)
 - `/app/frontend/context/AuthContext.js` (listener AppState pour effacer badge)
+
+
+
+---
+
+## Audit de Sécurité Batch 2 - 21 Juillet 2026 ✅
+
+### PARTIE R - Fix IDOR Notifications Push ✅
+**Problème** : La route POST `/api/notifications/announcements` avec `targetType: 'selected'` ne validait pas l'appartenance des `targetIds` à l'association.
+**Solution** : 
+- Filtrage strict des `targetIds` par `associationId` dans `notifications.js`
+- Seuls les IDs validés (appartenant à l'association) sont utilisés
+- Retourne erreur 400 si aucun membre valide trouvé
+- Mise à jour de `sendToSpecificMembers()` dans `pushNotifications.js` pour accepter un paramètre `associationId` optionnel
+
+### PARTIE S - Confirmation mot de passe admin pour reset ✅
+**Problème** : Un admin pouvait réinitialiser le mot de passe d'un autre admin sans prouver son identité.
+**Solution** : 
+- Route POST `/api/admin/:id/reset-password` exige maintenant `currentPassword`
+- Vérification du mot de passe actuel de l'admin connecté avant d'autoriser le reset
+- Erreur 401 si mot de passe incorrect
+
+### PARTIE T - Réduction durée JWT ✅
+**Problème** : JWT avec `expiresIn: '30d'` trop long en cas de vol de token.
+**Solution** : Réduit à `expiresIn: '7d'` dans `middleware/auth.js`
+
+### PARTIE U - Trust Proxy ✅
+**Problème** : Rate limiters ne fonctionnaient pas correctement derrière reverse proxy.
+**Solution** : 
+- Ajout `app.set('trust proxy', 1)` dans `server.js`
+- Ajout `validate: { xForwardedForHeader: false }` à tous les rate limiters pour compatibilité express-rate-limit v7+
+
+### PARTIE V - Injection CSV dans /api/export/stats/csv ✅
+**Problème** : Les champs `name` et `customFieldValue` n'étaient pas échappés dans l'export TXT.
+**Solution** : Application de `escapeCsv()` aux champs texte dans la boucle d'export
+
+### PARTIE W - Vérification association membre dans /api/payments/member/:memberId/year/:yearId ✅
+**Problème** : Pas de vérification que le membre appartient à l'association de l'admin.
+**Solution** : 
+- Ajout d'une requête `prisma.member.findFirst()` avec filtre `associationId`
+- Retourne 404 si le membre n'existe pas ou n'appartient pas à l'association
+
+### PARTIE X - Verrouillage optimiste Tontine close-round ✅
+**Problème** : Race condition possible si deux admins clôturent le même tour simultanément.
+**Solution** :
+- Vérification fraîche du statut du round au début de la transaction
+- Erreur `ROUND_ALREADY_CLOSED` si le round a déjà été clôturé
+- Réponse 409 Conflict avec message explicite
+
+### PARTIE Y - Rate limiters routes publiques ✅
+**Problème** : Routes `GET /api/public/associations` et `GET /api/auth/associations` sans rate limit permettaient l'énumération.
+**Solution** :
+- Ajout `associationsListLimiter` (30 req/h) sur `/api/public/associations`
+- Ajout `associationsLimiter` (30 req/h) sur `/api/auth/associations`
+
+### PARTIE Z - npm audit fix ✅
+**Exécuté** : `npm audit fix --force` sur backend, web, et frontend
+- Backend : 0 vulnerabilities, uuid mis à jour
+- Web : 2 moderate (postcss, next) - nécessite breaking change pour fix complet
+- Frontend : eslint peer deps warnings (non-critique)
+
+### Fichiers modifiés
+- `/app/backend/routes/notifications.js` (R)
+- `/app/backend/utils/pushNotifications.js` (R)
+- `/app/backend/routes/admin.js` (S)
+- `/app/backend/middleware/auth.js` (T, Y)
+- `/app/backend/server.js` (U)
+- `/app/backend/routes/export.js` (V)
+- `/app/backend/routes/payments.js` (W)
+- `/app/backend/routes/tontines.js` (X)
+- `/app/backend/routes/public.js` (Y)
+- `/app/backend/routes/auth.js` (Y)
+

@@ -1,6 +1,7 @@
 // Routes d'authentification pour AssocManager - PostgreSQL Multi-Tenant
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { 
   prisma, 
   authenticateToken, 
@@ -14,8 +15,19 @@ import { verifyGoogleIdToken, isGoogleAuthConfigured } from '../middleware/googl
 
 const router = express.Router();
 
+// Rate limiter pour la liste des associations (évite l'énumération)
+const associationsLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 heure
+  max: 30,
+  message: { error: 'Trop de requêtes, réessayez plus tard' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+});
+
 // GET /api/auth/associations - Liste des associations actives pour le login
-router.get('/associations', attachPrisma, async (req, res) => {
+// SÉCURITÉ: Rate limiter ajouté pour éviter l'énumération des associations
+router.get('/associations', associationsLimiter, attachPrisma, async (req, res) => {
   try {
     const associations = await prisma.association.findMany({
       where: { active: true },

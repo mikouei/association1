@@ -21,6 +21,7 @@ const deletionLimiter = rateLimit({
   message: { error: 'Trop de demandes, réessayez plus tard' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 // Rate limiter pour l'inscription d'association (plus strict car crée un compte admin réel)
@@ -30,6 +31,7 @@ const registerLimiter = rateLimit({
   message: { error: 'Trop de tentatives, réessayez plus tard' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 // Rate limiter pour rejoindre une association (même niveau que registerLimiter)
@@ -39,6 +41,7 @@ const joinLimiter = rateLimit({
   message: { error: 'Trop de tentatives, réessayez plus tard' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 // Rate limiter léger pour les infos publiques (évite brute-force de codes)
@@ -48,6 +51,7 @@ const infoLimiter = rateLimit({
   message: { error: 'Trop de requêtes, réessayez plus tard' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 // ============================================
@@ -578,9 +582,20 @@ router.post('/deletion-request', deletionLimiter, async (req, res) => {
   }
 });
 
+// Rate limiter pour la liste des associations (évite l'énumération)
+const associationsListLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 heure
+  max: 30,
+  message: { error: 'Trop de requêtes, réessayez plus tard' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+});
+
 // GET /api/public/associations
 // Liste des associations (pour le formulaire de demande)
-router.get('/associations', async (req, res) => {
+// SÉCURITÉ: Rate limiter ajouté pour éviter l'énumération des associations
+router.get('/associations', associationsListLimiter, async (req, res) => {
   try {
     const associations = await prisma.association.findMany({
       where: { active: true },

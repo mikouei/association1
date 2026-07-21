@@ -30,6 +30,9 @@ const PORT = process.env.PORT || 8001;
 // MIDDLEWARE
 //
 
+// SÉCURITÉ: Trust proxy pour rate limiters derrière reverse proxy (Render, Heroku, etc.)
+app.set('trust proxy', 1);
+
 app.use(helmet());
 
 app.use(

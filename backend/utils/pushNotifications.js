@@ -121,13 +121,22 @@ export async function sendToAssociationMembers(prisma, associationId, title, bod
  * @param {string} title - Titre
  * @param {string} body - Corps
  * @param {object} data - Données supplémentaires
+ * @param {string} associationId - ID de l'association (optionnel, pour filtrage IDOR)
  */
-export async function sendToSpecificMembers(prisma, userIds, title, body, data = {}) {
+export async function sendToSpecificMembers(prisma, userIds, title, body, data = {}, associationId = null) {
+  // Construire la clause where avec filtrage optionnel par association
+  const whereClause = {
+    userId: { in: userIds },
+    user: { active: true },
+  };
+  
+  // SÉCURITÉ IDOR: Si associationId fourni, filtrer les tokens par association
+  if (associationId) {
+    whereClause.user.associationId = associationId;
+  }
+
   const tokens = await prisma.pushToken.findMany({
-    where: {
-      userId: { in: userIds },
-      user: { active: true },
-    },
+    where: whereClause,
     select: { token: true },
   });
 

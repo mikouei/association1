@@ -207,7 +207,22 @@ router.put('/:id/activate', async (req, res) => {
 router.post('/:id/reset-password', async (req, res) => {
   try {
     const { id } = req.params;
-    const { newPassword } = req.body;
+    const { newPassword, currentPassword } = req.body;
+
+    // SÉCURITÉ: Exiger le mot de passe actuel de l'admin effectuant l'action
+    if (!currentPassword) {
+      return res.status(400).json({ error: 'Mot de passe actuel requis pour confirmer cette action' });
+    }
+
+    // Vérifier le mot de passe actuel de l'admin connecté
+    const currentAdmin = await prisma.user.findUnique({
+      where: { id: req.user.id }
+    });
+
+    const validCurrentPassword = await bcrypt.compare(currentPassword, currentAdmin.passwordHash);
+    if (!validCurrentPassword) {
+      return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
+    }
 
     if (!newPassword || newPassword.length < 8) {
       return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });

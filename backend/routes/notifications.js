@@ -182,34 +182,35 @@ router.post('/announcements', requireAdmin, async (req, res) => {
       });
       sentToCount = memberCount;
     } else {
-      // Vérifier que les IDs sont valides (User IDs ou Member userIds)
+      // SÉCURITÉ IDOR: Vérifier que TOUS les IDs appartiennent à l'association de l'admin
       // D'abord essayer de trouver par User ID
-      let userIds = targetIds;
-      
-      // Si les IDs ressemblent à des Member IDs, les convertir en User IDs
       const members = await prisma.member.findMany({
         where: {
           OR: [
             { userId: { in: targetIds } },
             { id: { in: targetIds } },
           ],
-          associationId: req.associationId,
+          associationId: req.associationId, // Filtre association obligatoire
         },
         select: { userId: true },
       });
 
-      if (members.length > 0) {
-        userIds = members.map(m => m.userId);
+      // Si aucun membre trouvé ou moins que demandé → certains IDs sont invalides/hors association
+      if (members.length === 0) {
+        return res.status(400).json({ error: 'Aucun membre valide sélectionné' });
       }
+
+      // Utiliser UNIQUEMENT les userIds validés (appartenant à l'association)
+      const validUserIds = members.map(m => m.userId);
 
       result = await sendToSpecificMembers(
         prisma,
-        userIds,
+        validUserIds,
         title,
         body,
         { type: 'announcement' }
       );
-      sentToCount = userIds.length;
+      sentToCount = validUserIds.length;
     }
 
     // Sauvegarder l'annonce

@@ -647,8 +647,17 @@ router.post('/:id/close-round', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Aucun tour en cours à clôturer' });
     }
 
-    // Exécuter en transaction
+    // Exécuter en transaction avec verrouillage optimiste
     const result = await prisma.$transaction(async (tx) => {
+      // SÉCURITÉ: Verrouillage optimiste - Vérifier que le round est toujours 'open'
+      const freshRound = await tx.tontineRound.findUnique({
+        where: { id: openRound.id }
+      });
+
+      if (!freshRound || freshRound.status !== 'open') {
+        throw new Error('ROUND_ALREADY_CLOSED');
+      }
+
       // 1. Clôturer le round actuel
       await tx.tontineRound.update({
         where: { id: openRound.id },
@@ -758,6 +767,10 @@ router.post('/:id/close-round', requireAdmin, async (req, res) => {
 
     res.json(fullTontine);
   } catch (error) {
+    // SÉCURITÉ: Gestion spécifique de l'erreur de verrouillage optimiste
+    if (error.message === 'ROUND_ALREADY_CLOSED') {
+      return res.status(409).json({ error: 'Ce tour a déjà été clôturé par un autre administrateur' });
+    }
     console.error('Close tontine round error:', error);
     res.status(500).json({ error: 'Erreur lors de la clôture du tour' });
   }

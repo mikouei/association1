@@ -157,7 +157,8 @@ router.get('/stats/csv', async (req, res) => {
       totalDueAll += totalDue;
       totalPaidAll += totalPaid;
 
-      content += `${member.name};${member.customFieldValue};${formatNumber(totalDue)} FCFA;${formatNumber(totalPaid)} FCFA;${formatNumber(remaining)} FCFA;${percentage}%\n`;
+      // SÉCURITÉ: Appliquer escapeCsv sur les champs texte pour éviter l'injection CSV
+      content += `${escapeCsv(member.name)};${escapeCsv(member.customFieldValue)};${formatNumber(totalDue)} FCFA;${formatNumber(totalPaid)} FCFA;${formatNumber(remaining)} FCFA;${percentage}%\n`;
     });
 
     content += `-`.repeat(80) + '\n';

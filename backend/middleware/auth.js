@@ -22,6 +22,8 @@ export const loginLimiter = rateLimit({
   message: { error: 'Trop de tentatives de connexion, réessayez dans 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
+  // SÉCURITÉ: Désactiver la validation X-Forwarded-For car trust proxy est configuré dans server.js
+  validate: { xForwardedForHeader: false },
 });
 
 /**
@@ -146,6 +148,7 @@ export const generateAccessToken = () => {
 
 /**
  * Générer un token JWT
+ * SÉCURITÉ: Durée de vie réduite de 30d à 7d
  */
 export const generateJWT = (userId, associationId, role, passwordChangedAt) => {
   return jwt.sign(
@@ -156,7 +159,7 @@ export const generateJWT = (userId, associationId, role, passwordChangedAt) => {
       pwdTs: passwordChangedAt ? Math.floor(new Date(passwordChangedAt).getTime() / 1000) : undefined
     },
     JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: '7d' }
   );
 };
 

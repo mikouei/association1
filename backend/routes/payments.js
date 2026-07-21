@@ -190,6 +190,18 @@ router.get('/member/:memberId/year/:yearId', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Année introuvable' });
     }
 
+    // SÉCURITÉ: Vérifier que le membre appartient à l'association de l'admin
+    const member = await prisma.member.findFirst({
+      where: {
+        id: memberId,
+        associationId: req.associationId
+      }
+    });
+
+    if (!member) {
+      return res.status(404).json({ error: 'Membre introuvable' });
+    }
+
     const payments = await prisma.monthlyPayment.findMany({
       where: {
         memberId,

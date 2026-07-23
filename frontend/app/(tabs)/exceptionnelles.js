@@ -127,6 +127,16 @@ export default function Exceptionnelles() {
     setTimeout(() => setModalVisible(true), 300);
   };
 
+  // Formater automatiquement la date au format JJ/MM/AAAA pendant la saisie
+  const formatDateInput = (text) => {
+    // Ne garder que les chiffres
+    const digits = text.replace(/\D/g, '');
+    // Insérer les / aux bons endroits
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+  };
+
   const handleSave = async () => {
     if (!formData.title) {
       Alert.alert('Erreur', 'Titre requis');
@@ -558,8 +568,8 @@ export default function Exceptionnelles() {
                   placeholder="JJ/MM/AAAA"
                   placeholderTextColor={colors.textMuted}
                   value={formData.eventDate}
-                  onChangeText={(text) => setFormData({ ...formData, eventDate: text })}
-                  keyboardType="numeric"
+                  onChangeText={(text) => setFormData({ ...formData, eventDate: formatDateInput(text) })}
+                  keyboardType="number-pad"
                   maxLength={10}
                 />
               </View>

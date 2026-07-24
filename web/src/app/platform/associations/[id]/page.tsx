@@ -24,6 +24,7 @@ interface AssociationDetail {
   active: boolean;
   memberFieldLabel: string;
   enableVehiclePlates: boolean;
+  announcementsEnabled: boolean;
   adminEmail: string;
   adminName: string;
   createdAt: string;
@@ -42,6 +43,7 @@ export default function EditAssociationPage() {
     name: '',
     type: 'association',
     memberFieldLabel: '',
+    announcementsEnabled: false,
   });
   const [isDirty, setIsDirty] = useState(false);
 
@@ -79,6 +81,7 @@ export default function EditAssociationPage() {
         name: association.name,
         type: association.type || 'association',
         memberFieldLabel: association.memberFieldLabel || 'Villa',
+        announcementsEnabled: association.announcementsEnabled || false,
       });
       setIsDirty(false);
     }
@@ -233,6 +236,9 @@ export default function EditAssociationPage() {
           <Badge variant={association.active ? 'success' : 'danger'} className="text-sm">
             {association.active ? 'Active' : 'Inactive'}
           </Badge>
+          <Badge variant={association.announcementsEnabled ? 'success' : 'default'} className="text-sm ml-2">
+            {association.announcementsEnabled ? 'Annonces activées' : 'Annonces désactivées'}
+          </Badge>
         </div>
 
         {/* Association Form */}
@@ -282,6 +288,21 @@ export default function EditAssociationPage() {
                   placeholder="Ex: Villa, Fonction, Matricule..."
                   required
                 />
+              </div>
+
+              {/* Option Annonces */}
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="announcementsEnabled"
+                  checked={formData.announcementsEnabled}
+                  onChange={(e) => handleFormChange('announcementsEnabled', e.target.checked)}
+                  className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                />
+                <label htmlFor="announcementsEnabled" className="flex-1 cursor-pointer">
+                  <span className="font-medium text-gray-900">Activer les annonces pour cette association</span>
+                  <p className="text-sm text-gray-500">Permet aux admins d&apos;envoyer des notifications push aux membres via l&apos;onglet Annonces</p>
+                </label>
               </div>
 
               <div className="flex justify-end pt-4">

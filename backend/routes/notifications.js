@@ -140,6 +140,15 @@ router.get('/announcements', requireAdmin, async (req, res) => {
  */
 router.post('/announcements', requireAdmin, async (req, res) => {
   try {
+    // Vérifier si les annonces sont activées pour cette association
+    const association = await prisma.association.findUnique({
+      where: { id: req.associationId },
+      select: { announcementsEnabled: true }
+    });
+    if (!association?.announcementsEnabled) {
+      return res.status(403).json({ error: 'La fonctionnalité Annonces n\'est pas activée pour votre association. Contactez le support pour l\'activer.' });
+    }
+
     const { title, body, targetType = 'all', targetIds = [] } = req.body;
 
     if (!title || !body) {
@@ -262,6 +271,15 @@ router.post('/announcements', requireAdmin, async (req, res) => {
  */
 router.post('/reminder', requireAdmin, async (req, res) => {
   try {
+    // Vérifier si les annonces sont activées pour cette association
+    const association = await prisma.association.findUnique({
+      where: { id: req.associationId },
+      select: { announcementsEnabled: true }
+    });
+    if (!association?.announcementsEnabled) {
+      return res.status(403).json({ error: 'La fonctionnalité Annonces n\'est pas activée pour votre association. Contactez le support pour l\'activer.' });
+    }
+
     const { month, year } = req.body;
 
     if (!month || !year) {

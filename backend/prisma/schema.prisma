@@ -43,6 +43,7 @@ model Association {
   // Options de configuration
   memberFieldLabel    String  @default("Villa") // Libellé du champ personnalisé
   enableVehiclePlates Boolean @default(false)   // Activer les matricules de véhicules
+  announcementsEnabled Boolean @default(false)  // Annonces/notifications activées, contrôlé uniquement par Super Admin
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

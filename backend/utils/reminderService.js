@@ -20,9 +20,9 @@ export async function sendMonthlyReminders() {
   console.log(`[Reminder Service] Démarrage des rappels pour ${currentMonth}/${currentYear}`);
 
   try {
-    // Récupérer toutes les associations actives
+    // Récupérer toutes les associations actives avec annonces activées
     const associations = await prisma.association.findMany({
-      where: { active: true },
+      where: { active: true, announcementsEnabled: true },
       select: { id: true, name: true },
     });
 

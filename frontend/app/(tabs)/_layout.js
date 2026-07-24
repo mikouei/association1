@@ -1,18 +1,32 @@
 import { Tabs } from 'expo-router';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography } from '../../utils/theme';
 import { House, Wallet, CalendarDots, Users, ShieldCheck, GearSix, Bell } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import api from '../../utils/api';
 
 export default function TabsLayout() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const insets = useSafeAreaInsets();
+  const [announcementsEnabled, setAnnouncementsEnabled] = useState(false);
   
   // Calculer le padding et la hauteur selon la zone de sécurité
   const bottomPadding = Math.max(8, insets.bottom);
   const tabBarHeight = 56 + bottomPadding;
+
+  // Récupérer le paramètre announcementsEnabled pour les admins
+  useEffect(() => {
+    if (!isAdmin || !token) {
+      setAnnouncementsEnabled(false);
+      return;
+    }
+    api.get('/auth/association-settings')
+      .then(res => setAnnouncementsEnabled(res.data.announcementsEnabled || false))
+      .catch(() => setAnnouncementsEnabled(false));
+  }, [isAdmin, token]);
 
   return (
     <ErrorBoundary>
@@ -104,7 +118,7 @@ export default function TabsLayout() {
           name="annonces"
           options={{
             title: 'Annonces',
-            href: null, // Masqué temporairement - réactiver avec: isAdmin ? '/annonces' : null
+            href: (isAdmin && announcementsEnabled) ? '/annonces' : null,
             tabBarIcon: ({ color, focused }) => (
               <Bell size={24} color={color} weight={focused ? 'fill' : 'regular'} />
             ),

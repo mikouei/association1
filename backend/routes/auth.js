@@ -311,14 +311,16 @@ router.get('/association-settings', authenticateToken, async (req, res) => {
     res.json({
       enableVehiclePlates: req.association.enableVehiclePlates || false,
       customFieldLabel: req.association.memberFieldLabel || 'Villa',
-      currency: req.association.currency || 'XOF'
+      currency: req.association.currency || 'XOF',
+      announcementsEnabled: req.association.announcementsEnabled || false
     });
   } catch (error) {
     console.error('Get association settings error:', error);
     res.json({
       enableVehiclePlates: false,
       customFieldLabel: 'Villa',
-      currency: 'XOF'
+      currency: 'XOF',
+      announcementsEnabled: false
     });
   }
 });

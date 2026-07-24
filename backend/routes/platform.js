@@ -430,7 +430,7 @@ router.post('/associations', authenticateSuperAdmin, async (req, res) => {
 // PUT /api/platform/associations/:id - Modifier une association
 router.put('/associations/:id', authenticateSuperAdmin, async (req, res) => {
   try {
-    const { name, type, active, enableVehiclePlates, memberFieldLabel } = req.body;
+    const { name, type, active, enableVehiclePlates, memberFieldLabel, announcementsEnabled } = req.body;
 
     const association = await prisma.association.findUnique({
       where: { id: req.params.id }
@@ -447,7 +447,8 @@ router.put('/associations/:id', authenticateSuperAdmin, async (req, res) => {
         ...(type && { type }),
         ...(typeof active === 'boolean' && { active }),
         ...(typeof enableVehiclePlates === 'boolean' && { enableVehiclePlates }),
-        ...(memberFieldLabel && { memberFieldLabel })
+        ...(memberFieldLabel && { memberFieldLabel }),
+        ...(typeof announcementsEnabled === 'boolean' && { announcementsEnabled })
       }
     });
 

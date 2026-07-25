@@ -438,12 +438,13 @@ router.post('/associations/:code/join-google', joinLimiter, async (req, res) => 
       }
     }
 
-    // Vérifier le plafond de 250 membres
+    // Vérifier le plafond de membres selon le plan
     const memberCount = await prisma.user.count({
       where: { associationId: association.id, role: 'MEMBER' }
     });
-    if (memberCount >= 250) {
-      return res.status(403).json({ error: 'Limite de 250 membres atteinte pour cette association' });
+    const limitCheck = checkMemberLimit(association, memberCount);
+    if (!limitCheck.canAdd) {
+      return res.status(403).json({ error: limitCheck.message });
     }
 
     // Générer un hash de mot de passe aléatoire

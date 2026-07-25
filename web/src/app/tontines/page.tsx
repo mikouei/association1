@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal, LoadingSpinner } from '@/components/ui';
 import { api } from '@/services/api';
 import { formatCurrency } from '@/lib/utils';
-import { UsersThree, Plus, Eye, Shuffle, Check, X, Trash, ArrowRight, Warning } from '@phosphor-icons/react';
+import { UsersThree, Plus, Eye, Shuffle, Check, X, Trash, ArrowRight, Warning, LockSimple } from '@phosphor-icons/react';
 
 interface Member {
   id: string;
@@ -66,6 +66,16 @@ export default function TontinesPage() {
     memberName: string;
     amount: number;
   } | null>(null);
+
+  // Vérifier si les tontines sont activées pour cette association
+  const { data: settings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['association-settings'],
+    queryFn: async () => {
+      const response = await api.get('/auth/association-settings');
+      return response.data as { tontinesEnabled?: boolean };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Formulaire création
   const [formName, setFormName] = useState('');
@@ -233,6 +243,36 @@ export default function TontinesPage() {
   const currentBeneficiary = tontineDetail?.participants?.find(
     p => p.memberId === currentRound?.beneficiaryMemberId
   );
+
+  // Si les tontines sont désactivées pour cette association, afficher un message
+  if (settingsLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <LoadingSpinner />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (settings?.tontinesEnabled === false) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8">
+          <div className="w-16 h-16 rounded-full bg-[var(--color-warning-bg)] flex items-center justify-center mb-4">
+            <LockSimple size={32} className="text-[var(--color-warning)]" />
+          </div>
+          <h2 className="text-xl font-semibold text-[var(--color-text)] mb-2">
+            Fonctionnalité non activée
+          </h2>
+          <p className="text-[var(--color-text-muted)] max-w-md">
+            La fonctionnalité Tontines n&apos;est pas activée pour votre association. 
+            Contactez le support pour l&apos;activer.
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

@@ -18,12 +18,15 @@ import {
   UsersThree,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 
 interface NavItem {
   href: string;
   label: string;
   icon: Icon;
+  requiresFeature?: string;
 }
 
 const platformNavItems: NavItem[] = [
@@ -37,7 +40,7 @@ const adminNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Tableau de bord', icon: SquaresFour },
   { href: '/members', label: 'Membres', icon: Users },
   { href: '/payments', label: 'Cotisations', icon: Wallet },
-  { href: '/tontines', label: 'Tontines', icon: UsersThree },
+  { href: '/tontines', label: 'Tontines', icon: UsersThree, requiresFeature: 'tontines' },
   { href: '/admins', label: 'Administrateurs', icon: UserCircleGear },
   { href: '/settings', label: 'Paramètres', icon: Gear },
 ];
@@ -47,7 +50,30 @@ export function Sidebar() {
   const { user, isPlatformAuth, platformLogout, logout, selectedAssociation } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
-  const navItems = isPlatformAuth ? platformNavItems : adminNavItems;
+  // Charger les paramètres de l'association (uniquement pour les admins d'association)
+  const { data: settings } = useQuery({
+    queryKey: ['association-settings'],
+    queryFn: async () => {
+      const response = await api.get('/auth/association-settings');
+      return response.data as { tontinesEnabled?: boolean; announcementsEnabled?: boolean };
+    },
+    enabled: !isPlatformAuth, // Ne charger que pour les admins d'association
+    staleTime: 5 * 60 * 1000, // Cache 5 minutes
+  });
+
+  // Filtrer les items de navigation selon les features activées
+  const navItems = useMemo(() => {
+    if (isPlatformAuth) return platformNavItems;
+    
+    return adminNavItems.filter(item => {
+      if (!item.requiresFeature) return true;
+      if (item.requiresFeature === 'tontines') {
+        return settings?.tontinesEnabled === true;
+      }
+      return true;
+    });
+  }, [isPlatformAuth, settings?.tontinesEnabled]);
+
   const handleLogout = isPlatformAuth ? platformLogout : logout;
 
   return (

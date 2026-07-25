@@ -25,6 +25,9 @@ interface AssociationDetail {
   memberFieldLabel: string;
   enableVehiclePlates: boolean;
   announcementsEnabled: boolean;
+  tontinesEnabled: boolean;
+  plan: string;
+  launchPeriodMonths: number | null;
   adminEmail: string;
   adminName: string;
   createdAt: string;
@@ -161,7 +164,7 @@ export default function EditAssociationPage() {
     },
   });
 
-  const handleFormChange = (field: string, value: string) => {
+  const handleFormChange = (field: string, value: string | boolean | number | null) => {
     setFormData({ ...formData, [field]: value });
     setIsDirty(true);
   };

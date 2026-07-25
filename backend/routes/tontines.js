@@ -91,6 +91,15 @@ router.get('/mine', async (req, res) => {
 // POST /api/tontines
 router.post('/', requireAdmin, async (req, res) => {
   try {
+    // Vérifier si les tontines sont activées pour cette association
+    const assocCheck = await prisma.association.findUnique({
+      where: { id: req.associationId },
+      select: { tontinesEnabled: true }
+    });
+    if (!assocCheck?.tontinesEnabled) {
+      return res.status(403).json({ error: 'La fonctionnalité Tontines n\'est pas activée pour votre association. Contactez le support pour l\'activer.' });
+    }
+
     const { name, amount, frequency, memberIds } = req.body;
 
     // Validation
@@ -462,6 +471,15 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 // POST /api/tontines/:id/payments
 router.post('/:id/payments', requireAdmin, async (req, res) => {
   try {
+    // Vérifier si les tontines sont activées pour cette association
+    const assocCheck = await prisma.association.findUnique({
+      where: { id: req.associationId },
+      select: { tontinesEnabled: true }
+    });
+    if (!assocCheck?.tontinesEnabled) {
+      return res.status(403).json({ error: 'La fonctionnalité Tontines n\'est pas activée pour votre association. Contactez le support pour l\'activer.' });
+    }
+
     const { id } = req.params;
     const { memberId, amount } = req.body;
 
@@ -613,6 +631,15 @@ router.delete('/payments/:paymentId', requireAdmin, async (req, res) => {
 // POST /api/tontines/:id/close-round
 router.post('/:id/close-round', requireAdmin, async (req, res) => {
   try {
+    // Vérifier si les tontines sont activées pour cette association
+    const assocCheck = await prisma.association.findUnique({
+      where: { id: req.associationId },
+      select: { tontinesEnabled: true }
+    });
+    if (!assocCheck?.tontinesEnabled) {
+      return res.status(403).json({ error: 'La fonctionnalité Tontines n\'est pas activée pour votre association. Contactez le support pour l\'activer.' });
+    }
+
     const { id } = req.params;
 
     const tontine = await prisma.tontine.findFirst({

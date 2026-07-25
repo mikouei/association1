@@ -44,6 +44,9 @@ export default function EditAssociationPage() {
     type: 'association',
     memberFieldLabel: '',
     announcementsEnabled: false,
+    tontinesEnabled: false,
+    plan: 'LAUNCH',
+    launchPeriodMonths: null as number | null,
   });
   const [isDirty, setIsDirty] = useState(false);
 
@@ -82,6 +85,9 @@ export default function EditAssociationPage() {
         type: association.type || 'association',
         memberFieldLabel: association.memberFieldLabel || 'Villa',
         announcementsEnabled: association.announcementsEnabled || false,
+        tontinesEnabled: association.tontinesEnabled || false,
+        plan: association.plan || 'LAUNCH',
+        launchPeriodMonths: association.launchPeriodMonths,
       });
       setIsDirty(false);
     }
@@ -239,6 +245,12 @@ export default function EditAssociationPage() {
           <Badge variant={association.announcementsEnabled ? 'success' : 'default'} className="text-sm ml-2">
             {association.announcementsEnabled ? 'Annonces activées' : 'Annonces désactivées'}
           </Badge>
+          <Badge variant={association.tontinesEnabled ? 'success' : 'default'} className="text-sm ml-2">
+            {association.tontinesEnabled ? 'Tontines activées' : 'Tontines désactivées'}
+          </Badge>
+          <Badge variant={association.plan === 'PAID' ? 'success' : association.plan === 'FREE' ? 'danger' : 'warning'} className="text-sm ml-2">
+            {association.plan === 'LAUNCH' ? 'Lancement (250)' : association.plan === 'FREE' ? 'Gratuit (10)' : 'Payant (250)'}
+          </Badge>
         </div>
 
         {/* Association Form */}
@@ -303,6 +315,52 @@ export default function EditAssociationPage() {
                   <span className="font-medium text-gray-900">Activer les annonces pour cette association</span>
                   <p className="text-sm text-gray-500">Permet aux admins d&apos;envoyer des notifications push aux membres via l&apos;onglet Annonces</p>
                 </label>
+              </div>
+
+              {/* Option Tontines */}
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="tontinesEnabled"
+                  checked={formData.tontinesEnabled}
+                  onChange={(e) => handleFormChange('tontinesEnabled', e.target.checked)}
+                  className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                />
+                <label htmlFor="tontinesEnabled" className="flex-1 cursor-pointer">
+                  <span className="font-medium text-gray-900">Activer les tontines pour cette association</span>
+                  <p className="text-sm text-gray-500">Permet aux admins de créer et gérer des tontines (épargne rotative)</p>
+                </label>
+              </div>
+
+              {/* Plan et période de lancement */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
+                  <select
+                    value={formData.plan}
+                    onChange={(e) => handleFormChange('plan', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="LAUNCH">Lancement (250 membres, période d&apos;essai)</option>
+                    <option value="FREE">Gratuit (10 membres max)</option>
+                    <option value="PAID">Payant (250 membres)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Durée période de lancement (mois)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.launchPeriodMonths ?? ''}
+                    onChange={(e) => handleFormChange('launchPeriodMonths', e.target.value === '' ? null : parseInt(e.target.value, 10))}
+                    placeholder="8 (par défaut)"
+                    min="1"
+                    max="36"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Laisser vide pour utiliser la valeur par défaut (8 mois)</p>
+                </div>
               </div>
 
               <div className="flex justify-end pt-4">

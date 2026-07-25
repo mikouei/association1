@@ -312,7 +312,8 @@ router.get('/association-settings', authenticateToken, async (req, res) => {
       enableVehiclePlates: req.association.enableVehiclePlates || false,
       customFieldLabel: req.association.memberFieldLabel || 'Villa',
       currency: req.association.currency || 'XOF',
-      announcementsEnabled: req.association.announcementsEnabled || false
+      announcementsEnabled: req.association.announcementsEnabled || false,
+      tontinesEnabled: req.association.tontinesEnabled || false
     });
   } catch (error) {
     console.error('Get association settings error:', error);
@@ -320,7 +321,8 @@ router.get('/association-settings', authenticateToken, async (req, res) => {
       enableVehiclePlates: false,
       customFieldLabel: 'Villa',
       currency: 'XOF',
-      announcementsEnabled: false
+      announcementsEnabled: false,
+      tontinesEnabled: false
     });
   }
 });

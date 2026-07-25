@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
+import { checkMemberLimit } from '../utils/planLimits.js';
 
 const router = express.Router();
 
@@ -114,13 +115,18 @@ router.post('/members', async (req, res) => {
       return res.status(400).json({ error: 'Liste de membres requise' });
     }
 
-    // Vérifier le plafond de 250 membres avant import
+    // Vérifier le plafond de membres selon le plan avant import
+    const association = await prisma.association.findUnique({
+      where: { id: req.associationId },
+      select: { plan: true, createdAt: true, launchPeriodMonths: true }
+    });
     const currentCount = await prisma.user.count({
       where: { associationId: req.associationId, role: 'MEMBER' }
     });
-    if (currentCount + members.length > 250) {
+    const limitCheck = checkMemberLimit(association, currentCount, members.length);
+    if (!limitCheck.canAdd) {
       return res.status(403).json({ 
-        error: `Import impossible : limite de 250 membres. Actuellement ${currentCount}, vous essayez d'en ajouter ${members.length}.` 
+        error: limitCheck.message + ` (Actuellement ${currentCount}, vous essayez d'en ajouter ${members.length})`
       });
     }
 

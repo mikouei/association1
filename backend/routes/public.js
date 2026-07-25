@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { prisma, generateJWT } from '../middleware/auth.js';
 import { verifyGoogleIdToken, isGoogleAuthConfigured } from '../middleware/googleAuth.js';
 import { getSupportedCurrencies } from '../utils/currency.js';
+import { checkMemberLimit } from '../utils/planLimits.js';
 
 const router = express.Router();
 

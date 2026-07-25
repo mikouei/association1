@@ -430,7 +430,7 @@ router.post('/associations', authenticateSuperAdmin, async (req, res) => {
 // PUT /api/platform/associations/:id - Modifier une association
 router.put('/associations/:id', authenticateSuperAdmin, async (req, res) => {
   try {
-    const { name, type, active, enableVehiclePlates, memberFieldLabel, announcementsEnabled } = req.body;
+    const { name, type, active, enableVehiclePlates, memberFieldLabel, announcementsEnabled, tontinesEnabled, plan, launchPeriodMonths } = req.body;
 
     const association = await prisma.association.findUnique({
       where: { id: req.params.id }
@@ -438,6 +438,11 @@ router.put('/associations/:id', authenticateSuperAdmin, async (req, res) => {
 
     if (!association) {
       return res.status(404).json({ error: 'Association non trouvée' });
+    }
+
+    // Valider le plan si fourni
+    if (plan && !['LAUNCH', 'FREE', 'PAID'].includes(plan)) {
+      return res.status(400).json({ error: 'Plan invalide (LAUNCH, FREE ou PAID)' });
     }
 
     const updated = await prisma.association.update({
@@ -448,7 +453,10 @@ router.put('/associations/:id', authenticateSuperAdmin, async (req, res) => {
         ...(typeof active === 'boolean' && { active }),
         ...(typeof enableVehiclePlates === 'boolean' && { enableVehiclePlates }),
         ...(memberFieldLabel && { memberFieldLabel }),
-        ...(typeof announcementsEnabled === 'boolean' && { announcementsEnabled })
+        ...(typeof announcementsEnabled === 'boolean' && { announcementsEnabled }),
+        ...(typeof tontinesEnabled === 'boolean' && { tontinesEnabled }),
+        ...(plan && { plan }),
+        ...(launchPeriodMonths !== undefined && { launchPeriodMonths: launchPeriodMonths === null || launchPeriodMonths === '' ? null : parseInt(launchPeriodMonths, 10) })
       }
     });
 

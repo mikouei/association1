@@ -44,6 +44,11 @@ model Association {
   memberFieldLabel    String  @default("Villa") // Libellé du champ personnalisé
   enableVehiclePlates Boolean @default(false)   // Activer les matricules de véhicules
   announcementsEnabled Boolean @default(false)  // Annonces/notifications activées, contrôlé uniquement par Super Admin
+  tontinesEnabled     Boolean @default(false)   // Tontines activées, contrôlé uniquement par Super Admin
+  
+  // Modèle freemium
+  plan                String  @default("LAUNCH") // LAUNCH (période d'essai), FREE (gratuit), PAID (payant)
+  launchPeriodMonths  Int?    // Durée personnalisée de la période LAUNCH (null = valeur par défaut plateforme: 8 mois)
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

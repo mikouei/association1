@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Heart, Gift, HandHeart, Star, SmileyMeh, Plus, X, Pencil, Trash, Download, CaretDown, CaretRight, MagnifyingGlass, User, UsersThree } from 'phosphor-react-native';
+import { Heart, Gift, HandHeart, Star, SmileyMeh, Plus, X, Pencil, Trash, Download, CaretDown, CaretRight, MagnifyingGlass, User, UsersThree, CurrencyCircleDollar, Check, ArrowRight } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber } from '../../utils/format';
@@ -29,18 +29,22 @@ export default function Exceptionnelles() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
 
+  // Segment actif: 'events' ou 'tontines'
+  const [activeSegment, setActiveSegment] = useState('events');
+  const [tontinesEnabled, setTontinesEnabled] = useState(false);
+
   const [contributions, setContributions] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Modals
+  // Modals Événements
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModal, setDetailModal] = useState(false);
   const [paymentModal, setPaymentModal] = useState(false);
   const [memberSelectModal, setMemberSelectModal] = useState(false);
   
-  // State
+  // State Événements
   const [selectedContribution, setSelectedContribution] = useState(null);
   const [editingContribution, setEditingContribution] = useState(null);
   const [formData, setFormData] = useState({
@@ -60,6 +64,37 @@ export default function Exceptionnelles() {
   const [memberSearch, setMemberSearch] = useState('');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
+  // State Tontines
+  const [tontines, setTontines] = useState([]);
+  const [loadingTontines, setLoadingTontines] = useState(false);
+  const [tontineModalVisible, setTontineModalVisible] = useState(false);
+  const [tontineDetailModal, setTontineDetailModal] = useState(false);
+  const [selectedTontine, setSelectedTontine] = useState(null);
+  const [tontineDetail, setTontineDetail] = useState(null);
+  const [tontineFormData, setTontineFormData] = useState({
+    name: '',
+    amount: '',
+    frequency: 'monthly',
+    memberIds: []
+  });
+  const [tontinePaymentModal, setTontinePaymentModal] = useState(false);
+  const [tontinePaymentData, setTontinePaymentData] = useState({
+    memberId: '',
+    memberName: '',
+    amount: ''
+  });
+  const [tontineMemberSelectModal, setTontineMemberSelectModal] = useState(false);
+  const [savingTontine, setSavingTontine] = useState(false);
+
+  // Charger le statut tontinesEnabled
+  useEffect(() => {
+    if (isAdmin) {
+      api.get('/auth/association-settings')
+        .then(res => setTontinesEnabled(res.data.tontinesEnabled || false))
+        .catch(() => setTontinesEnabled(false));
+    }
+  }, [isAdmin]);
+
   // Recharger les données à chaque fois que l'onglet est affiché
   useFocusEffect(
     useCallback(() => {
@@ -67,9 +102,36 @@ export default function Exceptionnelles() {
       // loadMembers uniquement pour les admins (sélection d'un membre pour un paiement)
       if (isAdmin) {
         loadMembers();
+        if (tontinesEnabled) {
+          loadTontines();
+        }
       }
-    }, [isAdmin])
+    }, [isAdmin, tontinesEnabled])
   );
+
+  // Charger les tontines
+  const loadTontines = async () => {
+    setLoadingTontines(true);
+    try {
+      const response = await api.get('/tontines');
+      setTontines(response.data);
+    } catch (error) {
+      console.error('Erreur chargement tontines:', error);
+    } finally {
+      setLoadingTontines(false);
+    }
+  };
+
+  // Charger le détail d'une tontine
+  const loadTontineDetail = async (id) => {
+    try {
+      const response = await api.get(`/tontines/${id}`);
+      setTontineDetail(response.data);
+    } catch (error) {
+      console.error('Erreur chargement détail tontine:', error);
+      Alert.alert('Erreur', 'Impossible de charger les détails');
+    }
+  };
 
   const loadContributions = async () => {
     try {
@@ -402,6 +464,205 @@ export default function Exceptionnelles() {
     return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
   };
 
+  // =====================
+  // FONCTIONS TONTINES
+  // =====================
+
+  const handleCreateTontine = async () => {
+    if (!tontineFormData.name.trim()) {
+      Alert.alert('Erreur', 'Nom de la tontine requis');
+      return;
+    }
+    if (!tontineFormData.amount || parseFloat(tontineFormData.amount) <= 0) {
+      Alert.alert('Erreur', 'Montant invalide');
+      return;
+    }
+    if (tontineFormData.memberIds.length < 2) {
+      Alert.alert('Erreur', 'Au moins 2 participants requis');
+      return;
+    }
+
+    setSavingTontine(true);
+    try {
+      await api.post('/tontines', {
+        name: tontineFormData.name.trim(),
+        amount: parseFloat(tontineFormData.amount),
+        frequency: tontineFormData.frequency,
+        memberIds: tontineFormData.memberIds
+      });
+      Alert.alert('Succès', 'Tontine créée');
+      setTontineModalVisible(false);
+      setTontineFormData({ name: '', amount: '', frequency: 'monthly', memberIds: [] });
+      loadTontines();
+    } catch (error) {
+      console.error('Erreur création tontine:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Impossible de créer la tontine');
+    } finally {
+      setSavingTontine(false);
+    }
+  };
+
+  const handleDeleteTontine = (tontine) => {
+    Alert.alert(
+      'Supprimer la tontine',
+      `Supprimer "${tontine.name}" ? Cette action est irréversible.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/tontines/${tontine.id}`);
+              Alert.alert('Succès', 'Tontine supprimée');
+              loadTontines();
+              if (tontineDetailModal && selectedTontine?.id === tontine.id) {
+                setTontineDetailModal(false);
+                setSelectedTontine(null);
+                setTontineDetail(null);
+              }
+            } catch (error) {
+              console.error('Erreur suppression tontine:', error);
+              Alert.alert('Erreur', error.response?.data?.error || 'Impossible de supprimer (des paiements existent peut-être)');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleOpenTontineDetail = async (tontine) => {
+    setSelectedTontine(tontine);
+    setTontineDetailModal(true);
+    await loadTontineDetail(tontine.id);
+  };
+
+  const handleTontinePayment = async () => {
+    if (!tontinePaymentData.memberId || !tontinePaymentData.amount) {
+      Alert.alert('Erreur', 'Membre et montant requis');
+      return;
+    }
+
+    setSavingTontine(true);
+    try {
+      await api.post(`/tontines/${selectedTontine.id}/payments`, {
+        memberId: tontinePaymentData.memberId,
+        amount: parseFloat(tontinePaymentData.amount)
+      });
+      Alert.alert('Succès', 'Paiement enregistré');
+      setTontinePaymentModal(false);
+      setTontinePaymentData({ memberId: '', memberName: '', amount: '' });
+      await loadTontineDetail(selectedTontine.id);
+      loadTontines();
+    } catch (error) {
+      console.error('Erreur paiement tontine:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Impossible d\'enregistrer le paiement');
+    } finally {
+      setSavingTontine(false);
+    }
+  };
+
+  const handleCloseRound = () => {
+    Alert.alert(
+      'Clôturer le tour',
+      'Êtes-vous sûr de vouloir clôturer ce tour et passer au suivant ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Clôturer',
+          onPress: async () => {
+            setSavingTontine(true);
+            try {
+              await api.post(`/tontines/${selectedTontine.id}/close-round`);
+              Alert.alert('Succès', 'Tour clôturé, passage au suivant');
+              await loadTontineDetail(selectedTontine.id);
+              loadTontines();
+            } catch (error) {
+              console.error('Erreur clôture tour:', error);
+              Alert.alert('Erreur', error.response?.data?.error || 'Impossible de clôturer le tour');
+            } finally {
+              setSavingTontine(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const toggleTontineMember = (member) => {
+    const userId = member.userId;
+    setTontineFormData(prev => {
+      const exists = prev.memberIds.includes(userId);
+      return {
+        ...prev,
+        memberIds: exists 
+          ? prev.memberIds.filter(id => id !== userId)
+          : [...prev.memberIds, userId]
+      };
+    });
+  };
+
+  const getFrequencyLabel = (freq) => {
+    return freq === 'weekly' ? 'Hebdomadaire' : 'Mensuelle';
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'active': return 'En cours';
+      case 'completed': return 'Terminée';
+      case 'cancelled': return 'Annulée';
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return colors.success;
+      case 'completed': return colors.primary;
+      case 'cancelled': return colors.error;
+      default: return colors.textMuted;
+    }
+  };
+
+  // Render d'une tontine dans la liste
+  const renderTontine = ({ item }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => handleOpenTontineDetail(item)}
+      data-testid={`tontine-card-${item.id}`}
+    >
+      <View style={styles.cardHeader}>
+        <View style={[styles.iconContainer, { backgroundColor: colors.secondary + '20' }]}>
+          <CurrencyCircleDollar size={32} color={colors.secondary} weight="duotone" />
+        </View>
+        <View style={styles.cardInfo}>
+          <View style={styles.cardTitleRow}>
+            <Text style={styles.cardTitle}>{item.name}</Text>
+            <View style={[styles.monthlyBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+              <Text style={[styles.monthlyBadgeText, { color: getStatusColor(item.status) }]}>{getStatusLabel(item.status)}</Text>
+            </View>
+          </View>
+          <Text style={styles.cardType}>{getFrequencyLabel(item.frequency)} • {formatNumber(item.amount)} FCFA/tour</Text>
+        </View>
+      </View>
+
+      <View style={styles.cardStats}>
+        <View style={styles.stat}>
+          <Text style={styles.statValue}>Tour {item.currentRound}</Text>
+          <Text style={styles.statLabel}>En cours</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statValue}>{item.participantsCount || 0}</Text>
+          <Text style={styles.statLabel}>Participants</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // =====================
+  // FIN FONCTIONS TONTINES
+  // =====================
+
   const renderContribution = ({ item }) => {
     const showCollection = item.hasCollection !== false; // Par défaut true (données existantes)
     const eventDateFormatted = formatEventDate(item.eventDate);
@@ -462,30 +723,90 @@ export default function Exceptionnelles() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={contributions}
-        renderItem={renderContribution}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-        }
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Gift size={64} color={colors.border} weight="duotone" />
-            <Text style={styles.emptyText}>Aucune cotisation exceptionnelle</Text>
-          </View>
-        )}
-      />
+      {/* Segment Selector - Visible uniquement si admin ET tontines activées */}
+      {isAdmin && tontinesEnabled && (
+        <View style={styles.segmentContainer}>
+          <TouchableOpacity
+            style={[styles.segmentButton, activeSegment === 'events' && styles.segmentButtonActive]}
+            onPress={() => setActiveSegment('events')}
+          >
+            <Text style={[styles.segmentText, activeSegment === 'events' && styles.segmentTextActive]}>
+              Événements
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.segmentButton, activeSegment === 'tontines' && styles.segmentButtonActive]}
+            onPress={() => setActiveSegment('tontines')}
+          >
+            <Text style={[styles.segmentText, activeSegment === 'tontines' && styles.segmentTextActive]}>
+              Tontines
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {isAdmin && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={handleOpenCreateModal}
-          data-testid="add-exceptional-btn"
-        >
-          <Plus size={28} color={colors.textOnPrimary} weight="bold" />
-        </TouchableOpacity>
+      {/* Contenu selon le segment actif */}
+      {activeSegment === 'events' ? (
+        <>
+          <FlatList
+            data={contributions}
+            renderItem={renderContribution}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+            }
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Gift size={64} color={colors.border} weight="duotone" />
+                <Text style={styles.emptyText}>Aucune cotisation exceptionnelle</Text>
+              </View>
+            )}
+          />
+
+          {isAdmin && (
+            <TouchableOpacity
+              style={styles.fab}
+              onPress={handleOpenCreateModal}
+              data-testid="add-exceptional-btn"
+            >
+              <Plus size={28} color={colors.textOnPrimary} weight="bold" />
+            </TouchableOpacity>
+          )}
+        </>
+      ) : (
+        <>
+          {loadingTontines ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <FlatList
+              data={tontines}
+              renderItem={renderTontine}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTontines().finally(() => setRefreshing(false)); }} colors={[colors.primary]} />
+              }
+              ListEmptyComponent={() => (
+                <View style={styles.emptyContainer}>
+                  <CurrencyCircleDollar size={64} color={colors.border} weight="duotone" />
+                  <Text style={styles.emptyText}>Aucune tontine créée</Text>
+                  <Text style={styles.emptySubtext}>Créez une tontine pour démarrer l&apos;épargne rotative</Text>
+                </View>
+              )}
+            />
+          )}
+
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setTontineModalVisible(true)}
+            data-testid="add-tontine-btn"
+          >
+            <Plus size={28} color={colors.textOnPrimary} weight="bold" />
+          </TouchableOpacity>
+        </>
       )}
 
       {/* Modal Création/Modification */}
@@ -910,6 +1231,381 @@ export default function Exceptionnelles() {
           </View>
         </View>
       </Modal>
+
+      {/* ===================== */}
+      {/* MODALES TONTINES */}
+      {/* ===================== */}
+
+      {/* Modal Création Tontine */}
+      <Modal
+        visible={tontineModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setTontineModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={[styles.modalContent, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nouvelle tontine</Text>
+              <TouchableOpacity onPress={() => { setTontineModalVisible(false); setTontineFormData({ name: '', amount: '', frequency: 'monthly', memberIds: [] }); }}>
+                <X size={28} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Nom de la tontine *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: Tontine Mensuelle"
+                  placeholderTextColor={colors.textMuted}
+                  value={tontineFormData.name}
+                  onChangeText={(text) => setTontineFormData({ ...tontineFormData, name: text })}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Montant par tour (FCFA) *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: 50000"
+                  placeholderTextColor={colors.textMuted}
+                  value={tontineFormData.amount}
+                  onChangeText={(text) => setTontineFormData({ ...tontineFormData, amount: text })}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Fréquence</Text>
+                <View style={styles.toggleRow}>
+                  <TouchableOpacity
+                    style={[styles.toggleButton, tontineFormData.frequency === 'monthly' && styles.toggleButtonActive]}
+                    onPress={() => setTontineFormData({ ...tontineFormData, frequency: 'monthly' })}
+                  >
+                    <Text style={[styles.toggleButtonText, tontineFormData.frequency === 'monthly' && styles.toggleButtonTextActive]}>
+                      Mensuelle
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.toggleButton, tontineFormData.frequency === 'weekly' && styles.toggleButtonActive]}
+                    onPress={() => setTontineFormData({ ...tontineFormData, frequency: 'weekly' })}
+                  >
+                    <Text style={[styles.toggleButtonText, tontineFormData.frequency === 'weekly' && styles.toggleButtonTextActive]}>
+                      Hebdomadaire
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Participants ({tontineFormData.memberIds.length} sélectionnés) *</Text>
+                <TouchableOpacity
+                  style={styles.memberSelector}
+                  onPress={() => setTontineMemberSelectModal(true)}
+                >
+                  <Text style={tontineFormData.memberIds.length > 0 ? styles.memberSelectorText : styles.memberSelectorPlaceholder}>
+                    {tontineFormData.memberIds.length > 0 
+                      ? `${tontineFormData.memberIds.length} membre(s) sélectionné(s)` 
+                      : 'Sélectionner les participants'}
+                  </Text>
+                  <CaretDown size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+                <Text style={styles.helpText}>L&apos;ordre de sélection détermine l&apos;ordre de passage</Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.submitButton, savingTontine && styles.submitButtonDisabled]}
+                onPress={handleCreateTontine}
+                disabled={savingTontine}
+              >
+                {savingTontine ? (
+                  <ActivityIndicator color={colors.textOnPrimary} />
+                ) : (
+                  <Text style={styles.submitButtonText}>Créer la tontine</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Modal Sélection Membres Tontine (multi-select) */}
+      <Modal
+        visible={tontineMemberSelectModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setTontineMemberSelectModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Sélectionner les participants</Text>
+              <TouchableOpacity onPress={() => setTontineMemberSelectModal(false)}>
+                <X size={28} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <MagnifyingGlass size={20} color={colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Rechercher..."
+                placeholderTextColor={colors.textMuted}
+                value={memberSearch}
+                onChangeText={setMemberSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <FlatList
+              data={filteredMembers}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                const isSelected = tontineFormData.memberIds.includes(item.userId);
+                const orderIndex = tontineFormData.memberIds.indexOf(item.userId);
+                return (
+                  <TouchableOpacity
+                    style={[styles.memberItem, isSelected && styles.memberItemSelected]}
+                    onPress={() => toggleTontineMember(item)}
+                  >
+                    <View style={[styles.memberItemIcon, isSelected && { backgroundColor: colors.primary }]}>
+                      {isSelected ? (
+                        <Text style={{ color: colors.textOnPrimary, fontWeight: 'bold' }}>{orderIndex + 1}</Text>
+                      ) : (
+                        <User size={20} color={colors.primary} />
+                      )}
+                    </View>
+                    <View style={styles.memberItemInfo}>
+                      <Text style={styles.memberItemName}>{item.name}</Text>
+                      <Text style={styles.memberItemField}>{item.customFieldValue}</Text>
+                    </View>
+                    {isSelected && <Check size={24} color={colors.primary} weight="bold" />}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={() => (
+                <Text style={styles.noMembers}>Aucun membre trouvé</Text>
+              )}
+            />
+
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={() => setTontineMemberSelectModal(false)}
+            >
+              <Text style={styles.submitButtonText}>Valider ({tontineFormData.memberIds.length})</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Détail Tontine */}
+      <Modal
+        visible={tontineDetailModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => { setTontineDetailModal(false); setSelectedTontine(null); setTontineDetail(null); }}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.detailModalContent, { maxHeight: '95%' }]}>
+            <View style={styles.detailModalHeader}>
+              <TouchableOpacity 
+                onPress={() => { setTontineDetailModal(false); setSelectedTontine(null); setTontineDetail(null); }}
+                style={styles.backButton}
+              >
+                <X size={24} color={colors.text} />
+              </TouchableOpacity>
+              <Text style={styles.detailModalTitle} numberOfLines={1}>
+                {selectedTontine?.name}
+              </Text>
+              <TouchableOpacity onPress={() => handleDeleteTontine(selectedTontine)}>
+                <Trash size={24} color={colors.error} />
+              </TouchableOpacity>
+            </View>
+
+            {!tontineDetail ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            ) : (
+              <ScrollView style={styles.detailScrollView}>
+                {/* Info Tontine */}
+                <View style={styles.detailSection}>
+                  <View style={styles.detailInfoRow}>
+                    <Text style={styles.detailInfoLabel}>Montant par tour:</Text>
+                    <Text style={styles.detailInfoValue}>{formatNumber(tontineDetail.amount)} FCFA</Text>
+                  </View>
+                  <View style={styles.detailInfoRow}>
+                    <Text style={styles.detailInfoLabel}>Fréquence:</Text>
+                    <Text style={styles.detailInfoValue}>{getFrequencyLabel(tontineDetail.frequency)}</Text>
+                  </View>
+                  <View style={styles.detailInfoRow}>
+                    <Text style={styles.detailInfoLabel}>Statut:</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(tontineDetail.status) + '20' }]}>
+                      <Text style={[styles.statusBadgeText, { color: getStatusColor(tontineDetail.status) }]}>
+                        {getStatusLabel(tontineDetail.status)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.detailInfoRow}>
+                    <Text style={styles.detailInfoLabel}>Tour actuel:</Text>
+                    <Text style={styles.detailInfoValue}>{tontineDetail.currentRound} / {tontineDetail.participants?.length || 0}</Text>
+                  </View>
+                </View>
+
+                {/* Tour en cours */}
+                {tontineDetail.status === 'active' && tontineDetail.rounds?.length > 0 && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.sectionTitle}>Tour en cours</Text>
+                    {(() => {
+                      const openRound = tontineDetail.rounds.find(r => r.status === 'open');
+                      if (!openRound) return <Text style={styles.noPayments}>Aucun tour ouvert</Text>;
+                      
+                      const beneficiary = tontineDetail.participants?.find(p => p.memberId === openRound.beneficiaryMemberId);
+                      
+                      return (
+                        <>
+                          <View style={styles.beneficiaryCard}>
+                            <CurrencyCircleDollar size={32} color={colors.primary} weight="fill" />
+                            <View style={{ marginLeft: 12, flex: 1 }}>
+                              <Text style={styles.beneficiaryLabel}>Bénéficiaire</Text>
+                              <Text style={styles.beneficiaryName}>{beneficiary?.member?.name || 'Inconnu'}</Text>
+                            </View>
+                          </View>
+
+                          <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Paiements du tour</Text>
+                          {openRound.payments?.map(payment => (
+                            <View key={payment.id} style={styles.paymentRow}>
+                              <View style={styles.paymentInfo}>
+                                <Text style={styles.paymentName}>{payment.member?.name}</Text>
+                                <Text style={styles.paymentAmount}>{formatNumber(payment.amount)} FCFA</Text>
+                              </View>
+                              {payment.isPaid ? (
+                                <View style={[styles.paymentStatus, { backgroundColor: colors.success + '20' }]}>
+                                  <Check size={16} color={colors.success} weight="bold" />
+                                  <Text style={[styles.paymentStatusText, { color: colors.success }]}>Payé</Text>
+                                </View>
+                              ) : (
+                                <TouchableOpacity
+                                  style={[styles.paymentStatus, { backgroundColor: colors.primary + '20' }]}
+                                  onPress={() => {
+                                    setTontinePaymentData({
+                                      memberId: payment.memberId,
+                                      memberName: payment.member?.name,
+                                      amount: tontineDetail.amount.toString()
+                                    });
+                                    setTontinePaymentModal(true);
+                                  }}
+                                >
+                                  <Text style={[styles.paymentStatusText, { color: colors.primary }]}>Marquer payé</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          ))}
+
+                          {/* Bouton clôturer le tour */}
+                          <TouchableOpacity
+                            style={[styles.closeRoundButton, savingTontine && styles.submitButtonDisabled]}
+                            onPress={handleCloseRound}
+                            disabled={savingTontine}
+                          >
+                            {savingTontine ? (
+                              <ActivityIndicator color={colors.textOnPrimary} />
+                            ) : (
+                              <>
+                                <ArrowRight size={20} color={colors.textOnPrimary} weight="bold" />
+                                <Text style={styles.closeRoundButtonText}>Clôturer et passer au tour suivant</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </>
+                      );
+                    })()}
+                  </View>
+                )}
+
+                {/* Liste des participants */}
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Participants ({tontineDetail.participants?.length || 0})</Text>
+                  {tontineDetail.participants?.map((participant, index) => (
+                    <View key={participant.id} style={styles.participantRow}>
+                      <View style={styles.participantOrder}>
+                        <Text style={styles.participantOrderText}>{participant.order}</Text>
+                      </View>
+                      <View style={styles.participantInfo}>
+                        <Text style={styles.participantName}>{participant.member?.name}</Text>
+                        {participant.hasReceived && (
+                          <Text style={styles.participantReceived}>A reçu au tour {participant.receivedRound}</Text>
+                        )}
+                      </View>
+                      {participant.hasReceived ? (
+                        <Check size={20} color={colors.success} weight="bold" />
+                      ) : (
+                        <Text style={styles.participantPending}>En attente</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Paiement Tontine */}
+      <Modal
+        visible={tontinePaymentModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setTontinePaymentModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Confirmer le paiement</Text>
+              <TouchableOpacity onPress={() => setTontinePaymentModal(false)}>
+                <X size={28} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Membre</Text>
+              <View style={styles.readOnlyField}>
+                <Text style={styles.readOnlyText}>{tontinePaymentData.memberName}</Text>
+              </View>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Montant (FCFA)</Text>
+              <TextInput
+                style={styles.input}
+                value={tontinePaymentData.amount}
+                onChangeText={(text) => setTontinePaymentData({ ...tontinePaymentData, amount: text })}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, savingTontine && styles.submitButtonDisabled]}
+              onPress={handleTontinePayment}
+              disabled={savingTontine}
+            >
+              {savingTontine ? (
+                <ActivityIndicator color={colors.textOnPrimary} />
+              ) : (
+                <Text style={styles.submitButtonText}>Confirmer le paiement</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -918,6 +1614,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  segmentContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundWhite,
+    padding: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.lg,
+    gap: spacing.sm,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  segmentButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  segmentText: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  segmentTextActive: {
+    color: colors.textOnPrimary,
   },
   loadingContainer: {
     flex: 1,
@@ -1476,5 +2199,131 @@ const styles = StyleSheet.create({
   },
   toggleButtonTextActive: {
     color: colors.textOnPrimary,
+  },
+  // Styles Tontines
+  emptySubtext: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  memberItemSelected: {
+    backgroundColor: colors.primary + '10',
+    borderColor: colors.primary,
+    borderWidth: 1,
+  },
+  helpText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  beneficiaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '15',
+    padding: spacing.md,
+    borderRadius: borderRadius.card,
+    marginBottom: spacing.md,
+  },
+  beneficiaryLabel: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+  },
+  beneficiaryName: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  tontinePaymentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  paymentStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    gap: 4,
+  },
+  paymentStatusText: {
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+  },
+  closeRoundButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.secondary,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.button,
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  closeRoundButtonText: {
+    color: colors.textOnSecondary,
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+  },
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  participantOrder: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  participantOrderText: {
+    color: colors.textOnSecondary,
+    fontSize: typography.caption.fontSize,
+    fontWeight: 'bold',
+  },
+  participantInfo: {
+    flex: 1,
+  },
+  participantName: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  participantReceived: {
+    fontSize: typography.caption.fontSize,
+    color: colors.success,
+  },
+  participantPending: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+  },
+  statusBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  statusBadgeText: {
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+  },
+  readOnlyField: {
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: borderRadius.input,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  readOnlyText: {
+    fontSize: typography.body.fontSize,
+    color: colors.text,
   },
 });

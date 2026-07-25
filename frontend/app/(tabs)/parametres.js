@@ -1051,7 +1051,10 @@ export default function Parametres() {
         transparent={false}
         onRequestClose={() => setImportModalVisible(false)}
       >
-        <View style={styles.fullModalContainer}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={styles.fullModalContainer}
+        >
           <View style={styles.fullModalHeader}>
             <TouchableOpacity 
               style={styles.backButton}
@@ -1193,7 +1196,10 @@ export default function Parametres() {
         transparent={true}
         onRequestClose={() => setDeleteAccountModalVisible(false)}
       >
-        <View style={styles.deleteAccountModalOverlay}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={styles.deleteAccountModalOverlay}
+        >
           <View style={styles.deleteAccountModalContent}>
             <View style={styles.deleteAccountModalHeader}>
               <Warning size={48} color={colors.error} weight="fill" />
@@ -1246,7 +1252,7 @@ export default function Parametres() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
   );

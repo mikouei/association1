@@ -1110,3 +1110,46 @@ Les notifications push nécessitent un build EAS (pas Expo Go). Le test en previ
 
 **Fichier modifié** : `/app/web/src/app/payments/page.tsx`
 
+
+
+---
+
+## Mise à jour Finalisation v2 - 21 Juillet 2026 ✅
+
+### Partie 1 - Fix clavier (2 modales parametres.js) ✅
+- Modal "Importer membres" : ajout KeyboardAvoidingView
+- Modal "Supprimer mon compte" : ajout KeyboardAvoidingView
+
+### Partie 2 - Modèle freemium ✅
+- Schéma Prisma : ajouté `plan` (LAUNCH/FREE/PAID), `launchPeriodMonths`
+- Utilitaire `planLimits.js` : calcul dynamique du plan effectif et limites
+- Routes members.js, import.js, public.js : utilisation de `checkMemberLimit()`
+- Interface Super Admin : sélecteur de plan + durée personnalisable
+
+**Limites de membres:**
+- LAUNCH (période d'essai 8 mois par défaut): 250 membres
+- FREE (après expiration ou manuel): 10 membres  
+- PAID: 250 membres
+
+### Partie 3 - Interrupteur tontinesEnabled ✅
+- Schéma Prisma : `tontinesEnabled` (défaut false)
+- auth.js : exposé en lecture seule dans /association-settings
+- tontines.js : routes POST bloquées si désactivé (403)
+- Interface Super Admin : badge + checkbox
+
+### Partie 4 - Gestion tontines sur mobile ✅
+- Sélecteur de segment "Événements" / "Tontines" dans exceptionnelles.js
+- Segment visible uniquement si admin ET tontinesEnabled=true
+- CRUD complet : création, liste, détail, paiements, clôture de tour
+- Modales avec KeyboardAvoidingView intégré
+
+### Fichiers modifiés/créés
+- Backend: schema.prisma, planLimits.js (NEW), members.js, import.js, public.js, auth.js, tontines.js, platform.js
+- Web: platform/associations/[id]/page.tsx
+- Mobile: parametres.js, exceptionnelles.js
+
+### Tests validés
+- ✅ Tontines bloquées quand désactivées (403)
+- ✅ Activation via Super Admin fonctionne
+- ✅ Plan LAUNCH visible dans interface Super Admin
+

@@ -1154,7 +1154,7 @@ export default function Parametres() {
               </View>
             )}
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modal Déconnexion */}

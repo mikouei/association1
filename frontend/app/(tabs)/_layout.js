@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { AppState } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography } from '../../utils/theme';
 import { House, Wallet, CalendarDots, Users, ShieldCheck, GearSix, Bell } from 'phosphor-react-native';
@@ -17,8 +18,8 @@ export default function TabsLayout() {
   const bottomPadding = Math.max(8, insets.bottom);
   const tabBarHeight = 56 + bottomPadding;
 
-  // Récupérer le paramètre announcementsEnabled pour les admins
-  useEffect(() => {
+  // Fonction pour récupérer les paramètres de l'association
+  const fetchSettings = useCallback(() => {
     if (!isAdmin || !token) {
       setAnnouncementsEnabled(false);
       return;
@@ -27,6 +28,23 @@ export default function TabsLayout() {
       .then(res => setAnnouncementsEnabled(res.data.announcementsEnabled || false))
       .catch(() => setAnnouncementsEnabled(false));
   }, [isAdmin, token]);
+
+  // Récupérer les paramètres au montage et quand l'app revient au premier plan
+  useEffect(() => {
+    // Chargement initial
+    fetchSettings();
+
+    // Rafraîchir quand l'app revient au premier plan
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        fetchSettings();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [fetchSettings]);
 
   return (
     <ErrorBoundary>

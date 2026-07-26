@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -86,27 +86,25 @@ export default function Exceptionnelles() {
   const [tontineMemberSelectModal, setTontineMemberSelectModal] = useState(false);
   const [savingTontine, setSavingTontine] = useState(false);
 
-  // Charger le statut tontinesEnabled
-  useEffect(() => {
-    if (isAdmin) {
-      api.get('/auth/association-settings')
-        .then(res => setTontinesEnabled(res.data.tontinesEnabled || false))
-        .catch(() => setTontinesEnabled(false));
-    }
-  }, [isAdmin]);
-
-  // Recharger les données à chaque fois que l'onglet est affiché
+  // Recharger les données et le statut tontinesEnabled à chaque fois que l'onglet est affiché
   useFocusEffect(
     useCallback(() => {
       loadContributions();
-      // loadMembers uniquement pour les admins (sélection d'un membre pour un paiement)
+      // loadMembers et tontinesEnabled uniquement pour les admins
       if (isAdmin) {
         loadMembers();
-        if (tontinesEnabled) {
-          loadTontines();
-        }
+        // Rafraîchir le statut tontinesEnabled à chaque focus
+        api.get('/auth/association-settings')
+          .then(res => {
+            const enabled = res.data.tontinesEnabled || false;
+            setTontinesEnabled(enabled);
+            if (enabled) {
+              loadTontines();
+            }
+          })
+          .catch(() => setTontinesEnabled(false));
       }
-    }, [isAdmin, tontinesEnabled])
+    }, [isAdmin])
   );
 
   // Charger les tontines

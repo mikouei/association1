@@ -348,7 +348,7 @@ model ActivityLog {
   details       String?  // résumé lisible
   createdAt     DateTime @default(now())
 
-  association   Association @relation(fields: [associationId], references: [id])
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
 
   @@index([associationId, createdAt])
 }

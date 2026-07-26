@@ -2232,7 +2232,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  tontinePaymentRow: {
+  paymentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -2322,6 +2322,59 @@ const styles = StyleSheet.create({
   },
   readOnlyText: {
     fontSize: typography.body.fontSize,
+    color: colors.text,
+  },
+  // Styles pour la modale détail tontine
+  detailModalContent: {
+    backgroundColor: colors.backgroundWhite,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+  },
+  detailModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  detailModalTitle: {
+    flex: 1,
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
+    textAlign: 'center',
+    marginHorizontal: spacing.md,
+  },
+  backButton: {
+    padding: spacing.xs,
+  },
+  detailScrollView: {
+    paddingTop: spacing.sm,
+  },
+  detailSection: {
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  detailInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  detailInfoLabel: {
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+  },
+  detailInfoValue: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
     color: colors.text,
   },
 });

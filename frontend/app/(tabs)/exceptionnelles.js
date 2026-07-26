@@ -590,14 +590,14 @@ export default function Exceptionnelles() {
   };
 
   const toggleTontineMember = (member) => {
-    const userId = member.userId;
+    const oderId = member.id;
     setTontineFormData(prev => {
-      const exists = prev.memberIds.includes(userId);
+      const exists = prev.memberIds.includes(oderId);
       return {
         ...prev,
         memberIds: exists 
-          ? prev.memberIds.filter(id => id !== userId)
-          : [...prev.memberIds, userId]
+          ? prev.memberIds.filter(id => id !== oderId)
+          : [...prev.memberIds, oderId]
       };
     });
   };
@@ -1366,8 +1366,8 @@ export default function Exceptionnelles() {
               data={filteredMembers}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => {
-                const isSelected = tontineFormData.memberIds.includes(item.userId);
-                const orderIndex = tontineFormData.memberIds.indexOf(item.userId);
+                const isSelected = tontineFormData.memberIds.includes(item.id);
+                const orderIndex = tontineFormData.memberIds.indexOf(item.id);
                 return (
                   <TouchableOpacity
                     style={[styles.memberItem, isSelected && styles.memberItemSelected]}

@@ -48,7 +48,7 @@ model Association {
   
   // Modèle freemium
   plan                String  @default("LAUNCH") // LAUNCH (période d'essai), FREE (gratuit), PAID (payant)
-  launchPeriodMonths  Int?    // Durée personnalisée de la période LAUNCH (null = valeur par défaut plateforme: 8 mois)
+  launchPeriodMonths  Int?    // Durée personnalisée de la période LAUNCH (null = valeur par défaut plateforme: 12 mois)
   
   // Intégration Wave (paiement mobile)
   waveApiKey          String?  // Chiffré au repos, ne pas exposer dans les réponses API

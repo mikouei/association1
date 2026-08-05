@@ -3,7 +3,7 @@
  * Gère les limites de membres selon le plan de l'association
  */
 
-const DEFAULT_LAUNCH_PERIOD_MONTHS = 8;
+const DEFAULT_LAUNCH_PERIOD_MONTHS = 12;
 
 /**
  * Calcule le plan effectif d'une association

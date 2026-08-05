@@ -50,6 +50,11 @@ model Association {
   plan                String  @default("LAUNCH") // LAUNCH (période d'essai), FREE (gratuit), PAID (payant)
   launchPeriodMonths  Int?    // Durée personnalisée de la période LAUNCH (null = valeur par défaut plateforme: 8 mois)
   
+  // Intégration Wave (paiement mobile)
+  waveApiKey          String?  // Chiffré au repos, ne pas exposer dans les réponses API
+  waveMerchantId      String?
+  mobilePaymentEnabled Boolean @default(false)
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
@@ -62,6 +67,7 @@ model Association {
   activityLogs             ActivityLog[]
   tontines                 Tontine[]
   announcements            Announcement[]
+  waveTransactions         WaveTransaction[]
   
   @@index([code])
 }
@@ -389,5 +395,25 @@ model Announcement {
   sender        User        @relation(fields: [senderId], references: [id])
 
   @@index([associationId, createdAt])
+}
+
+
+// Transactions Wave (paiement mobile)
+model WaveTransaction {
+  id                String    @id @default(uuid())
+  associationId     String
+  memberId          String
+  targetType        String    // "monthly" | "exceptional"
+  targetRefId       String    // ID du MonthlyPayment ou ExceptionalPayment
+  amount            Float
+  waveTransactionId String?   @unique // ID retourné par Wave
+  status            String    @default("pending") // "pending" | "confirmed" | "failed"
+  createdAt         DateTime  @default(now())
+  confirmedAt       DateTime?
+
+  association       Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+
+  @@index([associationId])
+  @@index([waveTransactionId])
 }
 

@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
 
 import { prisma } from "./middleware/auth.js";
 
@@ -56,6 +57,21 @@ app.use(
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+//
+// RATE LIMITING GLOBAL
+//
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // 200 requêtes par IP toutes les 15 minutes
+  message: { error: 'Trop de requêtes, réessayez dans quelques minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false }, // Trust proxy déjà configuré
+});
+
+app.use('/api/', globalLimiter);
 
 //
 // ROUTES

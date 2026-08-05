@@ -180,7 +180,16 @@ export default function Login() {
       } catch (e) {
         console.warn('Could not save last association:', e);
       }
-      router.replace('/(tabs)');
+      
+      // Redirection selon le rôle
+      const userRole = result.user?.role;
+      if (userRole === 'SCANNER') {
+        router.replace('/scanner-qr');
+      } else if (userRole === 'AUDITEUR') {
+        router.replace('/audit');
+      } else {
+        router.replace('/(tabs)');
+      }
     } else {
       Alert.alert('Erreur', result.error);
     }
@@ -209,7 +218,14 @@ export default function Login() {
       // Connecter l'utilisateur
       loginWithToken(token, user, association);
       
-      router.replace('/(tabs)');
+      // Redirection selon le rôle
+      if (user.role === 'SCANNER') {
+        router.replace('/scanner-qr');
+      } else if (user.role === 'AUDITEUR') {
+        router.replace('/audit');
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (error) {
       const errorData = error.response?.data;
       

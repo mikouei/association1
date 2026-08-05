@@ -581,6 +581,23 @@ export default function Parametres() {
                 </View>
               </View>
             )}
+
+            {/* Bouton Ma Carte Membre */}
+            {user?.member && (
+              <TouchableOpacity 
+                style={styles.myCardButton}
+                onPress={() => router.push('/ma-carte')}
+              >
+                <View style={styles.myCardButtonIcon}>
+                  <QrCode size={24} color={colors.primary} weight="fill" />
+                </View>
+                <View style={styles.myCardButtonContent}>
+                  <Text style={styles.myCardButtonTitle}>Ma carte membre</Text>
+                  <Text style={styles.myCardButtonSubtitle}>Afficher mon QR code personnel</Text>
+                </View>
+                <CaretRight size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -2037,5 +2054,38 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: borderRadius.button,
     backgroundColor: colors.errorBg,
+  },
+  // Styles Ma Carte Membre
+  myCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '10',
+    borderRadius: borderRadius.card,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  myCardButtonIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  myCardButtonContent: {
+    flex: 1,
+  },
+  myCardButtonTitle: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  myCardButtonSubtitle: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 });

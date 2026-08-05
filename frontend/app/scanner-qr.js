@@ -13,7 +13,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { 
-  QrCode, ArrowLeft, CheckCircle, XCircle, Warning, User, Phone 
+  QrCode, ArrowLeft, CheckCircle, XCircle, Warning, User, Phone, SignOut 
 } from 'phosphor-react-native';
 import api from '../utils/api';
 import { formatNumber } from '../utils/format';
@@ -23,9 +23,10 @@ const { width, height } = Dimensions.get('window');
 const SCAN_SIZE = width * 0.7;
 
 export default function ScannerQR() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAuthorized = user?.role === 'ADMIN' || user?.role === 'SCANNER';
+  const isScannerOnly = user?.role === 'SCANNER';
   
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -33,13 +34,32 @@ export default function ScannerQR() {
   const [result, setResult] = useState(null);
   const [resultModalVisible, setResultModalVisible] = useState(false);
 
-  // Vérification admin
+  // Vérification autorisation
   useEffect(() => {
-    if (!isAdmin) {
-      Alert.alert('Accès refusé', 'Cette fonctionnalité est réservée aux administrateurs');
+    if (!isAuthorized) {
+      Alert.alert('Accès refusé', 'Cette fonctionnalité est réservée aux administrateurs et scanners');
       router.back();
     }
-  }, [isAdmin]);
+  }, [isAuthorized]);
+
+  // Fonction de déconnexion pour le rôle SCANNER
+  const handleLogout = () => {
+    Alert.alert(
+      'Déconnexion',
+      'Voulez-vous vraiment vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Déconnecter', 
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/login');
+          }
+        }
+      ]
+    );
+  };
 
   if (!permission) {
     return (
@@ -120,11 +140,23 @@ export default function ScannerQR() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={colors.textOnPrimary} />
-        </TouchableOpacity>
+        {isScannerOnly ? (
+          <TouchableOpacity style={styles.headerBackButton} onPress={handleLogout}>
+            <SignOut size={24} color={colors.textOnPrimary} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={colors.textOnPrimary} />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>Scanner un membre</Text>
-        <View style={{ width: 40 }} />
+        {isScannerOnly ? (
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleBadgeText}>Scanner</Text>
+          </View>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       {/* Camera */}
@@ -522,5 +554,16 @@ const styles = StyleSheet.create({
     color: colors.textOnPrimary,
     fontSize: typography.body.fontSize,
     fontWeight: '600',
+  },
+  roleBadge: {
+    backgroundColor: colors.textOnPrimary + '20',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.badge,
+  },
+  roleBadgeText: {
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+    color: colors.textOnPrimary,
   },
 });

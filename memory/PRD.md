@@ -1200,3 +1200,28 @@ Regroupe 3 changements de schéma précédemment appliqués via `db push` :
 
 Status: Appliquée avec succès via `prisma migrate resolve --applied`
 
+
+
+## Expérience Mobile Rôles (SCANNER/AUDITEUR) - 5 Août 2026 ✅
+
+### Écrans créés
+- **`/app/ma-carte.js`** : Écran affichant le QR code personnel du membre avec design carte
+- **`/app/audit.js`** : Écran de consultation des paiements en lecture seule pour AUDITEUR
+
+### Redirection après connexion
+- **SCANNER** → Redirigé vers `/scanner-qr` (écran de scan QR avec bouton déconnexion)
+- **AUDITEUR** → Redirigé vers `/audit` (écran consultation avec bouton déconnexion)
+- **ADMIN/MEMBER** → Comportement inchangé (`/(tabs)`)
+
+### Modifications apportées
+- `login.js` : Logique de redirection selon `result.user.role`
+- `scanner-qr.js` : Support du rôle SCANNER (bouton déconnexion au lieu de retour)
+- `audit.js` : Support du rôle AUDITEUR (bouton déconnexion au lieu de retour)
+- `parametres.js` : Bouton "Ma carte membre" pour accéder à `/ma-carte`
+- `members.js` : Routes `/my-qr` et `/verify-qr` positionnées avant les routes `:id`
+
+### API Routes
+- `GET /api/members/my-qr` : Récupère le QR code du membre connecté (génère si absent)
+- `POST /api/members/verify-qr` : Vérifie un QR code (ADMIN + SCANNER)
+- `GET /api/payments/audit-view` : Consultation paiements (ADMIN + AUDITEUR)
+

@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, Badge, Input } from '@/components/ui';
 import { api } from '@/services/api';
 import { Search, Calendar, Users, TrendingUp, DollarSign, FileText } from 'lucide-react';
-import { formatNumber } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 
 interface AuditData {
   years: Array<{ id: string; year: number; monthlyAmount: number; active: boolean }>;
@@ -116,8 +116,8 @@ export default function AuditPage() {
                     <DollarSign className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{formatNumber(data.stats.totalPaid)}</p>
-                    <p className="text-sm text-gray-500">Total collecté (FCFA)</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatCurrency(data.stats.totalPaid)}</p>
+                    <p className="text-sm text-gray-500">Total collecté</p>
                   </div>
                 </div>
               </CardContent>
@@ -129,7 +129,7 @@ export default function AuditPage() {
                     <TrendingUp className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{formatNumber(data.stats.remaining)}</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatCurrency(data.stats.remaining)}</p>
                     <p className="text-sm text-gray-500">Reste à collecter</p>
                   </div>
                 </div>
@@ -241,7 +241,7 @@ export default function AuditPage() {
                                       ? 'bg-yellow-100 text-yellow-700'
                                       : 'bg-gray-100 text-gray-400'
                                   }`}
-                                  title={`${formatNumber(monthData.amountPaid)} / ${formatNumber(monthData.amountDue)} FCFA`}
+                                  title={`${formatCurrency(monthData.amountPaid)} / ${formatCurrency(monthData.amountDue)}`}
                                 >
                                   {monthData.paid ? '✓' : monthData.amountPaid > 0 ? '◐' : '○'}
                                 </span>
@@ -254,10 +254,10 @@ export default function AuditPage() {
                         <td className="px-4 py-3 text-right">
                           <div>
                             <p className="font-medium text-gray-900">
-                              {formatNumber(member.monthly.totalPaid)}
+                              {formatCurrency(member.monthly.totalPaid)}
                             </p>
                             <p className="text-xs text-gray-500">
-                              / {formatNumber(member.monthly.totalDue)}
+                              / {formatCurrency(member.monthly.totalDue)}
                             </p>
                           </div>
                         </td>
@@ -309,13 +309,13 @@ export default function AuditPage() {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="font-medium text-gray-900">{item.title}</p>
-                        <Badge variant="secondary" className="mt-1">
+                        <Badge variant="default" className="mt-1">
                           {item.type}
                         </Badge>
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-green-600">
-                          {formatNumber(item.totalCollected)}
+                          {formatCurrency(item.totalCollected)}
                         </p>
                         <p className="text-xs text-gray-500">
                           {item.paymentCount} paiement(s)

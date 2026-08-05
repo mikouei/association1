@@ -16,6 +16,8 @@ import {
   SignOut,
   Trash,
   UsersThree,
+  QrCode,
+  Eye,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 import { useState, useMemo } from 'react';
@@ -27,6 +29,7 @@ interface NavItem {
   label: string;
   icon: Icon;
   requiresFeature?: string;
+  allowedRoles?: string[];
 }
 
 const platformNavItems: NavItem[] = [
@@ -37,13 +40,21 @@ const platformNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
-  { href: '/dashboard', label: 'Tableau de bord', icon: SquaresFour },
-  { href: '/members', label: 'Membres', icon: Users },
-  { href: '/payments', label: 'Cotisations', icon: Wallet },
-  { href: '/tontines', label: 'Tontines', icon: UsersThree, requiresFeature: 'tontines' },
-  { href: '/admins', label: 'Administrateurs', icon: UserCircleGear },
-  { href: '/settings', label: 'Paramètres', icon: Gear },
+  { href: '/dashboard', label: 'Tableau de bord', icon: SquaresFour, allowedRoles: ['ADMIN'] },
+  { href: '/members', label: 'Membres', icon: Users, allowedRoles: ['ADMIN'] },
+  { href: '/payments', label: 'Cotisations', icon: Wallet, allowedRoles: ['ADMIN'] },
+  { href: '/tontines', label: 'Tontines', icon: UsersThree, requiresFeature: 'tontines', allowedRoles: ['ADMIN'] },
+  { href: '/admins', label: 'Gestion des accès', icon: UserCircleGear, allowedRoles: ['ADMIN'] },
+  { href: '/audit', label: 'Consultation', icon: Eye, allowedRoles: ['ADMIN', 'AUDITEUR'] },
+  { href: '/settings', label: 'Paramètres', icon: Gear, allowedRoles: ['ADMIN'] },
 ];
+
+// Labels des rôles
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Administrateur',
+  SCANNER: 'Scanner',
+  AUDITEUR: 'Auditeur',
+};
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -61,18 +72,24 @@ export function Sidebar() {
     staleTime: 5 * 60 * 1000, // Cache 5 minutes
   });
 
-  // Filtrer les items de navigation selon les features activées
+  // Filtrer les items de navigation selon les features activées et le rôle
   const navItems = useMemo(() => {
     if (isPlatformAuth) return platformNavItems;
     
+    const userRole = user?.role || 'MEMBER';
+    
     return adminNavItems.filter(item => {
-      if (!item.requiresFeature) return true;
+      // Vérifier le rôle
+      if (item.allowedRoles && !item.allowedRoles.includes(userRole)) {
+        return false;
+      }
+      // Vérifier les features
       if (item.requiresFeature === 'tontines') {
         return settings?.tontinesEnabled === true;
       }
       return true;
     });
-  }, [isPlatformAuth, settings?.tontinesEnabled]);
+  }, [isPlatformAuth, settings?.tontinesEnabled, user?.role]);
 
   const handleLogout = isPlatformAuth ? platformLogout : logout;
 
@@ -136,7 +153,7 @@ export function Sidebar() {
           <div className="mb-3">
             <p className="text-sm font-medium truncate">{user.email || user.name}</p>
             <p className="text-xs text-white/60">
-              {isPlatformAuth ? 'Super Admin' : 'Administrateur'}
+              {isPlatformAuth ? 'Super Admin' : ROLE_LABELS[user.role] || user.role}
             </p>
           </div>
         )}

@@ -1153,3 +1153,50 @@ Les notifications push nécessitent un build EAS (pas Expo Go). Le test en previ
 - ✅ Activation via Super Admin fonctionne
 - ✅ Plan LAUNCH visible dans interface Super Admin
 
+
+
+## Système de rôles ADMIN/SCANNER/AUDITEUR - 5 Août 2026 ✅
+
+### Objectif
+Permettre de créer des comptes avec des accès limités au sein d'une association.
+
+### Rôles disponibles
+- **ADMIN** : Accès complet à toutes les fonctionnalités (max 3 par association)
+- **SCANNER** : Peut uniquement scanner les QR codes pour vérifier l'identité/statut des membres (max 10)
+- **AUDITEUR** : Consultation en lecture seule des paiements, cotisations et stats (max 3)
+- **MEMBER** : Membre standard (comportement inchangé)
+
+### Backend modifié
+- `middleware/auth.js` : Nouveau middleware `requireRole(allowedRoles)` 
+- `routes/admin.js` : 
+  - `GET /api/admin/quotas` : Récupère les quotas par rôle
+  - `GET /api/admin/list` : Liste ADMIN + SCANNER + AUDITEUR
+  - `POST /api/admin/create` : Accepte `role` en paramètre avec validation de quota
+- `routes/members.js` : `POST /api/members/verify-qr` accessible à ADMIN + SCANNER
+- `routes/payments.js` : `GET /api/payments/audit-view` accessible à ADMIN + AUDITEUR
+
+### Frontend Web modifié
+- `/app/admins/page.tsx` : Sélecteur de rôle, affichage quotas, badges de rôle
+- `/app/audit/page.tsx` (NEW) : Page de consultation pour les auditeurs
+- `Sidebar.tsx` : Navigation filtrée par rôle
+
+### Frontend Mobile modifié
+- `(tabs)/_layout.js` : Tabs filtrées selon le rôle (SCANNER/AUDITEUR ont accès limité)
+- `(tabs)/admin.js` : Interface de création avec sélecteur de rôle et quotas visuels
+
+### Tests validés
+- ✅ SCANNER peut appeler verify-qr mais pas admin/list
+- ✅ AUDITEUR peut appeler audit-view mais pas POST payments
+- ✅ Quotas respectés par rôle
+- ✅ Création de comptes SCANNER et AUDITEUR fonctionnelle
+
+## Migration Prisma - 5 Août 2026 ✅
+
+### Migration 20260722000001_add_wave_qrcode_cascade
+Regroupe 3 changements de schéma précédemment appliqués via `db push` :
+1. `onDelete: Cascade` sur `ActivityLog → Association`
+2. Champs Wave sur `Association` (`waveApiKey`, `waveMerchantId`, `mobilePaymentEnabled`) + modèle `WaveTransaction`
+3. Champs QR Code sur `Member` (`qrCode`, `qrGeneratedAt`)
+
+Status: Appliquée avec succès via `prisma migrate resolve --applied`
+

@@ -3,14 +3,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { AppState } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography } from '../../utils/theme';
-import { House, Wallet, CalendarDots, Users, ShieldCheck, GearSix, Bell } from 'phosphor-react-native';
+import { House, Wallet, CalendarDots, Users, ShieldCheck, GearSix, Bell, QrCode, Eye } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import api from '../../utils/api';
 
 export default function TabsLayout() {
   const { user, token } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const role = user?.role || 'MEMBER';
+  const isAdmin = role === 'ADMIN';
+  const isScanner = role === 'SCANNER';
+  const isAuditeur = role === 'AUDITEUR';
+  const isStaff = isAdmin || isScanner || isAuditeur;
   const insets = useSafeAreaInsets();
   const [announcementsEnabled, setAnnouncementsEnabled] = useState(false);
   
@@ -20,14 +24,14 @@ export default function TabsLayout() {
 
   // Fonction pour récupérer les paramètres de l'association
   const fetchSettings = useCallback(() => {
-    if (!isAdmin || !token) {
+    if (!isStaff || !token) {
       setAnnouncementsEnabled(false);
       return;
     }
     api.get('/auth/association-settings')
       .then(res => setAnnouncementsEnabled(res.data.announcementsEnabled || false))
       .catch(() => setAnnouncementsEnabled(false));
-  }, [isAdmin, token]);
+  }, [isStaff, token]);
 
   // Récupérer les paramètres au montage et quand l'app revient au premier plan
   useEffect(() => {
@@ -89,6 +93,8 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: 'Accueil',
+            // SCANNER et AUDITEUR n'ont pas accès à l'accueil complet, ils sont redirigés
+            href: (isScanner || isAuditeur) ? null : '/index',
             tabBarIcon: ({ color, focused }) => (
               <House size={24} color={color} weight={focused ? 'fill' : 'regular'} />
             ),
@@ -98,6 +104,8 @@ export default function TabsLayout() {
           name="cotisations"
           options={{
             title: 'Cotisations',
+            // Accessible à MEMBER et ADMIN, pas SCANNER
+            href: isScanner ? null : '/cotisations',
             tabBarIcon: ({ color, focused }) => (
               <Wallet size={24} color={color} weight={focused ? 'fill' : 'regular'} />
             ),
@@ -107,6 +115,8 @@ export default function TabsLayout() {
           name="exceptionnelles"
           options={{
             title: 'Événements',
+            // Accessible à MEMBER et ADMIN, pas SCANNER ni AUDITEUR
+            href: (isScanner || isAuditeur) ? null : '/exceptionnelles',
             tabBarIcon: ({ color, focused }) => (
               <CalendarDots size={24} color={color} weight={focused ? 'fill' : 'regular'} />
             ),
@@ -146,6 +156,7 @@ export default function TabsLayout() {
           name="parametres"
           options={{
             title: 'Paramètres',
+            // Tous les utilisateurs ont accès aux paramètres
             tabBarIcon: ({ color, focused }) => (
               <GearSix size={24} color={color} weight={focused ? 'fill' : 'regular'} />
             ),

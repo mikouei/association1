@@ -21,34 +21,67 @@ import {
   Plus, 
   X, 
   Key, 
-  Prohibit 
+  Prohibit,
+  QrCode,
+  Eye,
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
+// Configuration des rôles
+const ROLE_CONFIG = {
+  ADMIN: {
+    label: 'Administrateur',
+    description: 'Accès complet',
+    color: colors.primary,
+    bgColor: colors.warningBg,
+    Icon: ShieldCheck,
+  },
+  SCANNER: {
+    label: 'Scanner',
+    description: 'Vérification QR uniquement',
+    color: '#8B5CF6',
+    bgColor: '#EDE9FE',
+    Icon: QrCode,
+  },
+  AUDITEUR: {
+    label: 'Auditeur',
+    description: 'Consultation lecture seule',
+    color: colors.success,
+    bgColor: colors.successBg,
+    Icon: Eye,
+  },
+};
+
 export default function Admin() {
-  const [admins, setAdmins] = useState([]);
+  const [staffUsers, setStaffUsers] = useState([]);
+  const [quotas, setQuotas] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [newAdmin, setNewAdmin] = useState({
+  const [newUser, setNewUser] = useState({
     email: '',
     phone: '',
     password: '',
+    role: 'ADMIN',
   });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    loadAdmins();
+    loadData();
   }, []);
 
-  const loadAdmins = async () => {
+  const loadData = async () => {
     try {
-      const response = await api.get('/admin/list');
-      setAdmins(response.data);
+      const [usersRes, quotasRes] = await Promise.all([
+        api.get('/admin/list'),
+        api.get('/admin/quotas'),
+      ]);
+      setStaffUsers(usersRes.data);
+      setQuotas(quotasRes.data);
     } catch (error) {
-      console.error('Erreur chargement admins:', error);
-      Alert.alert('Erreur', 'Impossible de charger les administrateurs');
+      console.error('Erreur chargement:', error);
+      Alert.alert('Erreur', 'Impossible de charger les données');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -57,45 +90,46 @@ export default function Admin() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadAdmins();
+    loadData();
   };
 
-  const handleCreateAdmin = async () => {
-    if (!newAdmin.email || !newAdmin.password) {
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.password) {
       Alert.alert('Erreur', 'Email et mot de passe requis');
       return;
     }
 
     setCreating(true);
     try {
-      await api.post('/admin/create', newAdmin);
-      Alert.alert('Succès', 'Administrateur créé avec succès');
+      await api.post('/admin/create', newUser);
+      Alert.alert('Succès', `${ROLE_CONFIG[newUser.role].label} créé avec succès`);
       setModalVisible(false);
-      setNewAdmin({ email: '', phone: '', password: '' });
-      loadAdmins();
+      setNewUser({ email: '', phone: '', password: '', role: 'ADMIN' });
+      loadData();
     } catch (error) {
-      console.error('Erreur création admin:', error);
+      console.error('Erreur création:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la création');
     } finally {
       setCreating(false);
     }
   };
 
-  const handleToggleActive = async (admin) => {
-    const action = admin.active ? 'désactiver' : 'réactiver';
+  const handleToggleActive = async (user) => {
+    const roleLabel = ROLE_CONFIG[user.role]?.label || user.role;
+    const action = user.active ? 'désactiver' : 'réactiver';
     Alert.alert(
       'Confirmation',
-      `Voulez-vous ${action} cet administrateur ?`,
+      `Voulez-vous ${action} ce ${roleLabel.toLowerCase()} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Confirmer',
           onPress: async () => {
             try {
-              const endpoint = admin.active ? 'deactivate' : 'activate';
-              await api.put(`/admin/${admin.id}/${endpoint}`);
-              Alert.alert('Succès', `Administrateur ${action} avec succès`);
-              loadAdmins();
+              const endpoint = user.active ? 'deactivate' : 'activate';
+              await api.put(`/admin/${user.id}/${endpoint}`);
+              Alert.alert('Succès', `Compte ${action} avec succès`);
+              loadData();
             } catch (error) {
               console.error('Erreur toggle active:', error);
               Alert.alert('Erreur', error.response?.data?.error || 'Une erreur est survenue');
@@ -106,10 +140,10 @@ export default function Admin() {
     );
   };
 
-  const handleResetPassword = (admin) => {
+  const handleResetPassword = (user) => {
     Alert.prompt(
       'Réinitialiser le mot de passe',
-      `Nouveau mot de passe pour ${admin.email}:`,
+      `Nouveau mot de passe pour ${user.email}:`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -120,7 +154,7 @@ export default function Admin() {
               return;
             }
             try {
-              await api.post(`/admin/${admin.id}/reset-password`, { newPassword });
+              await api.post(`/admin/${user.id}/reset-password`, { newPassword });
               Alert.alert('Succès', 'Mot de passe réinitialisé');
             } catch (error) {
               console.error('Erreur reset password:', error);
@@ -133,51 +167,138 @@ export default function Admin() {
     );
   };
 
-  const renderAdmin = ({ item }) => (
-    <View style={styles.adminCard}>
-      <View style={styles.adminHeader}>
-        <View style={styles.adminIcon}>
-          <ShieldCheck size={24} color={colors.primary} weight="fill" />
+  const renderQuotaCard = (role) => {
+    if (!quotas || !quotas[role]) return null;
+    const config = ROLE_CONFIG[role];
+    const quota = quotas[role];
+    const percentage = (quota.current / quota.max) * 100;
+    const Icon = config.Icon;
+
+    return (
+      <View style={[styles.quotaCard, { borderLeftColor: config.color }]} key={role}>
+        <View style={[styles.quotaIcon, { backgroundColor: config.bgColor }]}>
+          <Icon size={20} color={config.color} weight="fill" />
         </View>
-        <View style={styles.adminInfo}>
-          <Text style={styles.adminEmail}>{item.email}</Text>
-          {item.phone && <Text style={styles.adminPhone}>{item.phone}</Text>}
-          <Text style={styles.adminDate}>
-            Créé le {new Date(item.createdAt).toLocaleDateString('fr-FR')}
-          </Text>
+        <View style={styles.quotaInfo}>
+          <Text style={styles.quotaLabel}>{config.label}s</Text>
+          <View style={styles.quotaBar}>
+            <View 
+              style={[
+                styles.quotaBarFill, 
+                { 
+                  width: `${Math.min(percentage, 100)}%`,
+                  backgroundColor: percentage >= 100 ? colors.error : percentage >= 80 ? colors.warning : colors.success
+                }
+              ]} 
+            />
+          </View>
         </View>
-        <View style={styles.adminStatus}>
-          {item.active ? (
-            <CheckCircle size={24} color={colors.success} weight="fill" />
-          ) : (
-            <XCircle size={24} color={colors.error} weight="fill" />
-          )}
+        <Text style={styles.quotaCount}>{quota.current}/{quota.max}</Text>
+      </View>
+    );
+  };
+
+  const renderUser = ({ item }) => {
+    const config = ROLE_CONFIG[item.role] || ROLE_CONFIG.ADMIN;
+    const Icon = config.Icon;
+
+    return (
+      <View style={styles.userCard}>
+        <View style={styles.userHeader}>
+          <View style={[styles.userIcon, { backgroundColor: config.bgColor }]}>
+            <Icon size={24} color={config.color} weight="fill" />
+          </View>
+          <View style={styles.userInfo}>
+            <Text style={styles.userEmail}>{item.email}</Text>
+            {item.phone && <Text style={styles.userPhone}>{item.phone}</Text>}
+            <View style={styles.userMeta}>
+              <View style={[styles.roleBadge, { backgroundColor: config.bgColor }]}>
+                <Text style={[styles.roleBadgeText, { color: config.color }]}>{config.label}</Text>
+              </View>
+              <Text style={styles.userDate}>
+                {new Date(item.createdAt).toLocaleDateString('fr-FR')}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.userStatus}>
+            {item.active ? (
+              <CheckCircle size={24} color={colors.success} weight="fill" />
+            ) : (
+              <XCircle size={24} color={colors.error} weight="fill" />
+            )}
+          </View>
+        </View>
+
+        <View style={styles.userActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: item.active ? colors.warning : colors.success }]}
+            onPress={() => handleToggleActive(item)}
+          >
+            {item.active ? (
+              <Prohibit size={16} color={colors.textOnSecondary} />
+            ) : (
+              <CheckCircle size={16} color={colors.textOnSecondary} weight="fill" />
+            )}
+            <Text style={styles.actionButtonText}>
+              {item.active ? 'Désactiver' : 'Activer'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+            onPress={() => handleResetPassword(item)}
+          >
+            <Key size={16} color={colors.textOnSecondary} weight="fill" />
+            <Text style={styles.actionButtonText}>Reset MDP</Text>
+          </TouchableOpacity>
         </View>
       </View>
+    );
+  };
 
-      <View style={styles.adminActions}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: item.active ? colors.warning : colors.success }]}
-          onPress={() => handleToggleActive(item)}
-        >
-          {item.active ? (
-            <Prohibit size={16} color={colors.textOnSecondary} />
-          ) : (
-            <CheckCircle size={16} color={colors.textOnSecondary} weight="fill" />
-          )}
-          <Text style={styles.actionButtonText}>
-            {item.active ? 'Désactiver' : 'Activer'}
-          </Text>
-        </TouchableOpacity>
+  const renderRoleSelector = () => (
+    <View style={styles.roleSelectorContainer}>
+      <Text style={styles.label}>Type de compte *</Text>
+      {['ADMIN', 'SCANNER', 'AUDITEUR'].map((role) => {
+        const config = ROLE_CONFIG[role];
+        const quota = quotas?.[role];
+        const isDisabled = quota && quota.current >= quota.max;
+        const isSelected = newUser.role === role;
+        const Icon = config.Icon;
 
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.secondary }]}
-          onPress={() => handleResetPassword(item)}
-        >
-          <Key size={16} color={colors.textOnSecondary} weight="fill" />
-          <Text style={styles.actionButtonText}>Reset mot de passe</Text>
-        </TouchableOpacity>
-      </View>
+        return (
+          <TouchableOpacity
+            key={role}
+            style={[
+              styles.roleOption,
+              isSelected && styles.roleOptionSelected,
+              isDisabled && styles.roleOptionDisabled,
+            ]}
+            onPress={() => !isDisabled && setNewUser({ ...newUser, role })}
+            disabled={isDisabled}
+          >
+            <View style={[styles.roleOptionIcon, { backgroundColor: config.bgColor }]}>
+              <Icon size={20} color={config.color} weight={isSelected ? 'fill' : 'regular'} />
+            </View>
+            <View style={styles.roleOptionInfo}>
+              <Text style={[styles.roleOptionLabel, isDisabled && { color: colors.textMuted }]}>
+                {config.label}
+              </Text>
+              <Text style={styles.roleOptionDesc}>{config.description}</Text>
+            </View>
+            {quota && (
+              <Text style={[styles.roleOptionQuota, isDisabled && { color: colors.error }]}>
+                {quota.current}/{quota.max}
+              </Text>
+            )}
+            {isSelected && (
+              <View style={styles.roleOptionCheck}>
+                <CheckCircle size={20} color={colors.primary} weight="fill" />
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 
@@ -191,9 +312,14 @@ export default function Admin() {
 
   return (
     <View style={styles.container}>
+      {/* Quotas */}
+      <View style={styles.quotasContainer}>
+        {['ADMIN', 'SCANNER', 'AUDITEUR'].map(renderQuotaCard)}
+      </View>
+
       <FlatList
-        data={admins}
-        renderItem={renderAdmin}
+        data={staffUsers}
+        renderItem={renderUser}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
@@ -207,7 +333,7 @@ export default function Admin() {
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <ShieldCheck size={64} color={colors.border} />
-            <Text style={styles.emptyText}>Aucun administrateur</Text>
+            <Text style={styles.emptyText}>Aucun compte</Text>
           </View>
         )}
       />
@@ -228,21 +354,23 @@ export default function Admin() {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nouvel administrateur</Text>
+              <Text style={styles.modalTitle}>Nouveau compte</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <X size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {renderRoleSelector()}
+
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Email *</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="email@exemple.com"
                   placeholderTextColor={colors.textMuted}
-                  value={newAdmin.email}
-                  onChangeText={(text) => setNewAdmin({ ...newAdmin, email: text })}
+                  value={newUser.email}
+                  onChangeText={(text) => setNewUser({ ...newUser, email: text })}
                   autoCapitalize="none"
                   keyboardType="email-address"
                 />
@@ -254,8 +382,8 @@ export default function Admin() {
                   style={styles.input}
                   placeholder="+237 6XX XX XX XX"
                   placeholderTextColor={colors.textMuted}
-                  value={newAdmin.phone}
-                  onChangeText={(text) => setNewAdmin({ ...newAdmin, phone: text })}
+                  value={newUser.phone}
+                  onChangeText={(text) => setNewUser({ ...newUser, phone: text })}
                   keyboardType="phone-pad"
                 />
               </View>
@@ -264,23 +392,23 @@ export default function Admin() {
                 <Text style={styles.label}>Mot de passe *</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Minimum 4 caractères"
+                  placeholder="Minimum 8 caractères"
                   placeholderTextColor={colors.textMuted}
-                  value={newAdmin.password}
-                  onChangeText={(text) => setNewAdmin({ ...newAdmin, password: text })}
+                  value={newUser.password}
+                  onChangeText={(text) => setNewUser({ ...newUser, password: text })}
                   secureTextEntry
                 />
               </View>
 
               <TouchableOpacity
                 style={[styles.submitButton, creating && styles.submitButtonDisabled]}
-                onPress={handleCreateAdmin}
+                onPress={handleCreateUser}
                 disabled={creating}
               >
                 {creating ? (
                   <ActivityIndicator color={colors.textOnPrimary} />
                 ) : (
-                  <Text style={styles.submitButtonText}>Créer l'administrateur</Text>
+                  <Text style={styles.submitButtonText}>Créer le compte</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -302,11 +430,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
   },
+  quotasContainer: {
+    padding: spacing.lg,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  quotaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.md,
+    borderLeftWidth: 4,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  quotaIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  quotaInfo: {
+    flex: 1,
+  },
+  quotaLabel: {
+    fontSize: typography.caption.fontSize + 1,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  quotaBar: {
+    height: 4,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  quotaBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  quotaCount: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '700',
+    color: colors.text,
+    marginLeft: spacing.md,
+  },
   listContent: {
     padding: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: 80,
   },
-  adminCard: {
+  userCard: {
     backgroundColor: colors.backgroundWhite,
     borderRadius: borderRadius.card,
     padding: spacing.lg,
@@ -317,42 +497,55 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
-  adminHeader: {
+  userHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  adminIcon: {
+  userIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.warningBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
   },
-  adminInfo: {
+  userInfo: {
     flex: 1,
   },
-  adminEmail: {
+  userEmail: {
     fontSize: typography.body.fontSize,
     fontWeight: '600',
     color: colors.text,
   },
-  adminPhone: {
+  userPhone: {
     fontSize: typography.caption.fontSize + 1,
     color: colors.textMuted,
     marginTop: 2,
   },
-  adminDate: {
+  userMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+    gap: spacing.sm,
+  },
+  roleBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.button,
+  },
+  roleBadgeText: {
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+  },
+  userDate: {
     fontSize: typography.caption.fontSize,
     color: colors.textMuted,
-    marginTop: spacing.xs,
   },
-  adminStatus: {
+  userStatus: {
     marginLeft: spacing.sm,
   },
-  adminActions: {
+  userActions: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
@@ -406,7 +599,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.card,
     borderTopRightRadius: borderRadius.card,
     padding: spacing.xl,
-    maxHeight: '80%',
+    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -419,6 +612,54 @@ const styles = StyleSheet.create({
     fontWeight: typography.h2.fontWeight,
     color: colors.text,
     fontFamily: typography.fontFamilyHeading,
+  },
+  roleSelectorContainer: {
+    marginBottom: spacing.lg,
+  },
+  roleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.card,
+    marginBottom: spacing.sm,
+  },
+  roleOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryBg || '#FFF9E6',
+  },
+  roleOptionDisabled: {
+    opacity: 0.5,
+  },
+  roleOptionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  roleOptionInfo: {
+    flex: 1,
+  },
+  roleOptionLabel: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  roleOptionDesc: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+  },
+  roleOptionQuota: {
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginRight: spacing.sm,
+  },
+  roleOptionCheck: {
+    marginLeft: spacing.xs,
   },
   inputContainer: {
     marginBottom: spacing.lg,
@@ -444,6 +685,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.button,
     alignItems: 'center',
     marginTop: spacing.sm,
+    marginBottom: spacing.xl,
   },
   submitButtonDisabled: {
     opacity: 0.6,

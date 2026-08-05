@@ -5,32 +5,77 @@ import { logActivity } from '../utils/activityLog.js';
 
 const router = express.Router();
 
+// Quotas par rôle
+const ROLE_QUOTAS = {
+  ADMIN: 3,
+  SCANNER: 10,
+  AUDITEUR: 3
+};
+
+// Labels des rôles en français
+const ROLE_LABELS = {
+  ADMIN: 'Administrateur',
+  SCANNER: 'Scanner',
+  AUDITEUR: 'Auditeur'
+};
+
 // Toutes les routes nécessitent authentification ADMIN
 router.use(authenticateToken);
 router.use(requireAdmin);
 
-// GET /api/admin/list
-// Liste tous les ADMIN de l'association
-router.get('/list', async (req, res) => {
+// GET /api/admin/quotas
+// Récupérer les quotas et compteurs par rôle
+router.get('/quotas', async (req, res) => {
   try {
-    const admins = await prisma.user.findMany({
+    const counts = await prisma.user.groupBy({
+      by: ['role'],
       where: { 
         associationId: req.associationId,
-        role: 'ADMIN' 
+        role: { in: ['ADMIN', 'SCANNER', 'AUDITEUR'] }
+      },
+      _count: { role: true }
+    });
+
+    const quotas = {};
+    for (const role of ['ADMIN', 'SCANNER', 'AUDITEUR']) {
+      const found = counts.find(c => c.role === role);
+      quotas[role] = {
+        label: ROLE_LABELS[role],
+        current: found ? found._count.role : 0,
+        max: ROLE_QUOTAS[role]
+      };
+    }
+
+    res.json(quotas);
+  } catch (error) {
+    console.error('Get quotas error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des quotas' });
+  }
+});
+
+// GET /api/admin/list
+// Liste tous les comptes staff (ADMIN, SCANNER, AUDITEUR) de l'association
+router.get('/list', async (req, res) => {
+  try {
+    const staffUsers = await prisma.user.findMany({
+      where: { 
+        associationId: req.associationId,
+        role: { in: ['ADMIN', 'SCANNER', 'AUDITEUR'] }
       },
       select: {
         id: true,
         email: true,
         phone: true,
+        role: true,
         active: true,
         createdAt: true,
         updatedAt: true,
         member: { select: { id: true } }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: [{ role: 'asc' }, { createdAt: 'desc' }]
     });
 
-    res.json(admins);
+    res.json(staffUsers);
   } catch (error) {
     console.error('List admin error:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des administrateurs' });
@@ -38,10 +83,15 @@ router.get('/list', async (req, res) => {
 });
 
 // POST /api/admin/create
-// Créer un nouvel ADMIN dans l'association
+// Créer un nouveau compte staff (ADMIN, SCANNER, ou AUDITEUR)
 router.post('/create', async (req, res) => {
   try {
-    const { email, phone, password } = req.body;
+    const { email, phone, password, role = 'ADMIN' } = req.body;
+
+    // Valider le rôle
+    if (!['ADMIN', 'SCANNER', 'AUDITEUR'].includes(role)) {
+      return res.status(400).json({ error: 'Rôle invalide. Valeurs acceptées: ADMIN, SCANNER, AUDITEUR' });
+    }
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email et mot de passe requis' });
@@ -68,37 +118,41 @@ router.post('/create', async (req, res) => {
       return res.status(400).json({ error: 'Cet email est déjà utilisé' });
     }
 
-    // Vérifier le plafond de 3 admins gratuits
-    const adminCount = await prisma.user.count({
-      where: { associationId: req.associationId, role: 'ADMIN' }
+    // Vérifier le quota pour ce rôle spécifique
+    const roleCount = await prisma.user.count({
+      where: { associationId: req.associationId, role }
     });
-    if (adminCount >= 3) {
-      return res.status(403).json({ error: 'Limite de 3 administrateurs atteinte pour cette association' });
+    
+    const maxQuota = ROLE_QUOTAS[role];
+    if (roleCount >= maxQuota) {
+      return res.status(403).json({ 
+        error: `Limite de ${maxQuota} ${ROLE_LABELS[role].toLowerCase()}(s) atteinte pour cette association` 
+      });
     }
 
     // Hash du mot de passe
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Créer l'ADMIN
-    const admin = await prisma.user.create({
+    // Créer le compte
+    const user = await prisma.user.create({
       data: {
         associationId: req.associationId,
         email,
         phone: phone || null,
         passwordHash,
         passwordChangedAt: new Date(),
-        role: 'ADMIN',
+        role,
         active: true
       }
     });
 
     res.status(201).json({
-      id: admin.id,
-      email: admin.email,
-      phone: admin.phone,
-      role: admin.role,
-      active: admin.active,
-      createdAt: admin.createdAt
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      active: user.active,
+      createdAt: user.createdAt
     });
 
     // Log de l'activité
@@ -108,17 +162,17 @@ router.post('/create', async (req, res) => {
       userName: req.user.member?.name || req.user.email || 'Admin',
       action: 'admin.create',
       targetType: 'User',
-      targetId: admin.id,
-      details: `Nouvel admin créé: ${email}`
+      targetId: user.id,
+      details: `Nouveau ${ROLE_LABELS[role]} créé: ${email}`
     });
   } catch (error) {
     console.error('Create admin error:', error);
-    res.status(500).json({ error: 'Erreur lors de la création de l\'administrateur' });
+    res.status(500).json({ error: 'Erreur lors de la création' });
   }
 });
 
 // PUT /api/admin/:id/deactivate
-// Désactiver un ADMIN
+// Désactiver un compte staff (ADMIN, SCANNER, AUDITEUR)
 router.put('/:id/deactivate', async (req, res) => {
   try {
     const { id } = req.params;
@@ -128,34 +182,40 @@ router.put('/:id/deactivate', async (req, res) => {
       return res.status(400).json({ error: 'Vous ne pouvez pas vous désactiver vous-même' });
     }
 
-    // Récupérer l'admin pour le log
-    const adminData = await prisma.user.findFirst({
-      where: { id, role: 'ADMIN', associationId: req.associationId }
-    });
-
-    const admin = await prisma.user.updateMany({
+    // Récupérer le compte pour le log
+    const userData = await prisma.user.findFirst({
       where: { 
         id, 
-        role: 'ADMIN',
+        role: { in: ['ADMIN', 'SCANNER', 'AUDITEUR'] }, 
+        associationId: req.associationId 
+      }
+    });
+
+    if (!userData) {
+      return res.status(404).json({ error: 'Compte non trouvé' });
+    }
+
+    await prisma.user.updateMany({
+      where: { 
+        id, 
+        role: { in: ['ADMIN', 'SCANNER', 'AUDITEUR'] },
         associationId: req.associationId
       },
       data: { active: false }
     });
 
-    res.json({ message: 'Administrateur désactivé' });
+    res.json({ message: 'Compte désactivé' });
 
     // Log de l'activité
-    if (adminData) {
-      logActivity({
-        associationId: req.associationId,
-        userId: req.user.id,
-        userName: req.user.member?.name || req.user.email || 'Admin',
-        action: 'admin.deactivate',
-        targetType: 'User',
-        targetId: id,
-        details: `Admin désactivé: ${adminData.email}`
-      });
-    }
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'admin.deactivate',
+      targetType: 'User',
+      targetId: id,
+      details: `${ROLE_LABELS[userData.role]} désactivé: ${userData.email}`
+    });
   } catch (error) {
     console.error('Deactivate admin error:', error);
     res.status(500).json({ error: 'Erreur lors de la désactivation' });
@@ -163,39 +223,45 @@ router.put('/:id/deactivate', async (req, res) => {
 });
 
 // PUT /api/admin/:id/activate
-// Réactiver un ADMIN
+// Réactiver un compte staff
 router.put('/:id/activate', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Récupérer l'admin pour le log
-    const adminData = await prisma.user.findFirst({
-      where: { id, role: 'ADMIN', associationId: req.associationId }
-    });
-
-    const admin = await prisma.user.updateMany({
+    // Récupérer le compte pour le log
+    const userData = await prisma.user.findFirst({
       where: { 
         id, 
-        role: 'ADMIN',
+        role: { in: ['ADMIN', 'SCANNER', 'AUDITEUR'] }, 
+        associationId: req.associationId 
+      }
+    });
+
+    if (!userData) {
+      return res.status(404).json({ error: 'Compte non trouvé' });
+    }
+
+    await prisma.user.updateMany({
+      where: { 
+        id, 
+        role: { in: ['ADMIN', 'SCANNER', 'AUDITEUR'] },
         associationId: req.associationId
       },
       data: { active: true }
     });
 
-    res.json({ message: 'Administrateur réactivé' });
+    res.json({ message: 'Compte réactivé' });
 
     // Log de l'activité
-    if (adminData) {
-      logActivity({
-        associationId: req.associationId,
-        userId: req.user.id,
-        userName: req.user.member?.name || req.user.email || 'Admin',
-        action: 'admin.activate',
-        targetType: 'User',
-        targetId: id,
-        details: `Admin réactivé: ${adminData.email}`
-      });
-    }
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'admin.activate',
+      targetType: 'User',
+      targetId: id,
+      details: `${ROLE_LABELS[userData.role]} réactivé: ${userData.email}`
+    });
   } catch (error) {
     console.error('Activate admin error:', error);
     res.status(500).json({ error: 'Erreur lors de la réactivation' });
@@ -203,7 +269,7 @@ router.put('/:id/activate', async (req, res) => {
 });
 
 // POST /api/admin/:id/reset-password
-// Réinitialiser le mot de passe d'un ADMIN
+// Réinitialiser le mot de passe d'un compte staff
 router.post('/:id/reset-password', async (req, res) => {
   try {
     const { id } = req.params;
@@ -228,17 +294,25 @@ router.post('/:id/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });
     }
 
-    // Récupérer l'admin pour le log
-    const adminData = await prisma.user.findFirst({
-      where: { id, role: 'ADMIN', associationId: req.associationId }
+    // Récupérer le compte pour le log
+    const userData = await prisma.user.findFirst({
+      where: { 
+        id, 
+        role: { in: ['ADMIN', 'SCANNER', 'AUDITEUR'] }, 
+        associationId: req.associationId 
+      }
     });
+
+    if (!userData) {
+      return res.status(404).json({ error: 'Compte non trouvé' });
+    }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.updateMany({
       where: { 
         id, 
-        role: 'ADMIN',
+        role: { in: ['ADMIN', 'SCANNER', 'AUDITEUR'] },
         associationId: req.associationId
       },
       data: { 
@@ -252,17 +326,15 @@ router.post('/:id/reset-password', async (req, res) => {
     res.json({ message: 'Mot de passe réinitialisé avec succès' });
 
     // Log de l'activité
-    if (adminData) {
-      logActivity({
-        associationId: req.associationId,
-        userId: req.user.id,
-        userName: req.user.member?.name || req.user.email || 'Admin',
-        action: 'admin.reset_password',
-        targetType: 'User',
-        targetId: id,
-        details: `Mot de passe réinitialisé pour admin: ${adminData.email}`
-      });
-    }
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'admin.reset_password',
+      targetType: 'User',
+      targetId: id,
+      details: `Mot de passe réinitialisé pour ${ROLE_LABELS[userData.role]}: ${userData.email}`
+    });
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });

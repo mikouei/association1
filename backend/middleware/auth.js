@@ -117,6 +117,17 @@ export const requireAdmin = (req, res, next) => {
 };
 
 /**
+ * Middleware pour vérifier un tableau de rôles autorisés
+ * @param {string[]} allowedRoles - Liste des rôles autorisés (ex: ['ADMIN', 'SCANNER'])
+ */
+export const requireRole = (allowedRoles) => (req, res, next) => {
+  if (!allowedRoles.includes(req.user?.role)) {
+    return res.status(403).json({ error: 'Accès non autorisé pour ce rôle' });
+  }
+  next();
+};
+
+/**
  * Middleware pour les routes qui n'ont pas besoin d'authentification
  * mais qui ont besoin d'accéder à Prisma (ex: login, register)
  */
@@ -171,6 +182,7 @@ export { prisma };
 export default {
   authenticateToken,
   requireAdmin,
+  requireRole,
   attachPrisma,
   resolveAssociationByCode,
   generateAccessToken,

@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, requireRole, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
 
 const router = express.Router();
@@ -538,6 +538,182 @@ router.get('/stats/year/:yearId', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Get stats error:', error);
     res.status(500).json({ error: 'Erreur lors du calcul des statistiques' });
+  }
+});
+
+// ============================================
+// AUDIT VIEW (lecture seule pour ADMIN et AUDITEUR)
+// ============================================
+
+// GET /api/payments/audit-view
+// Consultation des paiements en lecture seule - ADMIN et AUDITEUR
+router.get('/audit-view', requireRole(['ADMIN', 'AUDITEUR']), async (req, res) => {
+  try {
+    const { yearId, page = 1, limit = 50, search } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Récupérer l'année active si non spécifiée
+    let targetYear;
+    if (yearId) {
+      targetYear = await prisma.year.findFirst({
+        where: { 
+          id: yearId,
+          associationId: req.associationId
+        }
+      });
+    } else {
+      targetYear = await prisma.year.findFirst({
+        where: { 
+          associationId: req.associationId,
+          active: true
+        }
+      });
+    }
+
+    // Récupérer toutes les années pour le sélecteur
+    const years = await prisma.year.findMany({
+      where: { associationId: req.associationId },
+      orderBy: { year: 'desc' }
+    });
+
+    // Conditions de recherche membre
+    const memberWhere = {
+      associationId: req.associationId,
+      active: true
+    };
+    
+    if (search) {
+      memberWhere.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { customFieldValue: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    // Compter le total des membres
+    const totalMembers = await prisma.member.count({ where: memberWhere });
+
+    // Récupérer les membres avec paiements (paginé)
+    const members = await prisma.member.findMany({
+      where: memberWhere,
+      include: {
+        user: { select: { email: true, phone: true } },
+        payments: targetYear ? { where: { yearId: targetYear.id } } : false,
+        exceptionalPayments: {
+          include: {
+            contribution: { select: { id: true, title: true, type: true } }
+          },
+          orderBy: { paymentDate: 'desc' },
+          take: 10
+        }
+      },
+      orderBy: { name: 'asc' },
+      skip,
+      take: parseInt(limit)
+    });
+
+    // Formater les données
+    const membersData = members.map(member => {
+      const monthlyPayments = member.payments || [];
+      const totalMonthlyPaid = monthlyPayments.reduce((sum, p) => sum + p.amountPaid, 0);
+      const totalExceptionalPaid = member.exceptionalPayments.reduce((sum, p) => sum + p.amount, 0);
+      
+      // Calculer le statut par mois si une année est sélectionnée
+      const paymentsByMonth = {};
+      if (targetYear) {
+        for (let month = 1; month <= 12; month++) {
+          const monthPayments = monthlyPayments.filter(p => p.month === month);
+          const totalPaid = monthPayments.reduce((sum, p) => sum + p.amountPaid, 0);
+          paymentsByMonth[month] = {
+            paid: totalPaid >= targetYear.monthlyAmount,
+            amountPaid: totalPaid,
+            amountDue: targetYear.monthlyAmount
+          };
+        }
+      }
+
+      return {
+        id: member.id,
+        name: member.name,
+        customFieldValue: member.customFieldValue,
+        email: member.user.email,
+        phone: member.user.phone,
+        monthly: {
+          totalPaid: totalMonthlyPaid,
+          totalDue: targetYear ? targetYear.monthlyAmount * 12 : 0,
+          paymentsByMonth
+        },
+        exceptional: {
+          totalPaid: totalExceptionalPaid,
+          recentPayments: member.exceptionalPayments.map(p => ({
+            id: p.id,
+            amount: p.amount,
+            paymentDate: p.paymentDate,
+            contributionTitle: p.contribution.title,
+            contributionType: p.contribution.type
+          }))
+        }
+      };
+    });
+
+    // Récupérer les cotisations exceptionnelles avec leurs paiements
+    const exceptionalContributions = await prisma.exceptionalContribution.findMany({
+      where: { 
+        associationId: req.associationId,
+        active: true
+      },
+      include: {
+        _count: { select: { payments: true } },
+        payments: {
+          select: { amount: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+
+    const exceptionalData = exceptionalContributions.map(c => ({
+      id: c.id,
+      title: c.title,
+      type: c.type,
+      eventDate: c.eventDate,
+      paymentCount: c._count.payments,
+      totalCollected: c.payments.reduce((sum, p) => sum + p.amount, 0)
+    }));
+
+    // Statistiques globales
+    let stats = null;
+    if (targetYear) {
+      const allPayments = await prisma.monthlyPayment.findMany({
+        where: { yearId: targetYear.id }
+      });
+      const totalPaid = allPayments.reduce((sum, p) => sum + p.amountPaid, 0);
+      const totalDue = targetYear.monthlyAmount * 12 * totalMembers;
+      
+      stats = {
+        totalPaid,
+        totalDue,
+        remaining: totalDue - totalPaid,
+        percentage: totalDue > 0 ? Math.round((totalPaid / totalDue) * 10000) / 100 : 0,
+        membersCount: totalMembers
+      };
+    }
+
+    res.json({
+      years,
+      selectedYear: targetYear,
+      members: membersData,
+      exceptional: exceptionalData,
+      stats,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalMembers,
+        pages: Math.ceil(totalMembers / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Audit view error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des données' });
   }
 });
 

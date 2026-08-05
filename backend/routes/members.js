@@ -2,7 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin, requireRole, generateAccessToken, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
 import { checkMemberLimit } from '../utils/planLimits.js';
 
@@ -896,8 +896,8 @@ router.post('/link-admin', requireAdmin, async (req, res) => {
 // ============================================
 
 // POST /api/members/verify-qr
-// Vérifier un membre par QR code - ADMIN ONLY
-router.post('/verify-qr', requireAdmin, async (req, res) => {
+// Vérifier un membre par QR code - ADMIN et SCANNER uniquement
+router.post('/verify-qr', requireRole(['ADMIN', 'SCANNER']), async (req, res) => {
   try {
     const { qrCode } = req.body;
 

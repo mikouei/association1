@@ -126,6 +126,11 @@ model Member {
   customFieldValue    String?  // Villa, Groupe, Section, etc.
   source              String   @default("manual") // "manual" (ajouté par un admin) ou "self_service" (a rejoint lui-même via le lien d'invitation + Google)
   active              Boolean  @default(true)
+  
+  // Carte membre QR code
+  qrCode              String?  @unique  // Identifiant unique encodé dans le QR
+  qrGeneratedAt       DateTime?
+  
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   
@@ -139,6 +144,7 @@ model Member {
   
   @@index([associationId])
   @@index([associationId, name])
+  @@index([qrCode])
 }
 
 // Matricules de véhicules

@@ -1,6 +1,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
 import { checkMemberLimit } from '../utils/planLimits.js';
@@ -169,7 +170,9 @@ router.post('/', requireAdmin, async (req, res) => {
           userId: user.id,
           name,
           customFieldValue,
-          active: true
+          active: true,
+          qrCode: uuidv4(), // Génération du QR code unique
+          qrGeneratedAt: new Date()
         }
       });
 
@@ -887,5 +890,179 @@ router.post('/link-admin', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la création du profil membre' });
   }
 });
+
+// ============================================
+// CARTE MEMBRE QR CODE
+// ============================================
+
+// POST /api/members/verify-qr
+// Vérifier un membre par QR code - ADMIN ONLY
+router.post('/verify-qr', requireAdmin, async (req, res) => {
+  try {
+    const { qrCode } = req.body;
+
+    if (!qrCode) {
+      return res.status(400).json({ error: 'Code QR requis' });
+    }
+
+    // Chercher le membre par son QR code, uniquement dans l'association de l'admin
+    const member = await prisma.member.findFirst({
+      where: {
+        qrCode,
+        associationId: req.associationId
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            phone: true,
+            active: true
+          }
+        }
+      }
+    });
+
+    if (!member) {
+      return res.status(404).json({ error: 'Membre non trouvé ou QR code invalide' });
+    }
+
+    // Vérifier le statut de cotisation du mois en cours
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    // Trouver l'année active
+    const activeYear = await prisma.year.findFirst({
+      where: {
+        associationId: req.associationId,
+        active: true
+      }
+    });
+
+    let cotisationStatus = 'unknown';
+    let cotisationMessage = 'Aucune année de cotisation active';
+    let monthlyAmount = 0;
+    let paidAmount = 0;
+
+    if (activeYear && activeYear.year === currentYear) {
+      monthlyAmount = activeYear.monthlyAmount;
+      
+      // Chercher le paiement du mois en cours
+      const payment = await prisma.monthlyPayment.findFirst({
+        where: {
+          memberId: member.id,
+          yearId: activeYear.id,
+          month: currentMonth
+        }
+      });
+
+      if (payment) {
+        paidAmount = payment.amountPaid;
+        if (payment.amountPaid >= activeYear.monthlyAmount) {
+          cotisationStatus = 'paid';
+          cotisationMessage = `À jour pour ${getMonthName(currentMonth)} ${currentYear}`;
+        } else {
+          cotisationStatus = 'partial';
+          cotisationMessage = `Paiement partiel pour ${getMonthName(currentMonth)} ${currentYear}`;
+        }
+      } else {
+        cotisationStatus = 'unpaid';
+        cotisationMessage = `En retard pour ${getMonthName(currentMonth)} ${currentYear}`;
+      }
+    }
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'member.qr_verify',
+      targetType: 'Member',
+      targetId: member.id,
+      details: `Vérification QR: ${member.name} - ${cotisationStatus}`
+    });
+
+    res.json({
+      id: member.id,
+      userId: member.userId,
+      name: member.name,
+      customFieldValue: member.customFieldValue,
+      active: member.active && member.user.active,
+      phone: member.user.phone,
+      cotisation: {
+        status: cotisationStatus,
+        message: cotisationMessage,
+        monthlyAmount,
+        paidAmount,
+        month: currentMonth,
+        year: currentYear
+      },
+      verifiedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Verify QR error:', error);
+    res.status(500).json({ error: 'Erreur lors de la vérification' });
+  }
+});
+
+// GET /api/members/my-qr
+// Obtenir son propre QR code (MEMBRE uniquement)
+router.get('/my-qr', async (req, res) => {
+  try {
+    // Cette route est accessible par tous les utilisateurs authentifiés
+    const member = await prisma.member.findFirst({
+      where: {
+        userId: req.user.id,
+        associationId: req.associationId
+      },
+      select: {
+        id: true,
+        name: true,
+        customFieldValue: true,
+        qrCode: true,
+        qrGeneratedAt: true
+      }
+    });
+
+    if (!member) {
+      return res.status(404).json({ error: 'Profil membre non trouvé' });
+    }
+
+    // Générer le QR code si absent (pour les membres existants)
+    if (!member.qrCode) {
+      const updatedMember = await prisma.member.update({
+        where: { id: member.id },
+        data: {
+          qrCode: uuidv4(),
+          qrGeneratedAt: new Date()
+        },
+        select: {
+          qrCode: true,
+          qrGeneratedAt: true
+        }
+      });
+      member.qrCode = updatedMember.qrCode;
+      member.qrGeneratedAt = updatedMember.qrGeneratedAt;
+    }
+
+    res.json({
+      name: member.name,
+      customFieldValue: member.customFieldValue,
+      qrCode: member.qrCode,
+      qrGeneratedAt: member.qrGeneratedAt
+    });
+  } catch (error) {
+    console.error('Get my QR error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération du QR code' });
+  }
+});
+
+// Utilitaire pour le nom du mois
+function getMonthName(month) {
+  const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+                  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+  return months[month - 1] || '';
+}
 
 export default router;

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, AppState } from 'react-native';
 import api from '../utils/api';
@@ -92,6 +92,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (isWeb || !token) return;
 
+    // Ref pour tracker si l'effet est toujours actif (évite les appels après cleanup)
+    let isEffectActive = true;
+    // Ref pour tracker l'état actuel de l'app
+    let currentAppState = AppState.currentState;
+
     // Enregistrer (ou ré-enregistrer) le token push à chaque fois qu'une session devient active
     // Couvre : démarrage avec session existante, login classique, login Google, login par token membre, changement de compte
     registerForPushNotifications().catch(err => {
@@ -100,9 +105,19 @@ export const AuthProvider = ({ children }) => {
 
     // Effacer le badge quand l'app revient au premier plan
     const handleAppStateChange = (nextAppState) => {
-      if (nextAppState === 'active') {
-        clearBadge();
+      // Ne rien faire si l'effet a été nettoyé ou si on passe en background/inactive
+      if (!isEffectActive) return;
+      
+      // Seulement quand on REVIENT au premier plan (pas quand on le quitte)
+      if (currentAppState.match(/inactive|background/) && nextAppState === 'active') {
+        // Utiliser setTimeout pour éviter les appels pendant la transition
+        setTimeout(() => {
+          if (isEffectActive) {
+            clearBadge().catch(() => {});
+          }
+        }, 100);
       }
+      currentAppState = nextAppState;
     };
 
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
@@ -110,13 +125,17 @@ export const AuthProvider = ({ children }) => {
     // Listener pour les notifications cliquées (efface le badge)
     const responseUnsubscribe = addNotificationResponseListener((response) => {
       console.log('Notification cliquée:', response.notification.request.content.title);
-      clearBadge();
+      if (isEffectActive) {
+        clearBadge().catch(() => {});
+      }
     });
 
     // Effacer le badge au démarrage si l'app est active
-    clearBadge();
+    clearBadge().catch(() => {});
 
     return () => {
+      // Marquer l'effet comme inactif AVANT de supprimer les listeners
+      isEffectActive = false;
       appStateSubscription.remove();
       responseUnsubscribe();
     };

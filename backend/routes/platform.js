@@ -111,7 +111,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         pwdTs: Math.floor(new Date(superAdmin.passwordChangedAt).getTime() / 1000)
       },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '7d' }  // Augmenté de 24h à 7 jours (comme les tokens utilisateurs)
     );
 
     res.json({

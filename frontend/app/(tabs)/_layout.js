@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography } from '../../utils/theme';
@@ -18,34 +18,50 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const [announcementsEnabled, setAnnouncementsEnabled] = useState(false);
   
+  // Ref pour tracker si le composant est monté (évite les updates après unmount)
+  const isMountedRef = useRef(true);
+  
   // Calculer le padding et la hauteur selon la zone de sécurité
   const bottomPadding = Math.max(8, insets.bottom);
   const tabBarHeight = 56 + bottomPadding;
 
   // Fonction pour récupérer les paramètres de l'association
   const fetchSettings = useCallback(() => {
-    if (!isStaff || !token) {
-      setAnnouncementsEnabled(false);
+    if (!isStaff || !token || !isMountedRef.current) {
       return;
     }
     api.get('/auth/association-settings')
-      .then(res => setAnnouncementsEnabled(res.data.announcementsEnabled || false))
-      .catch(() => setAnnouncementsEnabled(false));
+      .then(res => {
+        // Vérifier que le composant est toujours monté avant de mettre à jour l'état
+        if (isMountedRef.current) {
+          setAnnouncementsEnabled(res.data.announcementsEnabled || false);
+        }
+      })
+      .catch(() => {
+        if (isMountedRef.current) {
+          setAnnouncementsEnabled(false);
+        }
+      });
   }, [isStaff, token]);
 
   // Récupérer les paramètres au montage et quand l'app revient au premier plan
   useEffect(() => {
+    isMountedRef.current = true;
+    
     // Chargement initial
     fetchSettings();
 
-    // Rafraîchir quand l'app revient au premier plan
+    // Rafraîchir quand l'app revient au premier plan (pas en background/inactive)
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
+      // Ne déclencher que si on revient au premier plan ET le composant est monté
+      if (nextAppState === 'active' && isMountedRef.current) {
         fetchSettings();
       }
     });
 
     return () => {
+      // Marquer comme démonté AVANT de supprimer le listener
+      isMountedRef.current = false;
       subscription.remove();
     };
   }, [fetchSettings]);

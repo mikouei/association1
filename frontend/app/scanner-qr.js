@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   Alert,
   Modal,
   Dimensions,
+  AppState,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { 
   QrCode, ArrowLeft, CheckCircle, XCircle, Warning, User, Phone, SignOut 
 } from 'phosphor-react-native';
@@ -33,6 +35,9 @@ export default function ScannerQR() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [resultModalVisible, setResultModalVisible] = useState(false);
+  
+  // État pour contrôler si la caméra doit être active
+  const [isCameraActive, setIsCameraActive] = useState(true);
 
   // Vérification autorisation
   useEffect(() => {
@@ -42,13 +47,52 @@ export default function ScannerQR() {
     }
   }, [isAuthorized]);
 
+  // Gestion du focus de l'écran (navigation)
+  useFocusEffect(
+    useCallback(() => {
+      // L'écran est au premier plan
+      setIsCameraActive(true);
+      
+      return () => {
+        // L'écran perd le focus (navigation vers un autre écran)
+        setIsCameraActive(false);
+      };
+    }, [])
+  );
+
+  // Gestion de l'état de l'application (arrière-plan/premier plan)
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // App passe en arrière-plan → désactiver la caméra immédiatement
+        setIsCameraActive(false);
+      } else if (nextAppState === 'active') {
+        // App revient au premier plan → réactiver la caméra
+        setIsCameraActive(true);
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   // Fonction de déconnexion pour le rôle SCANNER
   const handleLogout = () => {
+    // Désactiver la caméra avant la déconnexion
+    setIsCameraActive(false);
+    
     Alert.alert(
       'Déconnexion',
       'Voulez-vous vraiment vous déconnecter ?',
       [
-        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Annuler', 
+          style: 'cancel',
+          onPress: () => setIsCameraActive(true) // Réactiver si annulé
+        },
         { 
           text: 'Déconnecter', 
           style: 'destructive',
@@ -161,23 +205,24 @@ export default function ScannerQR() {
 
       {/* Camera */}
       <View style={styles.cameraContainer}>
-        <CameraView
-          style={styles.camera}
-          facing="back"
-          barcodeScannerSettings={{
-            barcodeTypes: ['qr'],
-          }}
-          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-        >
-          {/* Overlay */}
-          <View style={styles.overlay}>
-            <View style={styles.overlayTop} />
-            <View style={styles.overlayMiddle}>
-              <View style={styles.overlaySide} />
-              <View style={styles.scanArea}>
-                <View style={[styles.corner, styles.cornerTL]} />
-                <View style={[styles.corner, styles.cornerTR]} />
-                <View style={[styles.corner, styles.cornerBL]} />
+        {isCameraActive ? (
+          <CameraView
+            style={styles.camera}
+            facing="back"
+            barcodeScannerSettings={{
+              barcodeTypes: ['qr'],
+            }}
+            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          >
+            {/* Overlay */}
+            <View style={styles.overlay}>
+              <View style={styles.overlayTop} />
+              <View style={styles.overlayMiddle}>
+                <View style={styles.overlaySide} />
+                <View style={styles.scanArea}>
+                  <View style={[styles.corner, styles.cornerTL]} />
+                  <View style={[styles.corner, styles.cornerTR]} />
+                  <View style={[styles.corner, styles.cornerBL]} />
                 <View style={[styles.corner, styles.cornerBR]} />
               </View>
               <View style={styles.overlaySide} />
@@ -189,6 +234,12 @@ export default function ScannerQR() {
             </View>
           </View>
         </CameraView>
+        ) : (
+          <View style={styles.cameraInactive}>
+            <QrCode size={64} color={colors.textMuted} weight="duotone" />
+            <Text style={styles.cameraInactiveText}>Caméra en pause</Text>
+          </View>
+        )}
       </View>
 
       {/* Loading indicator */}
@@ -565,5 +616,16 @@ const styles = StyleSheet.create({
     fontSize: typography.caption.fontSize,
     fontWeight: '600',
     color: colors.textOnPrimary,
+  },
+  cameraInactive: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.secondary,
+  },
+  cameraInactiveText: {
+    marginTop: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
   },
 });

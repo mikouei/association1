@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import { toast } from 'sonner';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mobile-bug-crush-1.preview.emergentagent.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://web-bx1a.onrender.com';
 
 interface AssociationInfo {
   name: string;

@@ -18,7 +18,7 @@ export default function DeleteAccountPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mobile-bug-crush-1.preview.emergentagent.com';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://web-bx1a.onrender.com';
 
   useEffect(() => {
     // Charger la liste des associations

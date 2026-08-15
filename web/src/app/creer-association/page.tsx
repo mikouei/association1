@@ -8,7 +8,7 @@ import { Buildings, Check, X, CircleNotch, WhatsappLogo } from '@phosphor-icons/
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import { toast } from 'sonner';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mobile-bug-crush-1.preview.emergentagent.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://web-bx1a.onrender.com';
 
 type CodeStatus = 'idle' | 'checking' | 'available' | 'taken' | 'format';
 

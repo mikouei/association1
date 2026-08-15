@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mobile-bug-crush-1.preview.emergentagent.com';
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://mobile-bug-crush-1.preview.emergentagent.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://web-bx1a.onrender.com';
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'https://web-bx1a.onrender.com';
 
 export async function GET(
   request: NextRequest,

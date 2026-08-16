@@ -14,6 +14,26 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
+// Select sécurisé pour Association - EXCLUT les champs sensibles (waveApiKey, waveMerchantId)
+const ASSOCIATION_SAFE_SELECT = {
+  id: true,
+  name: true,
+  code: true,
+  type: true,
+  memberFieldLabel: true,
+  logoUrl: true,
+  currency: true,
+  plan: true,
+  launchPeriodMonths: true,
+  tontinesEnabled: true,
+  announcementsEnabled: true,
+  mobilePaymentEnabled: true,
+  // waveApiKey: false - JAMAIS retourné
+  // waveMerchantId: false - JAMAIS retourné
+  createdAt: true,
+  updatedAt: true,
+};
+
 // Middleware pour vérifier le token SUPER_ADMIN
 const authenticateSuperAdmin = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -24,7 +44,7 @@ const authenticateSuperAdmin = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     
     if (decoded.role !== 'SUPER_ADMIN') {
       return res.status(403).json({ error: 'Accès SUPER_ADMIN requis' });
@@ -306,12 +326,13 @@ router.delete('/superadmins/:id', authenticateSuperAdmin, async (req, res) => {
 router.get('/associations', authenticateSuperAdmin, async (req, res) => {
   try {
     const associations = await prisma.association.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        ...ASSOCIATION_SAFE_SELECT,
         _count: {
           select: { members: true, users: true }
         }
-      }
+      },
+      orderBy: { createdAt: 'desc' },
     });
 
     res.json(associations.map(a => ({
@@ -330,7 +351,8 @@ router.get('/associations/:id', authenticateSuperAdmin, async (req, res) => {
   try {
     const association = await prisma.association.findUnique({
       where: { id: req.params.id },
-      include: {
+      select: {
+        ...ASSOCIATION_SAFE_SELECT,
         _count: {
           select: { members: true, users: true }
         }
@@ -395,7 +417,8 @@ router.post('/associations', authenticateSuperAdmin, async (req, res) => {
           adminName: adminName || 'Administrateur',
           memberFieldLabel: defaultMemberFieldLabel,
           enableVehiclePlates: false
-        }
+        },
+        select: ASSOCIATION_SAFE_SELECT
       });
 
       // Créer l'admin de l'association
@@ -457,7 +480,8 @@ router.put('/associations/:id', authenticateSuperAdmin, async (req, res) => {
         ...(typeof tontinesEnabled === 'boolean' && { tontinesEnabled }),
         ...(plan && { plan }),
         ...(launchPeriodMonths !== undefined && { launchPeriodMonths: launchPeriodMonths === null || launchPeriodMonths === '' ? null : parseInt(launchPeriodMonths, 10) })
-      }
+      },
+      select: ASSOCIATION_SAFE_SELECT
     });
 
     res.json(updated);
@@ -471,7 +495,8 @@ router.put('/associations/:id', authenticateSuperAdmin, async (req, res) => {
 router.put('/associations/:id/toggle', authenticateSuperAdmin, async (req, res) => {
   try {
     const association = await prisma.association.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
+      select: { id: true, active: true }
     });
 
     if (!association) {
@@ -480,7 +505,8 @@ router.put('/associations/:id/toggle', authenticateSuperAdmin, async (req, res) 
 
     const updated = await prisma.association.update({
       where: { id: req.params.id },
-      data: { active: !association.active }
+      data: { active: !association.active },
+      select: ASSOCIATION_SAFE_SELECT
     });
 
     res.json({

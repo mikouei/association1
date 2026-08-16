@@ -1225,3 +1225,44 @@ Status: Appliquée avec succès via `prisma migrate resolve --applied`
 - `POST /api/members/verify-qr` : Vérifie un QR code (ADMIN + SCANNER)
 - `GET /api/payments/audit-view` : Consultation paiements (ADMIN + AUDITEUR)
 
+---
+
+## Reconnexion Rapide Membre - 16 Août 2026 ✅
+
+### Objectif
+Permettre aux membres dont le token JWT a expiré de se reconnecter en un seul clic, sans ressaisir leurs identifiants, grâce à un token d'accès permanent (`accessToken`) stocké localement.
+
+### Backend
+- **Route modifiée** : `POST /api/auth/login`
+  - Retourne désormais `user.accessToken` pour les utilisateurs avec `role: MEMBER`
+  - Durée JWT étendue à 30 jours pour les MEMBERS (7 jours pour les autres rôles)
+- **Champ utilisé** : `User.token` (token d'accès permanent généré à la création du membre)
+
+### Frontend Mobile (AuthContext.js)
+- **Nouveaux états exposés** :
+  - `canQuickReconnect` : true si un accessToken valide est disponible mais pas de session active
+  - `memberAccessToken` : le token d'accès stocké
+  - `clearQuickReconnect()` : fonction pour réinitialiser l'état
+- **Stockage** : `memberAccessToken` sauvegardé dans AsyncStorage lors de la connexion d'un membre
+- **Détection** : Au chargement (`loadUser`), si `memberAccessToken` et `association` sont présents sans `authToken`, `canQuickReconnect` passe à true
+
+### Frontend Mobile (login.js)
+- **Interface "Bon retour !"** affichée quand `canQuickReconnect` est true :
+  - Avatar et titre "Bon retour !"
+  - Nom de l'association
+  - Bouton "Se reconnecter" (connexion via accessToken)
+  - Lien "Utiliser un autre compte" (affiche le formulaire classique)
+  - Lien WhatsApp d'aide
+- **testID** : `quick-reconnect-btn`, `use-other-account-btn`
+
+### Fichiers modifiés
+- `/app/backend/routes/auth.js` (accessToken dans réponse)
+- `/app/frontend/context/AuthContext.js` (états + logique reconnexion)
+- `/app/frontend/app/login.js` (UI reconnexion rapide)
+
+### Tests validés
+- ✅ API retourne accessToken pour les MEMBERS
+- ✅ Connexion par accessToken sans mot de passe fonctionne
+- ✅ Interface "Bon retour !" s'affiche correctement
+- ✅ Bouton "Se reconnecter" authentifie et redirige
+- ✅ "Utiliser un autre compte" affiche le formulaire classique

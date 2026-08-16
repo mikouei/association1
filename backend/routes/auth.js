@@ -144,17 +144,19 @@ router.post('/login', loginLimiter, attachPrisma, async (req, res) => {
       }
     }
 
-    // Générer le token JWT
-    const token = generateJWT(user.id, association.id, user.role, user.passwordChangedAt);
+    // Générer le token JWT (durée gérée dans generateJWT selon le rôle)
+    const jwtToken = generateJWT(user.id, association.id, user.role, user.passwordChangedAt);
 
     res.json({
-      token,
+      token: jwtToken,
       user: {
         id: user.id,
         email: user.email,
         phone: user.phone,
         role: user.role,
-        member: user.member
+        member: user.member,
+        // Token d'accès pour reconnexion rapide (membres uniquement)
+        accessToken: user.role === 'MEMBER' ? user.token : undefined
       },
       association: {
         id: association.id,

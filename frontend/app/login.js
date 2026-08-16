@@ -33,6 +33,8 @@ import {
   X,
   Plus,
   WhatsappLogo,
+  SignIn,
+  UserCircle,
 } from 'phosphor-react-native';
 import api from '../utils/api';
 import { colors, spacing, borderRadius, typography } from '../utils/theme';
@@ -61,8 +63,11 @@ export default function Login() {
   const [lastUsedAssociationId, setLastUsedAssociationId] = useState(null);
   const [isPreselected, setIsPreselected] = useState(false);
   
-  const { login, loginWithToken } = useAuth();
+  const { login, loginWithToken, canQuickReconnect, memberAccessToken, clearQuickReconnect, association: savedAssociation } = useAuth();
   const router = useRouter();
+  
+  // État pour la reconnexion rapide
+  const [quickReconnectLoading, setQuickReconnectLoading] = useState(false);
 
   // Charger la liste des associations au démarrage
   useEffect(() => {
@@ -127,6 +132,16 @@ export default function Login() {
           if (b.id === lastAssocId) return 1;
           return a.name.localeCompare(b.name);
         });
+        
+        // Auto-sélectionner la dernière association utilisée si elle est active
+        const lastUsedAssoc = assocList.find(a => a.id === lastAssocId && a.active !== false);
+        if (lastUsedAssoc) {
+          setSelectedAssociation(lastUsedAssoc);
+          setIsPreselected(true);
+          setAssociations(assocList);
+          setLoadingAssociations(false);
+          return;
+        }
       }
 
       setAssociations(assocList);
@@ -253,6 +268,35 @@ export default function Login() {
     Alert.alert('Erreur Google', message);
   };
 
+  // Reconnexion rapide pour les membres
+  const handleQuickReconnect = async () => {
+    if (!memberAccessToken || !savedAssociation?.code) {
+      // Pas de données suffisantes, afficher le formulaire classique
+      await clearQuickReconnect();
+      return;
+    }
+
+    setQuickReconnectLoading(true);
+    const result = await login(null, null, memberAccessToken, savedAssociation.code);
+    setQuickReconnectLoading(false);
+
+    if (result.success) {
+      router.replace('/(tabs)');
+    } else {
+      // Token invalide, proposer le login classique
+      Alert.alert(
+        'Session expirée',
+        'Votre session a expiré. Veuillez vous reconnecter.',
+        [{ text: 'OK', onPress: () => clearQuickReconnect() }]
+      );
+    }
+  };
+
+  // Refuser la reconnexion rapide et afficher le formulaire classique
+  const handleDeclineQuickReconnect = async () => {
+    await clearQuickReconnect();
+  };
+
   const getAssociationColor = (type) => {
     switch (type) {
       case 'syndicat': return colors.warning;
@@ -273,6 +317,54 @@ export default function Login() {
           <Text style={styles.subtitle}>Gestion de cotisations</Text>
         </View>
 
+        {/* Interface de reconnexion rapide pour les membres */}
+        {canQuickReconnect && savedAssociation && memberAccessToken ? (
+          <View style={styles.quickReconnectContainer}>
+            <View style={styles.quickReconnectCard}>
+              <UserCircle size={64} color={colors.primary} weight="fill" />
+              <Text style={styles.quickReconnectTitle}>Bon retour !</Text>
+              <Text style={styles.quickReconnectSubtitle}>
+                {savedAssociation.name}
+              </Text>
+              
+              <TouchableOpacity
+                style={[styles.quickReconnectButton, quickReconnectLoading && styles.buttonDisabled]}
+                onPress={handleQuickReconnect}
+                disabled={quickReconnectLoading}
+                testID="quick-reconnect-btn"
+              >
+                {quickReconnectLoading ? (
+                  <ActivityIndicator color={colors.textOnPrimary} />
+                ) : (
+                  <>
+                    <SignIn size={20} color={colors.textOnPrimary} weight="bold" />
+                    <Text style={styles.quickReconnectButtonText}>Se reconnecter</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.quickReconnectSecondary}
+                onPress={handleDeclineQuickReconnect}
+                testID="use-other-account-btn"
+              >
+                <Text style={styles.quickReconnectSecondaryText}>
+                  Utiliser un autre compte
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Lien WhatsApp */}
+            <TouchableOpacity
+              style={styles.whatsappLink}
+              onPress={() => Linking.openURL('https://wa.me/2250104833352')}
+            >
+              <WhatsappLogo size={18} weight="fill" color="#25D366" />
+              <Text style={styles.whatsappLinkText}>Besoin d'aide ?</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
         {/* Sélection d'association - Recherche inline */}
         {selectedAssociation && !isPreselected ? (
           <View style={styles.selectedAssociationCard}>
@@ -521,6 +613,8 @@ export default function Login() {
           <WhatsappLogo size={18} weight="fill" color="#25D366" />
           <Text style={styles.whatsappLinkText}>Besoin d'aide ?</Text>
         </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -889,5 +983,61 @@ const styles = StyleSheet.create({
     fontSize: typography.caption.fontSize + 1,
     color: colors.textMuted,
     marginTop: spacing.md,
+  },
+  // Styles pour la reconnexion rapide
+  quickReconnectContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickReconnectCard: {
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.xxl,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  quickReconnectTitle: {
+    fontSize: typography.h2.fontSize,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
+    marginTop: spacing.lg,
+    fontFamily: typography.fontFamilyHeading,
+  },
+  quickReconnectSubtitle: {
+    fontSize: typography.body.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  quickReconnectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xxl,
+    borderRadius: borderRadius.button,
+    marginTop: spacing.xl,
+    gap: spacing.sm,
+    width: '100%',
+  },
+  quickReconnectButtonText: {
+    color: colors.textOnPrimary,
+    fontSize: typography.button.fontSize,
+    fontWeight: typography.button.fontWeight,
+  },
+  quickReconnectSecondary: {
+    paddingVertical: spacing.lg,
+    marginTop: spacing.md,
+  },
+  quickReconnectSecondaryText: {
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize + 1,
   },
 });

@@ -80,6 +80,10 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [linkedAccounts, setLinkedAccounts] = useState([]);
   
+  // Pour la reconnexion rapide des membres
+  const [memberAccessToken, setMemberAccessToken] = useState(null);
+  const [canQuickReconnect, setCanQuickReconnect] = useState(false);
+  
   // Récupérer clearCache depuis OfflineContext
   const { clearCache } = useOffline();
 
@@ -175,6 +179,12 @@ export const AuthProvider = ({ children }) => {
       const storedUser = await getStorageItem('user');
       const storedAssociation = await getStorageItem('association');
       const storedLinkedAccounts = await getStorageItem('linkedAccounts');
+      const storedMemberAccessToken = await getStorageItem('memberAccessToken');
+
+      // Charger le memberAccessToken pour reconnexion rapide
+      if (storedMemberAccessToken) {
+        setMemberAccessToken(storedMemberAccessToken);
+      }
 
       if (storedToken && storedUser) {
         setToken(storedToken);
@@ -202,6 +212,17 @@ export const AuthProvider = ({ children }) => {
       } else if (storedLinkedAccounts) {
         // Charger les comptes liés même sans session active
         setLinkedAccounts(JSON.parse(storedLinkedAccounts));
+        
+        // Si pas de session active mais memberAccessToken disponible, proposer reconnexion rapide
+        if (storedMemberAccessToken && storedAssociation) {
+          setCanQuickReconnect(true);
+        }
+      } else if (storedMemberAccessToken && storedAssociation) {
+        // Token JWT expiré mais accessToken membre disponible
+        setCanQuickReconnect(true);
+        if (storedAssociation) {
+          setAssociation(JSON.parse(storedAssociation));
+        }
       }
     } catch (error) {
       console.error('Erreur chargement utilisateur:', error);
@@ -229,6 +250,14 @@ export const AuthProvider = ({ children }) => {
         await setStorageItem('association', JSON.stringify(newAssociation));
       }
 
+      // Stocker le token d'accès pour la reconnexion rapide (membres uniquement)
+      if (newUser.accessToken) {
+        await setStorageItem('memberAccessToken', newUser.accessToken);
+        setMemberAccessToken(newUser.accessToken);
+      }
+      // Réinitialiser l'état de reconnexion rapide
+      setCanQuickReconnect(false);
+
       // Ajouter/mettre à jour ce compte dans linkedAccounts
       await upsertLinkedAccount(newToken, newUser, newAssociation);
 
@@ -239,7 +268,7 @@ export const AuthProvider = ({ children }) => {
       // Note: L'enregistrement des notifications push est maintenant géré automatiquement
       // par le useEffect qui dépend de [token] - plus besoin de le faire ici
 
-      return { success: true };
+      return { success: true, user: newUser };
     } catch (error) {
       console.error('Erreur login:', error);
       return { 
@@ -377,6 +406,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Fonction pour effacer la reconnexion rapide (après usage ou refus)
+  const clearQuickReconnect = async () => {
+    setCanQuickReconnect(false);
+    setMemberAccessToken(null);
+    await removeStorageItem('memberAccessToken');
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -389,7 +425,11 @@ export const AuthProvider = ({ children }) => {
       refreshUser,
       linkedAccounts,
       switchAccount,
-      removeLinkedAccount
+      removeLinkedAccount,
+      // Reconnexion rapide pour les membres
+      canQuickReconnect,
+      memberAccessToken,
+      clearQuickReconnect
     }}>
       {children}
     </AuthContext.Provider>

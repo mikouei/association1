@@ -159,9 +159,14 @@ export const generateAccessToken = () => {
 
 /**
  * Générer un token JWT
- * SÉCURITÉ: Durée de vie réduite de 30d à 7d
+ * Durée de vie selon le rôle:
+ * - MEMBER: 30 jours (accès lecture seule, risque plus faible)
+ * - ADMIN, SCANNER, AUDITEUR: 7 jours (accès sensible)
  */
 export const generateJWT = (userId, associationId, role, passwordChangedAt) => {
+  // Durée étendue pour les membres (30 jours), standard pour les autres rôles (7 jours)
+  const expiresIn = role === 'MEMBER' ? '30d' : '7d';
+  
   return jwt.sign(
     { 
       userId, 
@@ -170,7 +175,7 @@ export const generateJWT = (userId, associationId, role, passwordChangedAt) => {
       pwdTs: passwordChangedAt ? Math.floor(new Date(passwordChangedAt).getTime() / 1000) : undefined
     },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn }
   );
 };
 

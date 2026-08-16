@@ -110,7 +110,7 @@ export default function TabsLayout() {
           options={{
             title: 'Accueil',
             // SCANNER et AUDITEUR n'ont pas accès à l'accueil complet, ils sont redirigés
-            href: (isScanner || isAuditeur) ? null : '/index',
+            href: (isScanner || isAuditeur) ? null : '/',
             tabBarIcon: ({ color, focused }) => (
               <House size={24} color={color} weight={focused ? 'fill' : 'regular'} />
             ),

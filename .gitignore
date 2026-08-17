@@ -2,6 +2,16 @@
 node_modules/
 **/node_modules/
 
+# Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Emergent internal
+.emergent/
+.emergent/cron/
+
 # Databases runtime (SQLite legacy)
 backend/prisma/*.db
 
@@ -26,3 +36,9 @@ credentials.json
 *.key
 .credentials
 .env.*
+
+# Lock files duplicates (keep only in their respective directories)
+/yarn.lock
+/package-lock.json
+tests/yarn.lock
+tests/package-lock.json

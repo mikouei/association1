@@ -1,0 +1,35 @@
+{
+  "name": "assocmanager-backend",
+  "version": "1.0.0",
+  "description": "Backend API pour AssocManager",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "init-db": "node scripts/init-db.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.9.1",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.5.1",
+    "google-auth-library": "^10.9.0",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "pdfkit": "^0.19.1",
+    "pg": "^8.20.0",
+    "uuid": "^14.0.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.9.1"
+  }
+}

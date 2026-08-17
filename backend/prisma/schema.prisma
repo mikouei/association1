@@ -1,0 +1,425 @@
+// Prisma schema pour AssocManager - PostgreSQL Multi-Tenant
+// Toutes les données sont dans une seule base avec isolation par associationId
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// PLATFORM (Super Admin & Associations)
+// ============================================
+
+// Super Administrateur de la plateforme
+model SuperAdmin {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String
+  name                String    @default("Super Admin")
+  active              Boolean   @default(true)
+  passwordChangedAt   DateTime  @default(now())
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+// Association (tenant)
+model Association {
+  id           String   @id @default(uuid())
+  name         String   // Nom de l'association
+  type         String?  // Type (syndicat, amicale, association)
+  code         String   @unique // Code unique (ex: "SYNDIC-BNI")
+  active       Boolean  @default(true)
+  adminEmail   String?  // Email du premier admin créé
+  adminName    String?  // Nom du premier admin
+  source       String   @default("manual") // "manual" (créée par le Super Admin) ou "self_service" (auto-inscription)
+  currency     String   @default("XOF") // Devise: XOF (FCFA), EUR, USD
+  
+  // Options de configuration
+  memberFieldLabel    String  @default("Villa") // Libellé du champ personnalisé
+  enableVehiclePlates Boolean @default(false)   // Activer les matricules de véhicules
+  announcementsEnabled Boolean @default(false)  // Annonces/notifications activées, contrôlé uniquement par Super Admin
+  tontinesEnabled     Boolean @default(false)   // Tontines activées, contrôlé uniquement par Super Admin
+  
+  // Modèle freemium
+  plan                String  @default("LAUNCH") // LAUNCH (période d'essai), FREE (gratuit), PAID (payant)
+  launchPeriodMonths  Int?    // Durée personnalisée de la période LAUNCH (null = valeur par défaut plateforme: 12 mois)
+  
+  // Intégration Wave (paiement mobile)
+  waveApiKey          String?  // Chiffré au repos, ne pas exposer dans les réponses API
+  waveMerchantId      String?
+  mobilePaymentEnabled Boolean @default(false)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  users                    User[]
+  members                  Member[]
+  years                    Year[]
+  exceptionalContributions ExceptionalContribution[]
+  config                   AssociationConfig?
+  activityLogs             ActivityLog[]
+  tontines                 Tontine[]
+  announcements            Announcement[]
+  waveTransactions         WaveTransaction[]
+  
+  @@index([code])
+}
+
+// Configuration de l'association
+model AssociationConfig {
+  id               String   @id @default(uuid())
+  associationId    String   @unique
+  name             String   // Nom affiché
+  type             String?  // Type (optionnel)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  association      Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// USERS & MEMBERS (par Association)
+// ============================================
+
+// Utilisateurs (ADMIN et MEMBER)
+model User {
+  id                  String    @id @default(uuid())
+  associationId       String
+  email               String
+  phone               String?
+  passwordHash        String
+  googleId            String?  // "sub" du token Google, unique PAR ASSOCIATION (pas globalement, cf. multi-association)
+  role                String    @default("MEMBER") // "ADMIN", "SCANNER", "AUDITEUR", ou "MEMBER"
+  token               String?  // Token d'accès pour les membres
+  active              Boolean   @default(true)
+  passwordChangedAt   DateTime  @default(now())
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  association     Association    @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  member          Member?
+  pushTokens      PushToken[]
+  announcements   Announcement[]
+  
+  @@unique([associationId, email])
+  @@unique([associationId, phone])
+  @@unique([associationId, googleId])
+  @@index([associationId])
+  @@index([token])
+}
+
+// Informations membres (données métier)
+model Member {
+  id                  String   @id @default(uuid())
+  associationId       String
+  userId              String   @unique
+  name                String
+  customFieldValue    String?  // Villa, Groupe, Section, etc.
+  source              String   @default("manual") // "manual" (ajouté par un admin) ou "self_service" (a rejoint lui-même via le lien d'invitation + Google)
+  active              Boolean  @default(true)
+  
+  // Carte membre QR code
+  qrCode              String?  @unique  // Identifiant unique encodé dans le QR
+  qrGeneratedAt       DateTime?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  association            Association          @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments               MonthlyPayment[]
+  exceptionalPayments    ExceptionalPayment[]
+  vehiclePlates          VehiclePlate[]
+  tontineParticipations  TontineParticipant[]
+  tontinePayments        TontinePayment[]
+  
+  @@index([associationId])
+  @@index([associationId, name])
+  @@index([qrCode])
+}
+
+// Matricules de véhicules
+model VehiclePlate {
+  id          String   @id @default(uuid())
+  memberId    String
+  plateNumber String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  @@index([memberId])
+}
+
+// ============================================
+// COTISATIONS (par Association)
+// ============================================
+
+// Année de cotisation
+model Year {
+  id            String           @id @default(uuid())
+  associationId String
+  year          Int              // 2025, 2026...
+  monthlyAmount Float            // Montant mensuel en FCFA
+  active        Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  association   Association      @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  payments      MonthlyPayment[]
+  
+  @@unique([associationId, year])
+  @@index([associationId])
+}
+
+// Paiements mensuels
+model MonthlyPayment {
+  id          String   @id @default(uuid())
+  memberId    String
+  yearId      String
+  month       Int      // 1-12
+  amountPaid  Float
+  paymentDate DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  year        Year     @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  
+  @@unique([memberId, yearId, month])
+  @@index([memberId, yearId])
+}
+
+// ============================================
+// COTISATIONS EXCEPTIONNELLES
+// ============================================
+
+// Cotisations exceptionnelles (événements ponctuels)
+model ExceptionalContribution {
+  id            String               @id @default(uuid())
+  associationId String
+  title         String               // "Décès M. Dupont", "Mariage Marie"
+  type          String               // décès, mariage, anniversaire, solidarité, réunion, autre
+  description   String?
+  eventDate     DateTime?            // Date de l'événement (optionnel)
+  hasCollection Boolean              @default(true)  // true = cotisation, false = annonce informative
+  recurrence    String               @default("once") // "once" (ponctuel) | "monthly" (mensuel)
+  active        Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  
+  association   Association          @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  payments      ExceptionalPayment[]
+  
+  @@index([associationId])
+}
+
+// Paiements pour cotisations exceptionnelles
+model ExceptionalPayment {
+  id             String                  @id @default(uuid())
+  contributionId String
+  memberId       String
+  amount         Float
+  paymentDate    DateTime                @default(now())
+  notes          String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  
+  contribution   ExceptionalContribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  member         Member                  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  @@unique([contributionId, memberId])
+  @@index([contributionId])
+  @@index([memberId])
+}
+
+// ============================================
+// TONTINES
+// ============================================
+
+model Tontine {
+  id            String   @id @default(uuid())
+  associationId String
+  name          String
+  amount        Float              // Montant fixe par participant et par tour
+  frequency     String   @default("monthly") // "monthly" | "weekly" — informatif uniquement
+  status        String   @default("active")  // "active" | "completed" | "cancelled"
+  currentRound  Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  association   Association          @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  participants  TontineParticipant[]
+  rounds        TontineRound[]
+
+  @@index([associationId])
+}
+
+model TontineParticipant {
+  id            String    @id @default(uuid())
+  tontineId     String
+  memberId      String
+  order         Int                 // Position dans l'ordre de passage (1, 2, 3...)
+  hasReceived   Boolean   @default(false)
+  receivedRound Int?
+  receivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  tontine       Tontine   @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  member        Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([tontineId, memberId])
+  @@unique([tontineId, order])
+  @@index([tontineId])
+  @@index([memberId])
+}
+
+model TontineRound {
+  id                  String    @id @default(uuid())
+  tontineId           String
+  roundNumber         Int
+  beneficiaryMemberId String              // Référence simple — le membre bénéficiaire est aussi dans TontineParticipant
+  status              String    @default("open") // "open" | "closed"
+  closedAt            DateTime?
+  createdAt           DateTime  @default(now())
+
+  tontine             Tontine          @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  payments            TontinePayment[]
+
+  @@unique([tontineId, roundNumber])
+  @@index([tontineId])
+}
+
+model TontinePayment {
+  id        String    @id @default(uuid())
+  roundId   String
+  memberId  String
+  amount    Float
+  isPaid    Boolean   @default(false)
+  paidAt    DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  round     TontineRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  member    Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, memberId])
+  @@index([roundId])
+  @@index([memberId])
+}
+
+// ============================================
+// PLATFORM CONFIG
+// ============================================
+
+model PlatformConfig {
+  id        String   @id @default(uuid())
+  name      String   @default("AssocManager Platform")
+  version   String   @default("2.0.0")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// DEMANDES DE SUPPRESSION DE COMPTE
+// ============================================
+
+model DeletionRequest {
+  id              String   @id @default(uuid())
+  email           String?
+  phone           String?
+  associationCode String
+  message         String?
+  status          String   @default("pending") // pending, processed, rejected
+  processedAt     DateTime?
+  processedBy     String?
+  createdAt       DateTime @default(now())
+}
+
+// Journal d'activité (traçabilité des actions admin)
+model ActivityLog {
+  id            String   @id @default(uuid())
+  associationId String
+  userId        String?
+  userName      String
+  action        String   // ex: "payment.create", "payment.update", "payment.delete", "member.create", etc.
+  targetType    String   // "MonthlyPayment", "Member", "Year", "User"
+  targetId      String?
+  details       String?  // résumé lisible
+  createdAt     DateTime @default(now())
+
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+
+  @@index([associationId, createdAt])
+}
+
+// ============================================
+// NOTIFICATIONS PUSH
+// ============================================
+
+// Tokens de notification push par appareil
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   // Expo push token (ExponentPushToken[...])
+  platform  String?  // "ios" | "android" | "web"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@index([userId])
+}
+
+// Annonces envoyées par les admins
+model Announcement {
+  id            String   @id @default(uuid())
+  associationId String
+  senderId      String   // Admin qui a envoyé
+  title         String
+  body          String
+  type          String   @default("general") // "general" | "reminder" | "event" | "tontine"
+  targetType    String   @default("all")     // "all" | "selected"
+  targetIds     String?  // JSON array de member IDs si targetType = "selected"
+  sentCount     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+  sender        User        @relation(fields: [senderId], references: [id])
+
+  @@index([associationId, createdAt])
+}
+
+
+// Transactions Wave (paiement mobile)
+model WaveTransaction {
+  id                String    @id @default(uuid())
+  associationId     String
+  memberId          String
+  targetType        String    // "monthly" | "exceptional"
+  targetRefId       String    // ID du MonthlyPayment ou ExceptionalPayment
+  amount            Float
+  waveTransactionId String?   @unique // ID retourné par Wave
+  status            String    @default("pending") // "pending" | "confirmed" | "failed"
+  createdAt         DateTime  @default(now())
+  confirmedAt       DateTime?
+
+  association       Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+
+  @@index([associationId])
+  @@index([waveTransactionId])
+}
+

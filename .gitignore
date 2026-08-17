@@ -1,0 +1,28 @@
+# Node
+node_modules/
+**/node_modules/
+
+# Databases runtime (SQLite legacy)
+backend/prisma/*.db
+
+# Environment files - NEVER commit real .env files
+.env
+*.env
+*.env.*
+!*.env.example
+frontend/.env
+backend/.env
+
+# Logs
+*.log
+
+# Large binary files
+web/node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
+web/node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
+
+# Credentials and secrets
+credentials.json
+*.pem
+*.key
+.credentials
+.env.*

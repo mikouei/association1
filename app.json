@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d2a7108f-1774-46c8-b63d-c6dc6a2aa14b"
+      }
+    },
+    "android": {
+      "package": "com.mikouei.app"
+    }
+  }
+}

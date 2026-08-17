@@ -1,0 +1,44 @@
+{
+  "summary": "Frontend-only regression test of the two new features on the Next.js web app (/app/web): (1) 'Inviter des membres' card with QR code on /settings, (2) sonner toasts replacing alert(). Since the Next.js web is NOT publicly exposed via ingress (only Expo mobile on port 3000 is), started the Next.js dev server locally on port 3002 (already whitelisted in backend CORS) and drove the test via Playwright at http://localhost:3002. All 5 acceptance criteria PASS: admin login (DELETE-TEST / admin@delete-test.local / admin123) reaches /dashboard; /settings renders data-testid='invite-members-card' with an embedded QR SVG; the invite link input shows 'http://localhost:3002/join/DELETE-TEST'; clicking data-testid='copy-invite-link-btn' writes the URL to the clipboard (verified via navigator.clipboard.readText()) and displays a sonner toast with data-type='success' and text 'Lien copié dans le presse-papier !' (top-right, richColors, closeButton); clicking data-testid='download-qr-btn' triggers a PNG download named 'qr-Test Suppression Compte.png'. Toast infrastructure is wired correctly via <Toaster /> in the root layout.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/settings - Inviter des membres card", "issues": ["QR PNG filename uses the raw association name (e.g. 'qr-Test Suppression Compte.png') which contains spaces and can cause issues on some OS/browsers; consider slugifying the code or name (e.g. 'qr-DELETE-TEST.png') before setting downloadLink.download."]},
+      {"screen": "/settings - Configuration générale (libellé)", "issues": ["Save-label success/error feedback still uses an in-page colored <div> (labelMessage state) instead of sonner toast, which is inconsistent with the rest of the page's UX now that toasts are the standard. Non-blocking."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_12.json"
+  ],
+  "action_items": [
+    "OPTIONAL: Add /app/web (Next.js) to supervisor so the web is auto-started and publicly reachable. Currently only the Expo mobile app is publicly served on port 3000; the Next.js web must be started manually on an internal port. This blocks live QA of the web build unless a tester starts it themselves.",
+    "OPTIONAL: Slugify the QR download filename to avoid spaces (see design_issues).",
+    "OPTIONAL: Migrate the remaining labelMessage in-page feedback on /settings to sonner toast for UX consistency.",
+    "OPTIONAL: Add localhost:3001 to backend CORS whitelist (or make it env-driven) — currently 3000/3002 are allowed but 3001 is not, which forces test runners to pin to a specific port."
+  ],
+  "critical_code_review_comments": [
+    "settings/page.tsx: downloadQRCode() uses `unescape(encodeURIComponent(...))`; unescape is deprecated. Prefer TextEncoder or a base64 lib. Non-blocking, works today.",
+    "settings/page.tsx: `getJoinUrl` derives the base from window.location.origin, so QR/link work locally (localhost:3002) and in production alike — good. Just note that if this page is ever exported/SSR-rendered, the empty string fallback would produce broken links; consider a NEXT_PUBLIC_WEB_URL fallback.",
+    "settings/page.tsx: `qrRef` is typed as SVGSVGElement | null and passed to QRCodeSVG's `ref` prop — works with qrcode.react v4, but do confirm no React 19 ref warnings appear (the console captured 0 errors during the run).",
+    "settings/page.tsx: The plain `confirm(...)` on line ~430 (delete year) still uses the browser native dialog — inconsistent with the toast/UX overhaul; consider a Modal-based confirm. Not in scope of this PR but worth flagging.",
+    "Toaster.tsx: Fine — position top-right, richColors + closeButton, wrapped in 'use client'. Toast visually appears above other content in the screenshot.",
+    "Test setup: /app/web has no supervisor entry and no reverse-proxy route on the external URL. Any next testing agent must remember to `cd /app/web && yarn dev --port 3002 &` before hitting the site.",
+    "web/next.config.ts warns about multiple lockfiles; set turbopack.root to /app/web to silence and pin resolution — cosmetic build warning."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "not in scope",
+    "frontend": "100% (5/5 acceptance criteria pass — login, invite card presence, QR SVG render, copy-to-clipboard + success toast, PNG download)"
+  },
+  "test_credentials": "Association DELETE-TEST (code: DELETE-TEST) + admin@delete-test.local / admin123 — verified working end-to-end on the web (Next.js) build.",
+  "seed_data_creation": "None — used existing DELETE-TEST association and its admin user.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The Next.js WEB build lives in /app/web and is separate from the Expo mobile app in /app/frontend. The external URL https://mobile-bug-crush-1.preview.emergentagent.com/* routes to Expo (port 3000), NOT to Next.js. To test the web, run `cd /app/web && yarn dev --port 3002 &` (port 3002 is in backend CORS whitelist; 3001 is NOT) and drive Playwright against http://localhost:3002. .env.local has NEXT_PUBLIC_API_URL=http://localhost:8001 so browser->backend calls stay in-container. Login flow is 2-step: (1) click association tile 'Test Suppression Compte', (2) fill email + password then submit. Selectors for the new feature: data-testid='invite-members-card', 'invite-link-input', 'copy-invite-link-btn', 'download-qr-btn'. Sonner toasts render as <li data-sonner-toast data-type='success|error'> in the DOM.",
+  "rca_of_the_issue": "Not a bug fix — this is a feature-verification pass. Feature works as intended. Only setup gotcha to remember: the web build must be started manually since it has no supervisor entry, and it MUST run on port 3000 or 3002 (backend cors whitelist) — port 3001 will be blocked by CORS with 'No Access-Control-Allow-Origin header'."
+}

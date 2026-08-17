@@ -1,0 +1,81 @@
+{
+  "expo": {
+    "name": "Kotiz",
+    "slug": "assocmanage",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/react-logo.png",
+    "scheme": "frontend",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "updates": {
+      "enabled": false
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kotiz.ci"
+    },
+    "android": {
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#F5A623"
+      },
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
+      "package": "com.kotiz.ci",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "web-bx1a.onrender.com",
+              "pathPrefix": "/join"
+            },
+            {
+              "scheme": "https",
+              "host": "assocmanager-web.onrender.com",
+              "pathPrefix": "/join"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "owner": "mikouei",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "772ac13f-514a-49d7-af14-7a6a8ef4fcab"
+      }
+    }
+  }
+}

@@ -1,0 +1,111 @@
+// Prisma schema pour AssocManager
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./assocmanager.db"
+}
+
+// Utilisateurs (ADMIN et MEMBER)
+// Note: SQLite ne supporte pas les enums, on utilise String avec contrainte
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         String   @default("MEMBER") // "ADMIN" ou "MEMBER"
+  token        String?  @unique // Token d'accès pour les membres
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  member       Member?  // Relation 1-1 avec Member
+}
+
+// Informations membres (données métier)
+model Member {
+  id                String                 @id @default(uuid())
+  userId            String                 @unique
+  name              String
+  customFieldValue  String                 // Villa, Groupe, Section, etc.
+  active            Boolean                @default(true)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments          MonthlyPayment[]       // Paiements mensuels
+  exceptionalPayments ExceptionalPayment[] // Paiements exceptionnels
+}
+
+// Configuration de l'association
+model AssociationConfig {
+  id               String   @id @default(uuid())
+  name             String   // Nom de l'association
+  type             String?  // Type (optionnel)
+  memberFieldLabel String   @default("Villa") // Libellé du champ personnalisé
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// Année de cotisation
+model Year {
+  id            String           @id @default(uuid())
+  year          Int              @unique // 2025, 2026...
+  monthlyAmount Float            // Montant mensuel en FCFA
+  active        Boolean          @default(false) // Une seule année active
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  payments      MonthlyPayment[] // Relation avec les paiements
+}
+
+// Paiements mensuels (support paiements partiels)
+model MonthlyPayment {
+  id          String   @id @default(uuid())
+  memberId    String   // ID du membre
+  yearId      String   // ID de l'année
+  month       Int      // 1-12 (Janvier = 1, Décembre = 12)
+  amountPaid  Float    // Montant payé (permet partiels)
+  paymentDate DateTime @default(now()) // Date du paiement
+  notes       String?  // Notes optionnelles
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  year        Year     @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  
+  @@index([memberId, yearId, month])
+}
+
+// Cotisations exceptionnelles (événements ponctuels)
+model ExceptionalContribution {
+  id          String                 @id @default(uuid())
+  title       String                 // "Décès M. Dupont", "Mariage Marie"
+  type        String                 // décès, mariage, anniversaire, solidarité, autre
+  description String?                // Description optionnelle
+  active      Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  
+  payments    ExceptionalPayment[]   // Paiements associés
+}
+
+// Paiements pour cotisations exceptionnelles (montants variables)
+model ExceptionalPayment {
+  id             String                   @id @default(uuid())
+  contributionId String
+  memberId       String
+  amount         Float                    // Montant variable par membre
+  paymentDate    DateTime                 @default(now())
+  notes          String?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  
+  contribution   ExceptionalContribution  @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  member         Member                   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  @@index([contributionId, memberId])
+}

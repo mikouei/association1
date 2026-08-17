@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "112628988540",
+    "project_id": "kotiz-cca14",
+    "storage_bucket": "kotiz-cca14.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:112628988540:android:d6366c3c8184f77f4ba7f9",
+        "android_client_info": {
+          "package_name": "com.kotiz.ci"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdDGIwx0UzriLKFg5gDB30R3rjLJS4k4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

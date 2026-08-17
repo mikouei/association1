@@ -1,0 +1,64 @@
+{
+  "summary": "Web Next.js Design System harmonization testing (frontend only). Tested the /app/web Next.js dashboard on localhost:3002 (public URL mobile-bug-crush-1.preview.emergentagent.com serves the Expo mobile app, NOT the web dashboard — Next.js is not exposed publicly). Found 2 blocker bugs and 3 minor DS deviations. After minimal test-only fixes, verified Design System tokens are correctly applied on Login button, Sidebar, Dashboard cards/icons/progress bar, Members badges/active nav, and Payments badges.",
+  "review_scope_validation": {
+    "1_login_button_gold": "PASS - Se connecter button: bg=rgb(245,166,35) #F5A623 Gold, color=rgb(31,41,55) #1F2937 dark, border-radius=10px. Font-weight=600 (DS specifies 700 - minor).",
+    "2_dashboard_variables_and_phosphor": "PASS (after fixing TrendingUp→TrendUp build error). All main SVG icons in dashboard use Phosphor viewBox='0 0 256 256'. Cards use border-radius:16px, bg white, border #E5E7EB. Progress bar uses --color-primary (rgb(245,166,35)).",
+    "3_sidebar_navy_and_gold_active": "PASS - aside bg=rgb(31,78,121) Navy #1F4E79. Active nav item (Tableau de bord / Membres) has bg=rgb(245,166,35) Gold and color=rgb(31,41,55) dark. Inactive items use text-white/80.",
+    "4_members_payments_card_badge_harmonized": "PASS - Members page: Badge variant='danger' → bg=rgb(251,234,236) color=rgb(176,0,32) radius=12px (matches --color-error-bg / --color-error / --radius-badge). Payments page: Badge variant='info' → bg=rgb(224,242,254) color=rgb(31,78,121) Navy. Both pages render Card component with 16px radius. However members/payments still import icons from lucide-react (not migrated to Phosphor); the scope only required Card/Badge harmonization here so this is acceptable."
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "web/src/app/dashboard/page.tsx", "issue": "BUILD BREAKER: imports { TrendingUp } from '@phosphor-icons/react' but Phosphor exports 'TrendUp' (not 'TrendingUp'). Dashboard 500-errored with 'Export TrendingUp doesn't exist in target module'. Fixed on test-only basis (renamed to TrendUp).", "selector": "N/A - import statement", "priority": "CRITICAL"},
+      {"component": "web/src/app/globals.css", "issue": "BUILD BREAKER: '@import url(fonts.googleapis)' placed AFTER '@import \"tailwindcss\"' - once Tailwind expands, the font @import no longer precedes all rules → Turbopack throws 'Parsing CSS source code failed: @import rules must precede all rules'. Site was returning 500 on all routes. Fixed by swapping the two @import lines.", "selector": "globals.css lines 1-2", "priority": "CRITICAL"},
+      {"component": "web/src/app/login/page.tsx", "issue": "Login page container uses bg-gradient-to-br from-blue-600 to-blue-800 (Tailwind blue #2563EB / #1D4ED8) instead of Design System Navy #1F4E79. The 16x16 Building2 icon container also uses bg-blue-600. Not aligned with DS harmonization.", "selector": "div.min-h-screen and div.bg-blue-600", "priority": "MEDIUM"},
+      {"component": "web/src/app/login/page.tsx", "issue": "Line 90: associations.filter(a => a.active).map(...) but backend GET /api/auth/associations only returns {id,name,code,type} (no 'active' field) since it already filters by active on the server. Result: filter drops EVERY association and the login list appears empty (user sees 'Sélectionnez votre association' with no buttons). This blocks all admin logins. Worked around during test by using a.active !== false; permanent fix should remove the redundant filter or have backend include active:true in response.", "selector": "login page association list", "priority": "CRITICAL"},
+      {"component": "web/src/app/login/page.tsx", "issue": "Line 37-39: useState(() => { loadAssociations(); }); is misused as an on-mount hook. Works accidentally because useState initializer runs once, but React warns 'Can\\'t perform a React state update on a component that hasn\\'t mounted yet'. Should be useEffect(()=>{loadAssociations()},[]).", "selector": "N/A", "priority": "LOW"},
+      {"component": "Button component", "issue": "DS spec says primary button font-weight:700 but Button.tsx uses font-semibold (600). Minor.", "selector": "Button variant=primary", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Web dashboard ↔ Backend", "issue": "web/.env.local shipped with NEXT_PUBLIC_API_URL=http://localhost:8001/api while services/api.ts appends '/api' again ⇒ requests hit /api/api/auth/... and 404. Fixed test-side by setting NEXT_PUBLIC_API_URL=http://localhost:8001.", "affected_selectors": ["all /api calls"]},
+      {"flow": "CORS for local Next.js dev", "issue": "backend/server.js cors origin list didn't include http://localhost:3002 (only 3000 and Expo prod URL). Added localhost:3002 to cors origins for test purposes. Optional to keep; not a production issue since prod Next.js runs elsewhere."}
+    ],
+    "design_issues": [
+      {"screen": "Login /login", "issues": ["Background gradient uses Tailwind blue-600→blue-800 instead of DS Navy #1F4E79 → not harmonized", "AssocManager icon square uses bg-blue-600 (should be --color-secondary Navy)", "Header title reads 'AssocManager' while the sidebar / DS branding says 'Kotiz' — brand inconsistency"]},
+      {"screen": "Login card select-association step", "issues": ["Hover states use hover:border-blue-500 hover:bg-blue-50 (Tailwind blue) instead of DS Navy/Gold accents"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_7.json"],
+  "action_items": [
+    "CRITICAL: Fix login associations filter — either remove the client-side .filter(a=>a.active) (backend already filters) or have GET /api/auth/associations include active:true in the SELECT.",
+    "CRITICAL: Keep the fix for globals.css @import ordering (fonts must come before tailwindcss) — currently applied by test agent.",
+    "CRITICAL: Keep the fix TrendingUp→TrendUp in dashboard/page.tsx (Phosphor doesn't export TrendingUp) — currently applied by test agent.",
+    "HIGH: Harmonize Login page background & icon: replace bg-blue-600/blue-800 with DS Navy (var(--color-secondary) #1F4E79) or Gold gradient; replace hover accents accordingly.",
+    "HIGH: Fix .env.local NEXT_PUBLIC_API_URL — remove trailing /api or make services/api.ts idempotent. Currently /api is duplicated.",
+    "MEDIUM: Rename 'AssocManager' brand in Login page to 'Kotiz' for brand consistency with sidebar and DS.",
+    "MEDIUM: Convert web/src/app/login/page.tsx useState(()=>loadAssociations()) to useEffect(...,[]) to avoid React unmounted-update warning.",
+    "LOW: Button primary font-weight should be 700 per DS (currently 600 via font-semibold).",
+    "LOW (optional): For consistency, consider migrating members/payments/admins/settings pages from lucide-react to @phosphor-icons/react (currently only dashboard uses Phosphor).",
+    "LOW: Remove hardcoded 'https://mobile-bug-crush-1.preview.emergentagent.com' from backend/server.js CORS list once the domain policy is finalized."
+  ],
+  "critical_code_review_comments": [
+    "web/src/app/dashboard/page.tsx: solid use of CSS variables (--color-primary, --color-warning-bg, --color-text-muted, etc.), good Phosphor icon adoption with weight='duotone'. Once TrendingUp→TrendUp is fixed, this page is a good DS reference implementation.",
+    "web/src/components/ui/Card.tsx and Badge.tsx correctly pull from CSS variables — Card radius=16px, Badge radius=12px, variant colors mapped to --color-success/warning/error/border-light. Consistent.",
+    "web/src/components/layout/Sidebar.tsx: hardcodes #1F4E79 / #F5A623 / #2A5F94 rather than using CSS vars. Works but recommend switching to var(--color-secondary) / var(--color-primary) for single source of truth. Also still imports icons from lucide-react — either migrate to Phosphor or keep intentionally to distinguish nav from content.",
+    "web/src/components/ui/Button.tsx: primary uses bg-[#F5A623] + text-[#1F2937] hardcoded — align with globals.css .btn-primary via var(--color-primary)/var(--color-text-on-primary). Also font-semibold (600) vs DS spec 700.",
+    "web/src/app/login/page.tsx has multiple issues in one file: (a) blue-based colors ignore DS, (b) useState-as-useEffect antipattern, (c) client-side .filter(a=>a.active) breaks because backend response omits 'active'. This file is the weakest link in the DS harmonization pass.",
+    "web/.env.local ships with a MISLEADING NEXT_PUBLIC_API_URL that already includes /api while api.ts adds another /api, doubling the prefix — this must be reconciled before deployment.",
+    "backend/routes/auth.js GET /associations should return {id,name,code,type,active:true} so any client that filters by active continues to work; the omission surfaced a bug in the login flow."
+  ],
+  "updated_files": [
+    "/app/web/src/app/globals.css (moved fonts @import above @import 'tailwindcss')",
+    "/app/web/src/app/dashboard/page.tsx (TrendingUp → TrendUp import + JSX)",
+    "/app/web/src/app/login/page.tsx (filter a.active → a.active !== false, test-only workaround)",
+    "/app/web/.env.local (NEXT_PUBLIC_API_URL removed trailing /api)",
+    "/app/backend/server.js (added http://localhost:3002 to CORS origins for local Next.js test)"
+  ],
+  "success_rate": {"backend": "N/A - frontend only scope", "frontend": "DS harmonization scope: 4/4 checkpoints PASS after test-only fixes; underlying code shipped with 2 build breakers and 1 login-blocker that need permanent main-agent fixes"},
+  "test_credentials": "Admin DELETE-TEST: admin@delete-test.local / admin123 (used for dashboard/members/payments). Super Admin: drigo@drigo.local / drigo123 (not exercised in this run).",
+  "seed_data_creation": "None. Used existing associations (DELETE-TEST has 3 soft-deleted members and no active year, which is fine for DS visual verification).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Next.js web app lives at /app/web and is NOT running under supervisor. To test locally: kill any existing next dev, then `cd /app/web && yarn dev --port 3002` (env NEXT_PUBLIC_API_URL must point to http://localhost:8001 WITHOUT trailing /api). Backend CORS must include http://localhost:3002. Public URL https://mobile-bug-crush-1.preview.emergentagent.com serves the Expo mobile app on port 3000, NOT the Next.js dashboard — do not confuse the two. Design System tokens live in /app/web/src/app/globals.css. Phosphor icons only used in dashboard/page.tsx today; other pages still use lucide. Admin DELETE-TEST creds: admin@delete-test.local / admin123.",
+  "rca_of_the_issue": "1) globals.css: Tailwind v4 with Turbopack strictly enforces the CSS @import ordering rule. Placing the Google Fonts @import after `@import 'tailwindcss'` breaks the build because Tailwind expands to thousands of rules before the font import. Fix: order font @import first. 2) dashboard TrendingUp: the main agent renamed Lucide→Phosphor imports but Phosphor's export is `TrendUp` (not `TrendingUp`). Fix: rename. 3) Login associations empty: server returns {id,name,code,type} without 'active'; client `.filter(a=>a.active)` treats undefined as false and drops all rows. Fix: either add active to server SELECT or drop the redundant client filter (backend already filters by active:true)."
+}

@@ -21,7 +21,7 @@ const ASSOCIATION_SAFE_SELECT = {
   code: true,
   type: true,
   memberFieldLabel: true,
-  logoUrl: true,
+  active: true,
   currency: true,
   plan: true,
   launchPeriodMonths: true,

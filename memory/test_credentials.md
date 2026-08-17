@@ -4,6 +4,7 @@
 - **Email**: drigo@drigo.local
 - **Mot de passe**: drigo123
 - **URL**: /platform/login
+- **Note**: Mot de passe réinitialisé le 17/08/2026
 
 ## Admin Association DELETE-TEST
 - **Association**: DELETE-TEST (Test Suppression Compte)

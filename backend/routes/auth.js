@@ -114,6 +114,21 @@ router.post('/login', loginLimiter, attachPrisma, async (req, res) => {
         return res.status(401).json({ error: 'Identifiants invalides' });
       }
 
+      // Vérifier le statut d'approbation AVANT la vérification du mot de passe
+      // (pour ne pas incrémenter le compteur d'échecs sur un compte en attente/refusé)
+      if (user.approvalStatus === 'PENDING') {
+        return res.status(403).json({
+          error: 'Votre inscription est en attente de validation par un administrateur.',
+          code: 'PENDING_APPROVAL'
+        });
+      }
+      if (user.approvalStatus === 'REJECTED') {
+        return res.status(403).json({
+          error: 'Votre demande d\'inscription a été refusée.',
+          code: 'REJECTED'
+        });
+      }
+
       // Vérifier si le compte est verrouillé
       if (user.lockedUntil && user.lockedUntil > new Date()) {
         const minutesLeft = Math.ceil((user.lockedUntil - new Date()) / 60000);

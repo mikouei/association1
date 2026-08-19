@@ -341,4 +341,123 @@ router.post('/:id/reset-password', async (req, res) => {
   }
 });
 
+// GET /api/admin/pending-members
+// Liste les demandes d'inscription en attente (approvalStatus: PENDING) de l'association
+router.get('/pending-members', async (req, res) => {
+  try {
+    const pending = await prisma.user.findMany({
+      where: {
+        associationId: req.associationId,
+        role: 'MEMBER',
+        approvalStatus: 'PENDING'
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        createdAt: true,
+        member: { select: { name: true } }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    const result = pending.map((u) => ({
+      id: u.id,
+      name: u.member?.name || '',
+      email: u.email,
+      phone: u.phone,
+      requestedAt: u.createdAt
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('List pending members error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des demandes' });
+  }
+});
+
+// POST /api/admin/pending-members/approve
+// Approuver une ou plusieurs demandes d'inscription
+router.post('/pending-members/approve', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Aucune demande sélectionnée' });
+    }
+
+    const result = await prisma.user.updateMany({
+      where: {
+        id: { in: ids },
+        associationId: req.associationId,
+        role: 'MEMBER',
+        approvalStatus: 'PENDING'
+      },
+      data: { approvalStatus: 'APPROVED' }
+    });
+
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'member.approve',
+      targetType: 'User',
+      targetId: null,
+      details: `${result.count} demande(s) d'inscription approuvée(s)`
+    });
+
+    res.json({ message: 'Demandes approuvées', count: result.count });
+  } catch (error) {
+    console.error('Approve pending members error:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'approbation' });
+  }
+});
+
+// POST /api/admin/pending-members/reject
+// Refuser (supprimer) une ou plusieurs demandes d'inscription
+router.post('/pending-members/reject', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Aucune demande sélectionnée' });
+    }
+
+    // Ne cibler que les demandes PENDING de cette association
+    const pendingUsers = await prisma.user.findMany({
+      where: {
+        id: { in: ids },
+        associationId: req.associationId,
+        role: 'MEMBER',
+        approvalStatus: 'PENDING'
+      },
+      select: { id: true }
+    });
+    const userIds = pendingUsers.map((u) => u.id);
+
+    let count = 0;
+    if (userIds.length > 0) {
+      // Supprimer les members puis les users correspondants
+      await prisma.$transaction(async (tx) => {
+        await tx.member.deleteMany({ where: { userId: { in: userIds } } });
+        const del = await tx.user.deleteMany({ where: { id: { in: userIds } } });
+        count = del.count;
+      });
+    }
+
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'member.reject',
+      targetType: 'User',
+      targetId: null,
+      details: `${count} demande(s) d'inscription refusée(s)`
+    });
+
+    res.json({ message: 'Demandes refusées', count });
+  } catch (error) {
+    console.error('Reject pending members error:', error);
+    res.status(500).json({ error: 'Erreur lors du refus' });
+  }
+});
+
 export default router;

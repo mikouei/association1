@@ -97,6 +97,7 @@ model User {
   passwordHash        String
   googleId            String?  // "sub" du token Google, unique PAR ASSOCIATION (pas globalement, cf. multi-association)
   role                String    @default("MEMBER") // "ADMIN", "SCANNER", "AUDITEUR", ou "MEMBER"
+  approvalStatus      String    @default("APPROVED") // "PENDING", "APPROVED", "REJECTED"
   token               String?  // Token d'accès pour les membres
   active              Boolean   @default(true)
   passwordChangedAt   DateTime  @default(now())
@@ -114,6 +115,7 @@ model User {
   @@unique([associationId, phone])
   @@unique([associationId, googleId])
   @@index([associationId])
+  @@index([approvalStatus])
   @@index([token])
 }
 

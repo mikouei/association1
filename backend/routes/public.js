@@ -440,7 +440,7 @@ router.post('/associations/:code/join-google', joinLimiter, async (req, res) => 
 
     // Vérifier le plafond de membres selon le plan
     const memberCount = await prisma.user.count({
-      where: { associationId: association.id, role: 'MEMBER' }
+      where: { associationId: association.id, role: 'MEMBER', approvalStatus: 'APPROVED' }
     });
     const limitCheck = checkMemberLimit(association, memberCount);
     if (!limitCheck.canAdd) {
@@ -505,6 +505,100 @@ router.post('/associations/:code/join-google', joinLimiter, async (req, res) => 
   } catch (error) {
     console.error('Join association with Google error:', error);
     res.status(500).json({ error: 'Erreur lors de l\'inscription' });
+  }
+});
+
+// POST /api/public/associations/:code/join-request
+// Demander à rejoindre une association en tant que MEMBRE (validation admin requise)
+// Ne retourne PAS de token JWT — le compte reste en attente (approvalStatus: PENDING)
+router.post('/associations/:code/join-request', joinLimiter, async (req, res) => {
+  try {
+    const code = (req.params.code || '').toUpperCase();
+    const { name, phone, email, password } = req.body;
+
+    // Résoudre l'association
+    const association = await prisma.association.findUnique({ where: { code } });
+    if (!association || !association.active) {
+      return res.status(404).json({ error: 'Association introuvable' });
+    }
+
+    // Validation des champs
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Nom requis' });
+    }
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({ error: 'Numéro de téléphone requis' });
+    }
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+    }
+    if (email && email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ error: 'Format email invalide' });
+    }
+
+    const normalizedPhone = phone.trim();
+    const normalizedEmail = email && email.trim() ? email.trim() : null;
+
+    // Vérifier qu'un compte n'existe pas déjà (téléphone ou email) dans cette association
+    const orConditions = [{ phone: normalizedPhone }];
+    if (normalizedEmail) orConditions.push({ email: normalizedEmail });
+    const existingUser = await prisma.user.findFirst({
+      where: { associationId: association.id, OR: orConditions }
+    });
+    if (existingUser) {
+      return res.status(409).json({
+        error: 'Un compte existe déjà avec ce téléphone ou cet email pour cette association.',
+        code: 'ALREADY_MEMBER'
+      });
+    }
+
+    // Vérifier le plafond de membres — SEULS les membres APPROUVÉS comptent
+    const memberCount = await prisma.user.count({
+      where: { associationId: association.id, role: 'MEMBER', approvalStatus: 'APPROVED' }
+    });
+    const limitCheck = checkMemberLimit(association, memberCount);
+    if (!limitCheck.canAdd) {
+      return res.status(403).json({ error: limitCheck.message });
+    }
+
+    // Hash du mot de passe
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Créer User (PENDING) + Member en transaction
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          associationId: association.id,
+          email: normalizedEmail || `membre_${crypto.randomUUID()}@temp.local`,
+          phone: normalizedPhone,
+          passwordHash,
+          role: 'MEMBER',
+          approvalStatus: 'PENDING',
+          active: true,
+          passwordChangedAt: new Date()
+        }
+      });
+
+      await tx.member.create({
+        data: {
+          associationId: association.id,
+          userId: user.id,
+          name: name.trim(),
+          customFieldValue: null,
+          source: 'self_service',
+          active: true
+        }
+      });
+    });
+
+    // Ne PAS retourner de token JWT — juste une confirmation
+    res.status(201).json({
+      message: 'Votre demande d\'inscription a été envoyée. Elle sera validée par un administrateur.',
+      status: 'PENDING'
+    });
+  } catch (error) {
+    console.error('Join request error:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'envoi de la demande' });
   }
 });
 

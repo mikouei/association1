@@ -19,6 +19,14 @@ interface Year {
   createdAt: string;
 }
 
+interface PendingMember {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  requestedAt: string;
+}
+
 // Génère l'URL d'invitation basée sur l'environnement
 const getJoinUrl = (code: string) => {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -28,7 +36,7 @@ const getJoinUrl = (code: string) => {
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { selectedAssociation, linkedAccounts, switchAccount, removeLinkedAccount } = useAuth();
+  const { user, selectedAssociation, linkedAccounts, switchAccount, removeLinkedAccount } = useAuth();
   const qrRef = useRef<SVGSVGElement>(null);
   const [isYearModalOpen, setIsYearModalOpen] = useState(false);
   const [editingYear, setEditingYear] = useState<Year | null>(null);
@@ -86,6 +94,9 @@ export default function SettingsPage() {
   const [savingLabel, setSavingLabel] = useState(false);
   const [labelMessage, setLabelMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [removeAccountConfirm, setRemoveAccountConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [selectedPending, setSelectedPending] = useState<string[]>([]);
+
+  const isAdmin = user?.role === 'ADMIN';
 
   // Gestion des comptes liés
   const handleAddAccount = () => {
@@ -177,6 +188,58 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['years'] });
     },
   });
+
+  // ── Demandes d'inscription en attente (ADMIN) ──
+  const { data: pendingMembers } = useQuery({
+    queryKey: ['pending-members'],
+    queryFn: async () => {
+      const response = await api.get('/admin/pending-members');
+      return response.data as PendingMember[];
+    },
+    enabled: isAdmin,
+  });
+
+  const approvePendingMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const response = await api.post('/admin/pending-members/approve', { ids });
+      return response.data;
+    },
+    onSuccess: (data: { count: number }) => {
+      toast.success(`${data.count} demande(s) approuvée(s)`);
+      setSelectedPending([]);
+      queryClient.invalidateQueries({ queryKey: ['pending-members'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || "Erreur lors de l'approbation");
+    },
+  });
+
+  const rejectPendingMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const response = await api.post('/admin/pending-members/reject', { ids });
+      return response.data;
+    },
+    onSuccess: (data: { count: number }) => {
+      toast.success(`${data.count} demande(s) refusée(s)`);
+      setSelectedPending([]);
+      queryClient.invalidateQueries({ queryKey: ['pending-members'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Erreur lors du refus');
+    },
+  });
+
+  const pendingList = pendingMembers || [];
+  const togglePendingSelection = (id: string) => {
+    setSelectedPending((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+  const toggleSelectAllPending = () => {
+    setSelectedPending((prev) =>
+      prev.length === pendingList.length ? [] : pendingList.map((m) => m.id)
+    );
+  };
 
   const handleCreateOrUpdateYear = (e: React.FormEvent) => {
     e.preventDefault();
@@ -316,6 +379,98 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Demandes d'inscription - ADMIN uniquement */}
+        {isAdmin && (
+          <Card data-testid="pending-members-card">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-primary" />
+                  <CardTitle>Demandes d&apos;inscription</CardTitle>
+                  {pendingList.length > 0 && (
+                    <span
+                      className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-red-500 text-white text-xs font-bold"
+                      data-testid="pending-count-badge"
+                    >
+                      {pendingList.length}
+                    </span>
+                  )}
+                </div>
+                {pendingList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={toggleSelectAllPending}
+                    className="text-sm text-primary hover:underline"
+                    data-testid="pending-select-all"
+                  >
+                    {selectedPending.length === pendingList.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                  </button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {pendingList.length === 0 ? (
+                <p className="text-sm text-gray-500 py-4 text-center">
+                  Aucune demande d&apos;inscription en attente
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    {pendingList.map((m) => {
+                      const selected = selectedPending.includes(m.id);
+                      return (
+                        <label
+                          key={m.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                            selected ? 'border-primary bg-amber-50' : 'border-gray-200 hover:bg-gray-50'
+                          }`}
+                          data-testid={`pending-item-${m.id}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => togglePendingSelection(m.id)}
+                            className="w-4 h-4 accent-primary"
+                            data-testid={`pending-checkbox-${m.id}`}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{m.name || 'Sans nom'}</p>
+                            <p className="text-sm text-gray-500 truncate">
+                              {[m.phone, m.email && !m.email.includes('@temp.local') ? m.email : null]
+                                .filter(Boolean)
+                                .join(' • ')}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      onClick={() => approvePendingMutation.mutate(selectedPending)}
+                      disabled={selectedPending.length === 0 || approvePendingMutation.isPending}
+                      data-testid="pending-approve-button"
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Approuver{selectedPending.length > 0 ? ` (${selectedPending.length})` : ''}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => rejectPendingMutation.mutate(selectedPending)}
+                      disabled={selectedPending.length === 0 || rejectPendingMutation.isPending}
+                      data-testid="pending-reject-button"
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      Refuser
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Inviter des membres */}
         {joinCode && (

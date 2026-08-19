@@ -20,7 +20,8 @@ import {
   User, Envelope, Phone, UserCircle, Pencil, CheckCircle, Plus, X, 
   ArrowLeft, FolderOpen, Eye, CloudArrowUp, Download, File, FileText,
   SignOut, Trash, Warning, CaretRight, QrCode, Copy, ShareNetwork,
-  WhatsappLogo, ClockCounterClockwise, UsersThree, UserSwitch
+  WhatsappLogo, ClockCounterClockwise, UsersThree, UserSwitch,
+  UserPlus, CheckSquare, Square, Check
 } from 'phosphor-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -75,9 +76,77 @@ export default function Parametres() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  // Demandes d'inscription en attente (ADMIN)
+  const [pendingMembers, setPendingMembers] = useState([]);
+  const [selectedPending, setSelectedPending] = useState([]);
+  const [approvingPending, setApprovingPending] = useState(false);
+
+  const loadPendingMembers = async () => {
+    try {
+      const response = await api.get('/admin/pending-members');
+      setPendingMembers(response.data);
+      // Nettoyer la sélection des IDs qui n'existent plus
+      setSelectedPending((prev) => prev.filter((id) => response.data.some((m) => m.id === id)));
+    } catch (error) {
+      console.error('Erreur chargement demandes:', error);
+    }
+  };
+
+  const togglePendingSelection = (id) => {
+    setSelectedPending((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleApprovePending = async () => {
+    if (selectedPending.length === 0) return;
+    setApprovingPending(true);
+    try {
+      const response = await api.post('/admin/pending-members/approve', { ids: selectedPending });
+      Alert.alert('Succès', `${response.data.count} demande(s) approuvée(s)`);
+      setSelectedPending([]);
+      await loadPendingMembers();
+    } catch (error) {
+      Alert.alert('Erreur', error.response?.data?.error || "Erreur lors de l'approbation");
+    } finally {
+      setApprovingPending(false);
+    }
+  };
+
+  const handleRejectPending = async () => {
+    if (selectedPending.length === 0) return;
+    Alert.alert(
+      'Refuser les demandes',
+      `Refuser ${selectedPending.length} demande(s) ? Les comptes correspondants seront supprimés.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Refuser',
+          style: 'destructive',
+          onPress: async () => {
+            setApprovingPending(true);
+            try {
+              const response = await api.post('/admin/pending-members/reject', { ids: selectedPending });
+              Alert.alert('Succès', `${response.data.count} demande(s) refusée(s)`);
+              setSelectedPending([]);
+              await loadPendingMembers();
+            } catch (error) {
+              Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors du refus');
+            } finally {
+              setApprovingPending(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   useEffect(() => {
     loadConfig();
     loadYears();
+    if (isAdmin) {
+      loadPendingMembers();
+    }
   }, []);
 
   const loadConfig = async () => {
@@ -838,6 +907,85 @@ export default function Parametres() {
           </View>
         )}
 
+        {/* Demandes d'inscription - ADMIN uniquement */}
+        {isAdmin && (
+          <View style={styles.section} testID="pending-members-section">
+            <View style={styles.sectionHeader}>
+              <View style={styles.pendingTitleRow}>
+                <Text style={styles.sectionTitle}>Demandes d'inscription</Text>
+                {pendingMembers.length > 0 && (
+                  <View style={styles.pendingBadge} testID="pending-count-badge">
+                    <Text style={styles.pendingBadgeText}>{pendingMembers.length}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {pendingMembers.length === 0 ? (
+              <View style={styles.pendingEmpty}>
+                <UserPlus size={28} color={colors.textMuted} weight="duotone" />
+                <Text style={styles.pendingEmptyText}>Aucune demande en attente</Text>
+              </View>
+            ) : (
+              <View>
+                {pendingMembers.map((m) => {
+                  const selected = selectedPending.includes(m.id);
+                  return (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[styles.pendingItem, selected && styles.pendingItemSelected]}
+                      onPress={() => togglePendingSelection(m.id)}
+                      testID={`pending-item-${m.id}`}
+                    >
+                      {selected ? (
+                        <CheckSquare size={24} color={colors.primary} weight="fill" />
+                      ) : (
+                        <Square size={24} color={colors.textMuted} />
+                      )}
+                      <View style={styles.pendingInfo}>
+                        <Text style={styles.pendingName}>{m.name || 'Sans nom'}</Text>
+                        <Text style={styles.pendingMeta}>
+                          {m.phone || ''}{m.phone && m.email && !m.email.includes('@temp.local') ? ' • ' : ''}
+                          {m.email && !m.email.includes('@temp.local') ? m.email : ''}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                <View style={styles.pendingActions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.pendingApproveBtn,
+                      (selectedPending.length === 0 || approvingPending) && styles.pendingBtnDisabled,
+                    ]}
+                    onPress={handleApprovePending}
+                    disabled={selectedPending.length === 0 || approvingPending}
+                    testID="pending-approve-button"
+                  >
+                    <Check size={18} color={colors.textOnPrimary} weight="bold" />
+                    <Text style={styles.pendingApproveText}>
+                      Approuver{selectedPending.length > 0 ? ` (${selectedPending.length})` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.pendingRejectBtn,
+                      (selectedPending.length === 0 || approvingPending) && styles.pendingBtnDisabled,
+                    ]}
+                    onPress={handleRejectPending}
+                    disabled={selectedPending.length === 0 || approvingPending}
+                    testID="pending-reject-button"
+                  >
+                    <X size={18} color={colors.error} weight="bold" />
+                    <Text style={styles.pendingRejectText}>Refuser</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Aide / Support */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aide / Support</Text>
@@ -1303,6 +1451,105 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
   },
+  pendingTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  pendingBadge: {
+    backgroundColor: colors.error,
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pendingEmpty: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+  },
+  pendingEmptyText: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  pendingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  pendingItemSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#FFF9EF',
+  },
+  pendingInfo: {
+    flex: 1,
+  },
+  pendingName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  pendingMeta: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  pendingApproveBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.button,
+    paddingVertical: spacing.md,
+  },
+  pendingApproveText: {
+    color: colors.textOnPrimary,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  pendingRejectBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.errorBg,
+    borderRadius: borderRadius.button,
+    paddingVertical: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  pendingRejectText: {
+    color: colors.error,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  pendingBtnDisabled: {
+    opacity: 0.5,
+  },
+
   card: {
     backgroundColor: colors.backgroundWhite,
     borderRadius: borderRadius.card,

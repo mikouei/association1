@@ -197,7 +197,10 @@ export default function Cotisations() {
     setSelectedCell({ member, month });
     const monthData = member.paymentsByMonth[month];
     setPaymentAmount(monthData.amountPaid > 0 ? monthData.amountPaid.toString() : selectedYear.monthlyAmount.toString());
-    setPaymentNotes('');
+    // Précharger la note déjà enregistrée pour ce paiement (le champ note vit dans monthData.payments[].notes)
+    const existingNote =
+      (monthData.payments && monthData.payments.find((p) => p.notes)?.notes) || '';
+    setPaymentNotes(existingNote);
     setPaymentModal(true);
   };
 

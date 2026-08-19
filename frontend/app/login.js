@@ -511,7 +511,7 @@ export default function Login() {
             onPress={() => setMode('password')}
           >
             <Text style={[styles.tabText, mode === 'password' && styles.activeTabText]}>
-              Téléphone
+              Identifiant
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

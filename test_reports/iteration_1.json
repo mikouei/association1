@@ -1,64 +1,55 @@
 {
-  "summary": "Backend API testing for AssocManager PostgreSQL multi-tenant migration. All 51 backend tests passed covering health check, authentication, associations CRUD, members CRUD, years CRUD, payments, exceptional contributions, and vehicles.",
-  "mode": "generate",
-  "baseline_commit": "9f684cd0f0a313cf3def7d6ffa4d196bf584b214",
-  "head_commit": "8ebb4003b941c9607c82fe46b5fc073ad0fc1a08",
-  "specs_created": [],
-  "specs_updated": [],
-  "quarantined_tests": [],
+  "summary": "Testing du système d'inscription en attente (PENDING) Kotiz — backend Express + mobile Expo. Backend: 14/14 tests pytest OK (join-request, PENDING login blocked 403, approve, reject, admin listing, auth requise). Mobile: login admin ASCB OK, écran Paramètres affiche la section 'Demandes d'inscription' avec badge 3, sélection d'un item, bouton 'Approuver (1)' fonctionnel — item retiré de la liste après approbation, badge décrémenté à 2. Aucun bug bloquant détecté.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/public/associations/:code/join-request",
+        "issue": "Rate limit joinLimiter = 5 req/h/IP est très restrictif : difficile de tester plusieurs scénarios sans redémarrer le backend (in-memory store). En prod cela peut aussi bloquer une association qui reçoit >5 inscriptions/heure depuis un même réseau NAT/office. À envisager: augmenter à 15-30, ou utiliser une clé (association + IP) plutôt que IP seule."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "login.js — TextInput 'Téléphone ou email', 'Mot de passe' et bouton 'Connexion'",
+        "issue": "Aucun testID sur les inputs et le bouton de l'écran login. Contournement possible via placeholder mais fragile. À ajouter: testID='login-phone-input', 'login-password-input', 'login-submit-button', 'login-association-search'.",
+        "testID": "manquant",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "parametres — Demandes d'inscription",
+        "issues": [
+          "L'écran affiche l'email temporaire uniquement si non 'temp.local' → correct. Le badge, les checkboxes et les boutons Approuver/Refuser sont bien alignés et lisibles."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
   "test_report_links": [
-    "/app/backend/tests/conftest.py",
-    "/app/backend/tests/test_health_and_auth.py",
-    "/app/backend/tests/test_platform_associations.py",
-    "/app/backend/tests/test_members.py",
-    "/app/backend/tests/test_years_and_payments.py",
-    "/app/backend/tests/test_exceptional_and_vehicles.py",
-    "/app/test_reports/pytest/pytest_results.xml"
+    "/app/backend/tests/test_pending_registration.py",
+    "/app/test_reports/pytest/pending_registration.xml"
   ],
-  "regression_results": {
-    "total_specs": 51,
-    "passed": 51,
-    "failed": 0,
-    "skipped": 0
-  },
-  "issues": [
-    {
-      "id": "IMP-001",
-      "issue_type": "improvement",
-      "severity": "LOW",
-      "description": "No frontend_files_of_reference provided - frontend E2E tests were not created. Frontend appears to be React Native Web (Expo) app with JavaScript files.",
-      "endpoint_or_component": "frontend"
-    }
+  "action_items": [
+    "(Optionnel) Ajouter des testID sur l'écran login (phone-input, password-input, submit-button, association-search) pour fiabiliser les tests futurs.",
+    "(Optionnel) Assouplir le rate limit joinLimiter (5/h) ou le rendre configurable via env, sinon un flux d'inscription en masse (soirée d'AG) pourrait être bloqué depuis un même NAT.",
+    "Aucun autre correctif requis — la fonctionnalité 'Inscription en attente' est fonctionnelle bout-en-bout."
   ],
-  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/admin.js: pending-members/reject supprime bien Member puis User dans une transaction, correct. Filtrage par associationId + role=MEMBER + approvalStatus=PENDING → isolation multi-tenant respectée.",
+    "routes/auth.js: la vérification approvalStatus PENDING/REJECTED est bien placée AVANT bcrypt.compare, donc failedLoginAttempts n'est PAS incrémenté sur un compte PENDING/REJECTED — conforme au spec.",
+    "routes/public.js join-request: n'incrémente PAS memberCount pour les PENDING (checkMemberLimit compte seulement approvalStatus=APPROVED). Bon choix pour ne pas bloquer les inscriptions à l'approche du plafond."
+  ],
   "updated_files": [
-    "/app/backend/tests/conftest.py",
-    "/app/backend/tests/test_health_and_auth.py",
-    "/app/backend/tests/test_platform_associations.py",
-    "/app/backend/tests/test_members.py",
-    "/app/backend/tests/test_years_and_payments.py",
-    "/app/backend/tests/test_exceptional_and_vehicles.py"
+    "/app/backend/tests/test_pending_registration.py (nouveau)"
   ],
-  "test_results": {
-    "backend": "100%",
-    "frontend": "not tested (no files provided)"
-  },
-  "seed_data_creation": "Test data created and cleaned up during tests with unique identifiers",
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% (login + navigate + approve = OK)"},
+  "seed_data_creation": "3 membres PENDING créés au fil des tests: 'Awa Diallo' (+2250700000055, pré-existant), 'TEST WARM' (+2250799999998), 'TEST UI Pending' (+2250799990001). 'Awa Diallo' a été APPROUVÉE via le UI test — elle peut désormais se connecter. 2 PENDING restent (TEST WARM, TEST UI Pending). Les tests pytest créent aussi leurs propres membres 'TEST Approved' (approuvés) et 'TEST Rejected' (supprimés).",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "All backend API endpoints tested and working. PostgreSQL multi-tenant isolation verified. Frontend is Expo/React Native Web app - provide frontend_files_of_reference for E2E testing in next iteration.",
-  "features_tested": {
-    "api_health_check": "PASSED - /api endpoint returns correct status and PostgreSQL info",
-    "superadmin_login": "PASSED - /api/platform/login works with superadmin@platform.local credentials",
-    "admin_login_with_association_code": "PASSED - /api/auth/login works with drigo@drigo.local and SYNDIC-BNI code",
-    "associations_list": "PASSED - Both public and SuperAdmin protected routes work",
-    "members_crud": "PASSED - Create, Read, Update, Delete, Activate/Deactivate all working",
-    "years_crud": "PASSED - Create, Update, Delete, Activate years working",
-    "monthly_payments": "PASSED - Payment registration and retrieval working",
-    "payment_statistics": "PASSED - Stats endpoint returns correct calculations",
-    "exceptional_contributions": "PASSED - All CRUD operations and payment registration working",
-    "vehicles": "PASSED - Vehicle plate management working",
-    "association_creation_via_superadmin": "PASSED - New associations with admin users created successfully",
-    "multi_tenant_isolation": "PASSED - Data properly isolated between associations"
-  }
+  "context_for_next_testing_agent": "Backend Express tourne via supervisor 'kotiz-backend' (port 8001). Le programme 'backend' (uvicorn) doit rester STOPPED. Rate limit joinLimiter = 5/h/IP en mémoire — redémarrer 'kotiz-backend' pour le réinitialiser avant des séries de tests d'inscription. Test file: /app/backend/tests/test_pending_registration.py. Les testIDs frontend clés: pending-members-section, pending-count-badge, pending-item-<id>, pending-approve-button, pending-reject-button, join-manual-request-button, join-input-name/phone/password/confirm-password, join-toggle-password, join-toggle-confirm-password, join-submit-button, join-request-success, join-form-error.",
+  "rca_of_issue": ""
 }

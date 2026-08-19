@@ -14,7 +14,7 @@ interface MemberPayment {
   name: string;
   customFieldValue?: string;
   phone?: string;
-  paymentsByMonth: Record<number, { paid: boolean; amountPaid: number; payments: unknown[] }>;
+  paymentsByMonth: Record<number, { paid: boolean; amountPaid: number; payments: Array<{ notes?: string | null }> }>;
   totalPaid: number;
   totalDue: number;
   remaining: number;
@@ -37,6 +37,7 @@ export default function PaymentsPage() {
     month: number;
   }>({ isOpen: false, member: null, month: 1 });
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
 
   const { data: years, isLoading: loadingYears } = useQuery({
     queryKey: ['years'],
@@ -67,7 +68,7 @@ export default function PaymentsPage() {
   });
 
   const paymentMutation = useMutation({
-    mutationFn: async (data: { memberId: string; yearId: string; month: number; amountPaid: number }) => {
+    mutationFn: async (data: { memberId: string; yearId: string; month: number; amountPaid: number; notes: string }) => {
       const response = await api.post('/payments', data);
       return response.data;
     },
@@ -75,12 +76,22 @@ export default function PaymentsPage() {
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       setPaymentModal({ isOpen: false, member: null, month: 1 });
       setPaymentAmount('');
+      setPaymentNotes('');
     },
   });
+
+  const closePaymentModal = () => {
+    setPaymentModal({ isOpen: false, member: null, month: 1 });
+    setPaymentAmount('');
+    setPaymentNotes('');
+  };
 
   const openPaymentModal = (member: MemberPayment, month: number) => {
     const monthData = member.paymentsByMonth[month];
     setPaymentAmount(monthData?.amountPaid?.toString() || selectedYear?.monthlyAmount.toString() || '');
+    // Précharger la note déjà enregistrée pour ce mois (le champ vient de payments[].notes)
+    const existingNote = monthData?.payments?.find((p) => p.notes)?.notes || '';
+    setPaymentNotes(existingNote);
     setPaymentModal({ isOpen: true, member, month });
   };
 
@@ -93,6 +104,7 @@ export default function PaymentsPage() {
       yearId: selectedYear.id,
       month: paymentModal.month,
       amountPaid: parseFloat(paymentAmount),
+      notes: paymentNotes,
     });
   };
 
@@ -220,7 +232,7 @@ export default function PaymentsPage() {
         {/* Modal Paiement */}
         <Modal
           isOpen={paymentModal.isOpen}
-          onClose={() => setPaymentModal({ isOpen: false, member: null, month: 1 })}
+          onClose={closePaymentModal}
           title={`Paiement - ${MONTHS[paymentModal.month - 1]}`}
         >
           <form onSubmit={handlePayment} className="space-y-4">
@@ -239,11 +251,26 @@ export default function PaymentsPage() {
               required
             />
 
+            <div>
+              <label htmlFor="payment-notes" className="block text-sm font-medium text-gray-700 mb-1">
+                Notes (optionnel)
+              </label>
+              <textarea
+                id="payment-notes"
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                placeholder="Ajouter une note..."
+                rows={3}
+                data-testid="payment-notes-input"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary resize-none"
+              />
+            </div>
+
             <div className="flex justify-end gap-3 pt-4">
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => setPaymentModal({ isOpen: false, member: null, month: 1 })}
+                onClick={closePaymentModal}
               >
                 Annuler
               </Button>

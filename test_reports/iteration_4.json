@@ -1,0 +1,54 @@
+{
+  "summary": "Backend contract tests for the 'notes' field on POST /api/payments and GET /api/payments/year/:yearId (Kotiz web feature). 4/4 pytest tests PASS against the live preview URL using seeded ASCB admin (+2250708510832 / admin123, année 2026, membre 'Membre Note'). Le champ 'notes' est bien persisté à la création, mis à jour lors d'un second POST, relu correctement dans matrix.paymentsByMonth[m].payments[].notes (contrat consommé par web/src/app/payments/page.tsx pour le préchargement), et rétro-compatible (absent ou vide).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "verified_contract": [
+    {
+      "endpoint": "POST /api/payments",
+      "case": "avec notes non vide (création)",
+      "assertion": "201/200, body.notes === note envoyée, matrix payments[].notes contient la note",
+      "result": "PASS"
+    },
+    {
+      "endpoint": "POST /api/payments",
+      "case": "mise à jour d'un mois existant avec un nouveau notes",
+      "assertion": "body.notes === nouvelle note, matrix relit la nouvelle note",
+      "result": "PASS"
+    },
+    {
+      "endpoint": "POST /api/payments",
+      "case": "sans clé notes (rétro-compat)",
+      "assertion": "201/200, notes = null en création",
+      "result": "PASS"
+    },
+    {
+      "endpoint": "POST /api/payments",
+      "case": "notes='' sur update (rétro-compat)",
+      "assertion": "201/200, la note existante est PRÉSERVÉE (route utilise `notes || existingPayment.notes`)",
+      "result": "PASS"
+    }
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_payment_notes.py",
+    "/app/test_reports/pytest/payment_notes.xml"
+  ],
+  "action_items": [
+    "AUCUN bug backend détecté sur le contrat notes. Le web (web/src/app/payments/page.tsx) peut envoyer/recevoir en toute confiance {notes} dans POST /api/payments et lire matrix.members[].paymentsByMonth[m].payments[].notes pour le préchargement.",
+    "Point de vigilance produit (non bloquant): sur le chemin UPDATE de POST /api/payments (routes/payments.js ligne 324), `notes: notes || existingPayment.notes` empêche l'effacement d'une note existante en envoyant '' (chaîne vide). Si l'UI web propose un jour d'EFFACER une note, il faudra soit envoyer null explicitement, soit utiliser PUT /api/payments/:id qui gère bien `notes !== undefined` (ligne 393). À clarifier avec le PO si besoin."
+  ],
+  "critical_code_review_comments": [
+    "routes/payments.js:324 (POST update path) : `notes: notes || existingPayment.notes` — impossible de vider une note via POST (envoyer '' préserve l'ancienne). Comportement OK pour l'implémentation web actuelle qui n'expose pas l'effacement, mais différent du PUT /api/payments/:id (ligne 393) qui respecte `notes !== undefined`.",
+    "routes/payments.js:341 : `res.status(201).json(payment)` est appelé AVANT `logActivity(...)` (fire-and-forget). OK fonctionnellement mais toute exception synchrone dans logActivity après la réponse serait silencieusement loggée; s'assurer que logActivity est vraiment safe (try/catch interne)."
+  ],
+  "updated_files": ["/app/backend/tests/test_payment_notes.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "N/A (backend-only run per review request)"},
+  "seed_data_creation": "Aucun nouveau membre créé. Utilisation du seed existant: association ASCB, admin +2250708510832, année 2026 (5000 FCFA/mois), membre 'Membre Note'. Les tests écrivent sur les mois 11 (Novembre) et 12 (Décembre) du membre 'Membre Note' avec des notes préfixées TEST_ pour éviter de polluer les mois utilisés par les tests UI (mois 1 Janvier = 'Note préchargée test', mois 2 Février vide).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Base URL testée: https://ascb-join-request.preview.emergentagent.com (préférée à http://localhost:8001 par convention). Login admin ASCB: POST /api/auth/login body {identifier:'+2250708510832', password:'admin123', associationCode:'ASCB'}. Récupérer yearId via GET /api/years (renvoie une liste). memberId attendu par POST /api/payments = Member.id (celui renvoyé par GET /api/payments/year/:yearId dans members[].id) — la route accepte aussi userId mais le web envoie member.id. Le champ 'notes' est bien traversant (POST body -> DB -> GET matrix payments[].notes). Chemin UPDATE POST: `notes || existingPayment.notes` (POST ne peut pas effacer une note); pour effacer, utiliser PUT /api/payments/:id avec notes:null."
+}

@@ -1,0 +1,33 @@
+{
+  "summary": "REGRESSION check après restauration des 6 fichiers (dont la migration Prisma 20260817_add_approval_status/migration.sql): tout est OK. Le schéma DB confirme la colonne User.approvalStatus (text NOT NULL default 'APPROVED') + index User_approvalStatus_idx. Backend Express (kotiz-backend port 8001) redémarré, health-check OK. Les 14 tests pytest de test_pending_registration.py passent tous (14/14), couvrant: création PENDING sans JWT (201), password<8 → 400, doublon téléphone → 409 ALREADY_MEMBER, login PENDING → 403 PENDING_APPROVAL, listing admin pending, approve → count + login OK ensuite (200 + token), reject → suppression member+user (login → 401), auth requise sur les routes admin, ids vide → 400. Aucune régression détectée.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pending_registration.py",
+    "/app/test_reports/pytest/pending_registration.xml"
+  ],
+  "action_items": [
+    "Aucune action requise — la fonctionnalité 'Inscription en attente' fonctionne bout-en-bout après restauration des fichiers."
+  ],
+  "critical_code_review_comments": [
+    "Migration SQL restaurée conforme: ALTER TABLE User ADD COLUMN IF NOT EXISTS approvalStatus TEXT NOT NULL DEFAULT 'APPROVED' + CREATE INDEX IF NOT EXISTS User_approvalStatus_idx. Idempotente, sûre à rejouer.",
+    "routes/public.js join-request: passwordHash bcrypt(10), transaction User+Member, approvalStatus='PENDING', PAS de token JWT retourné — conforme au spec.",
+    "routes/auth.js login: vérification approvalStatus PENDING/REJECTED AVANT bcrypt.compare → failedLoginAttempts non incrémenté sur PENDING (bonne pratique).",
+    "routes/admin.js pending-members/reject: filtre bien par associationId+role=MEMBER+approvalStatus=PENDING, puis transaction deleteMany members puis users — isolation multi-tenant respectée."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "N/A (backend only)"},
+  "seed_data_creation": "Les tests créent leurs propres users PENDING avec téléphones uniques (_unique_phone basé sur timestamp) et nettoient / laissent en DB selon le scénario (approve laisse un APPROVED, reject supprime). Aucun impact sur les données admin ASCB (admin +2250708510832 intact).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend Express tourne via supervisor 'kotiz-backend' (port 8001). Ignorer le programme 'backend' (uvicorn du template). DB confirmée: User.approvalStatus + index User_approvalStatus_idx présents. Test file de référence: /app/backend/tests/test_pending_registration.py. Rate limit joinLimiter = 5/h/IP (in-memory) — redémarrer kotiz-backend si séries de tests dépassent 5 join-requests.",
+  "rca_of_issue": "N/A — pas de bug, simple check de régression après restauration des 6 fichiers (dont la migration critique). Tous les tests passent."
+}

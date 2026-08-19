@@ -1,0 +1,41 @@
+{
+  "summary": "Bug fix formally validated: 'notes' can now be cleared via POST/PUT /api/payments while remaining backward-compatible when the key is absent. 10/10 pytest tests PASS against the preview URL using ASCB admin (+2250708510832 / admin123, année 2026, membre 'Membre Note'). Covers POST upsert path (create/update, empty/absent/valued notes), PUT path, and non-regression on amountPaid & paymentDate. Le comportement du code (routes/payments.js lignes 325-326 et 398) correspond exactement au contrat demandé: `if (notes !== undefined) x.notes = notes || null`.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "verified_contract": [
+    {"endpoint": "POST /api/payments", "case": "création avec notes='X'", "result": "PASS - notes='X' persisté"},
+    {"endpoint": "POST /api/payments", "case": "update avec notes='' (CORE FIX)", "result": "PASS - notes devient null en DB et dans réponse"},
+    {"endpoint": "POST /api/payments", "case": "update sans clé notes (compat)", "result": "PASS - note existante préservée, amountPaid mis à jour"},
+    {"endpoint": "POST /api/payments", "case": "création sans notes", "result": "PASS - notes=null"},
+    {"endpoint": "POST /api/payments", "case": "création avec notes=''", "result": "PASS - notes=null, pas d'erreur"},
+    {"endpoint": "POST /api/payments", "case": "non-régression amountPaid/paymentDate", "result": "PASS"},
+    {"endpoint": "PUT /api/payments/:id", "case": "notes=''", "result": "PASS - notes cleared to null"},
+    {"endpoint": "PUT /api/payments/:id", "case": "sans notes", "result": "PASS - notes inchangées"},
+    {"endpoint": "PUT /api/payments/:id", "case": "notes='X'", "result": "PASS - notes='X'"},
+    {"endpoint": "PUT /api/payments/:id", "case": "non-régression amountPaid/paymentDate", "result": "PASS"}
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_payment_notes_clear.py",
+    "/app/test_reports/pytest/payment_notes_clear.xml"
+  ],
+  "action_items": [
+    "AUCUN. Le correctif backend est conforme et complet: POST /api/payments et PUT /api/payments/:id distinguent bien 'notes non fourni' (compat, on garde) de 'notes fourni mais vide' (on vide -> null).",
+    "Note produit (non bloquant): l'ancien test test_payment_notes.py (iteration_4) contenait un test_4 qui asserait l'ancien comportement bugué ('' préserve la note via POST update). Ce test est désormais obsolète et va ÉCHOUER avec le correctif appliqué. À supprimer ou remplacer par le nouveau fichier test_payment_notes_clear.py (recommandation: retirer test_payment_notes.py::test_4_update_clears_or_keeps_notes_predictably)."
+  ],
+  "critical_code_review_comments": [
+    "routes/payments.js:325-326 (POST update): `if (notes !== undefined) updatedData.notes = notes || null` — correct. Nuance: si un jour un client envoie notes='0' (littéral) ou une string 'falsy' non vide, `|| null` la convertirait en null. En pratique '0' n'est pas envoyé pour notes, mais si un besoin plus strict apparaît, préférer `notes === '' ? null : notes`.",
+    "routes/payments.js:398 (PUT): même remarque, comportement cohérent avec POST.",
+    "routes/payments.js:346 `res.status(201).json(payment)` sur la branche UPDATE renvoie 201 alors qu'une simple mise à jour serait plus idiomatique en 200. Non bloquant (les tests acceptent 200/201)."
+  ],
+  "updated_files": ["/app/backend/tests/test_payment_notes_clear.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "N/A (backend-only)"},
+  "seed_data_creation": "Aucun. Utilisation du seed existant (association ASCB, admin +2250708510832, année 2026, membre 'Membre Note'). Les tests utilisent les mois 6 (Juin) et 7 (Juillet) avec cleanup automatique via DELETE /api/payments/:id avant et après chaque test pour éviter toute collision avec les tests d'itérations précédentes (mois 1, 2, 11, 12).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "BASE_URL=https://ascb-join-request.preview.emergentagent.com (via EXPO_PUBLIC_BACKEND_URL). Login admin ASCB: POST /api/auth/login {identifier:'+2250708510832', password:'admin123', associationCode:'ASCB'}. Pour tester le champ notes de nouveau, réutiliser /app/backend/tests/test_payment_notes_clear.py: il fait cleanup auto (DELETE avant/après). ATTENTION: /app/backend/tests/test_payment_notes.py contient un test_4 obsolète qui va échouer avec le correctif — le main agent devrait le supprimer ou le mettre à jour."
+}

@@ -65,7 +65,13 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Déverrouiller l'app avec Face ID"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

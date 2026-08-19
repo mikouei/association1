@@ -316,13 +316,18 @@ router.post('/', requireAdmin, async (req, res) => {
     
     if (existingPayment) {
       // MISE À JOUR: Remplacer le montant existant (ne pas accumuler)
+      const updatedData = {
+        amountPaid: parseFloat(amountPaid),
+        paymentDate: paymentDate ? new Date(paymentDate) : new Date()
+      };
+      // "notes" non fourni => on garde l'ancienne valeur (compat).
+      // "notes" fourni (même vide) => on l'applique, "" vide donc la note.
+      if (notes !== undefined) {
+        updatedData.notes = notes || null;
+      }
       payment = await prisma.monthlyPayment.update({
         where: { id: existingPayment.id },
-        data: {
-          amountPaid: parseFloat(amountPaid),
-          paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-          notes: notes || existingPayment.notes
-        }
+        data: updatedData
       });
     } else {
       // CRÉATION: Nouveau paiement
@@ -390,7 +395,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const updateData = {};
     if (amountPaid !== undefined) updateData.amountPaid = parseFloat(amountPaid);
     if (paymentDate) updateData.paymentDate = new Date(paymentDate);
-    if (notes !== undefined) updateData.notes = notes;
+    if (notes !== undefined) updateData.notes = notes || null;
 
     const payment = await prisma.monthlyPayment.update({
       where: { id },

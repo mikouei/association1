@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Application from 'expo-application';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { AuthProvider } from '../context/AuthContext';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import { OfflineProvider } from '../context/OfflineContext';
 import ErrorBoundary from '../components/ErrorBoundary';
+import BiometricLock from '../components/BiometricLock';
 
 const REFERRER_PROCESSED_KEY = '@kotiz_referrer_processed';
 const PRESELECTED_ASSOC_KEY = '@kotiz_preselected_association';
@@ -26,6 +27,7 @@ if (GOOGLE_WEB_CLIENT_ID) {
 function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
+  const { isLocked } = useAuth();
 
   // Détection du referrer après installation fraîche (Android uniquement)
   useEffect(() => {
@@ -64,14 +66,17 @@ function RootLayoutNav() {
   }, []);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="login" />
-      <Stack.Screen name="register-association" />
-      <Stack.Screen name="join/[code]" />
-      <Stack.Screen name="activity-log" />
-      <Stack.Screen name="(tabs)" />
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="register-association" />
+        <Stack.Screen name="join/[code]" />
+        <Stack.Screen name="activity-log" />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+      {isLocked && <BiometricLock />}
+    </View>
   );
 }
 

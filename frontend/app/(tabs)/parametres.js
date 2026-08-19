@@ -14,6 +14,7 @@ import {
   FlatList,
   Share,
   Linking,
+  Switch,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -21,7 +22,7 @@ import {
   ArrowLeft, FolderOpen, Eye, CloudArrowUp, Download, File, FileText,
   SignOut, Trash, Warning, CaretRight, QrCode, Copy, ShareNetwork,
   WhatsappLogo, ClockCounterClockwise, UsersThree, UserSwitch,
-  UserPlus, CheckSquare, Square, Check
+  UserPlus, CheckSquare, Square, Check, FingerprintSimple
 } from 'phosphor-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
@@ -38,7 +39,24 @@ import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 const APP_DOMAIN = 'https://mobile-bug-crush-1.preview.emergentagent.com';
 
 export default function Parametres() {
-  const { user, logout, association, linkedAccounts, switchAccount, removeLinkedAccount } = useAuth();
+  const { user, logout, association, linkedAccounts, switchAccount, removeLinkedAccount, biometricEnabled, biometricSupported, setBiometricEnabled } = useAuth();
+  const [bioToggling, setBioToggling] = useState(false);
+
+  const handleToggleBiometric = async (value) => {
+    setBioToggling(true);
+    const res = await setBiometricEnabled(value);
+    setBioToggling(false);
+    if (!res?.success) {
+      if (res?.error === 'not_available') {
+        Alert.alert(
+          'Indisponible',
+          "Aucune biométrie n'est configurée sur cet appareil. Activez Face ID / empreinte dans les réglages de votre téléphone."
+        );
+      } else if (value) {
+        Alert.alert('Échec', "L'authentification biométrique a échoué. Réessayez.");
+      }
+    }
+  };
   const router = useRouter();
   const isAdmin = user?.role === 'ADMIN';
 
@@ -986,6 +1004,32 @@ export default function Parametres() {
           </View>
         )}
 
+        {/* Sécurité - Déverrouillage biométrique */}
+        <View style={styles.section} testID="security-section">
+          <Text style={styles.sectionTitle}>Sécurité</Text>
+          <View style={styles.bioRow}>
+            <View style={styles.bioIconWrap}>
+              <FingerprintSimple size={22} color={colors.primary} weight="bold" />
+            </View>
+            <View style={styles.bioTextWrap}>
+              <Text style={styles.bioLabel}>Déverrouillage biométrique</Text>
+              <Text style={styles.bioHint}>
+                {biometricSupported
+                  ? "Exiger Face ID / empreinte à l'ouverture de l'app"
+                  : 'Non disponible sur cet appareil'}
+              </Text>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={handleToggleBiometric}
+              disabled={!biometricSupported || bioToggling}
+              trackColor={{ true: colors.primary, false: colors.border }}
+              thumbColor={colors.backgroundWhite}
+              testID="biometric-toggle"
+            />
+          </View>
+        </View>
+
         {/* Aide / Support */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aide / Support</Text>
@@ -1451,6 +1495,36 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
   },
+  bioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundWhite,
+    borderRadius: borderRadius.card,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  bioIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bioTextWrap: {
+    flex: 1,
+  },
+  bioLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  bioHint: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+
   pendingTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',

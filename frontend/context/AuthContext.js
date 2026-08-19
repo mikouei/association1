@@ -9,8 +9,11 @@ import {
   clearBadge,
   addNotificationResponseListener
 } from '../utils/notifications';
+import { isBiometricAvailable, authenticateBiometric } from '../utils/biometrics';
 
 const AuthContext = createContext();
+
+const BIOMETRIC_ENABLED_KEY = 'biometricEnabled';
 
 // Helper pour vérifier si on est sur le web
 const isWeb = Platform.OS === 'web';
@@ -83,6 +86,11 @@ export const AuthProvider = ({ children }) => {
   // Pour la reconnexion rapide des membres
   const [memberAccessToken, setMemberAccessToken] = useState(null);
   const [canQuickReconnect, setCanQuickReconnect] = useState(false);
+
+  // Déverrouillage biométrique (couche par-dessus une session déjà active)
+  const [biometricEnabled, setBiometricEnabledState] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   
   // Récupérer clearCache depuis OfflineContext
   const { clearCache } = useOffline();
@@ -181,6 +189,16 @@ export const AuthProvider = ({ children }) => {
       const storedLinkedAccounts = await getStorageItem('linkedAccounts');
       const storedMemberAccessToken = await getStorageItem('memberAccessToken');
 
+      // Charger la préférence de déverrouillage biométrique + support matériel
+      const storedBiometric = await getStorageItem(BIOMETRIC_ENABLED_KEY);
+      const bioPref = storedBiometric === 'true';
+      setBiometricEnabledState(bioPref);
+      let bioSupported = false;
+      if (!isWeb) {
+        bioSupported = await isBiometricAvailable();
+        setBiometricSupported(bioSupported);
+      }
+
       // Charger le memberAccessToken pour reconnexion rapide
       if (storedMemberAccessToken) {
         setMemberAccessToken(storedMemberAccessToken);
@@ -190,6 +208,11 @@ export const AuthProvider = ({ children }) => {
         setToken(storedToken);
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
+
+        // Verrouiller si la biométrie est activée + disponible (couche par-dessus la session)
+        if (bioPref && bioSupported && !isWeb) {
+          setIsLocked(true);
+        }
         
         let parsedAssociation = null;
         if (storedAssociation) {
@@ -299,6 +322,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setAssociation(null);
       setLinkedAccounts([]);
+      setIsLocked(false);
     } catch (error) {
       console.error('Erreur logout:', error);
     }
@@ -413,6 +437,39 @@ export const AuthProvider = ({ children }) => {
     await removeStorageItem('memberAccessToken');
   };
 
+  // ── Déverrouillage biométrique (couche de sécurité par-dessus la session) ──
+  // Activer/désactiver la préférence. À l'activation, on confirme d'abord l'identité.
+  const setBiometricEnabled = async (enabled) => {
+    if (isWeb) return { success: false, error: 'not_available' };
+    if (enabled) {
+      const available = await isBiometricAvailable();
+      if (!available) {
+        return { success: false, error: 'not_available' };
+      }
+      const res = await authenticateBiometric('Confirmez pour activer le déverrouillage biométrique');
+      if (!res.success) {
+        return { success: false, error: res.error || 'failed' };
+      }
+      await setStorageItem(BIOMETRIC_ENABLED_KEY, 'true');
+      setBiometricEnabledState(true);
+      setBiometricSupported(true);
+      return { success: true };
+    }
+    await setStorageItem(BIOMETRIC_ENABLED_KEY, 'false');
+    setBiometricEnabledState(false);
+    setIsLocked(false);
+    return { success: true };
+  };
+
+  // Tenter de déverrouiller l'app avec la biométrie (session déjà active en local)
+  const unlockApp = async () => {
+    const res = await authenticateBiometric('Déverrouiller Kotiz');
+    if (res.success) {
+      setIsLocked(false);
+    }
+    return res;
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -429,7 +486,13 @@ export const AuthProvider = ({ children }) => {
       // Reconnexion rapide pour les membres
       canQuickReconnect,
       memberAccessToken,
-      clearQuickReconnect
+      clearQuickReconnect,
+      // Déverrouillage biométrique
+      biometricEnabled,
+      biometricSupported,
+      isLocked,
+      setBiometricEnabled,
+      unlockApp
     }}>
       {children}
     </AuthContext.Provider>

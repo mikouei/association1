@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only test of /register-association 2-step flow. 11/16 checks PASS on pure frontend behaviour (all step/validation/back-preservation cases). The 5 FAIL entries are all downstream of ONE backend/env blocker: PostgreSQL is DOWN in this preview container, so GET /api/public/associations/check-code/:code and POST /api/public/associations/register both return HTTP 500 ('Erreur serveur' / 'Can't reach database server at localhost:5432'). PostgreSQL is not even installed (`postgres`, `pg_ctl`, `pg_isready` binaries missing; `dpkg -l | grep -i postgres` empty; nothing listening on :5432). Because of that: (a) 'ASCB' is never reported taken (call errors out → status stays 'idle'), (b) the random TESTxxxxxx code never reaches 'available', and (c) 'Créer mon association' click cannot succeed. The frontend itself is correct: step-1 renders, indicator reads 'Étape 1/2 — Votre compte', ALL 4 local validations block Suivant (empty form, name-only w/o email/phone, password <8, mismatched confirm), Suivant advances to step-2 with indicator 'Étape 2/2 — Votre association', Retour returns to step-1 with name/phone/password fully preserved, and the 'Créer mon association' button correctly disables until codeStatus === 'available'. Google button is disabled (EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID not set) — not counted as failure per the task note.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/public/associations/check-code/:code", "issue": "Returns HTTP 500 'Erreur serveur'. Backend logs show PrismaClientInitializationError: Can't reach database server at localhost:5432. PostgreSQL is not running (and appears not installed) in this preview container.", "priority": "CRITICAL"},
+      {"endpoint": "POST /api/public/associations/register", "issue": "Cannot be exercised end-to-end because the register-association screen blocks the button until check-code returns 'available', which is impossible while PostgreSQL is down. Same root cause.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "register-association final POST", "issue": "Cannot be validated end-to-end due to backend DB outage (see backend_issues). Frontend logic gating (codeStatus === 'available' required) is correct; button correctly stays disabled while API is failing.", "affected_testIDs": ["register-assoc-code", "register-create-button"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "register-association.js (React Native web)", "issue": "Console prints repeated 'Unexpected text node: . A text node cannot be a child of a <View>.' Likely a stray whitespace text node between View children (probably around the type <Text style={styles.hint}> inline inside a label, or between JSX blocks). Non-blocking but pollutes logs and can crash on native. Reference: /app/frontend/app/register-association.js"},
+      {"component": "GoogleSignInButton / props.pointerEvents", "issue": "Warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Likely inside GoogleSignInButton or a wrapper. Reference: /app/frontend/components/GoogleSignInButton.js"},
+      {"component": "shadow* style props", "issue": "Warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Present somewhere in shared styles (likely theme or a card style). Non-blocking on web but should be migrated."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "URGENT: Restore PostgreSQL in the preview container. It is missing entirely (no `postgres`/`pg_ctl`/`pg_isready` binaries, nothing on :5432, dpkg shows no postgresql packages) even though backend/.env points at postgresql://postgres:postgres@localhost:5432/kotiz and Prisma requires it. Without this, ANY public/private endpoint hitting the DB (check-code, register, login, everything) will 500. Install postgresql-15, start it, run `npx prisma migrate deploy` + the existing seed so association ASCB exists again. Then re-run this iteration to confirm the last 3 checks (code taken, code available, final creation with success screen).",
+    "Fix the 'Unexpected text node' warnings in /app/frontend/app/register-association.js — search for JSX places where a stray whitespace/text sits directly inside a <View> instead of inside a <Text> (likely near the inline `<Text style={styles.hint}> (min. 8 caractères)</Text>` fragments or between conditional blocks).",
+    "Migrate deprecated 'shadow*' style props to 'boxShadow' and 'props.pointerEvents' to style.pointerEvents in the affected components (see react_native_issues)."
+  ],
+  "critical_code_review_comments": [
+    "register-association.js correctly implements the 2-step spec: step state, testIDs (register-step-1/2, register-step-indicator, register-next-button, register-back-button, register-create-button, register-admin-*, register-assoc-*), local validation of name/email-or-phone/password>=8/confirm match on Suivant, code availability debounce (500ms), disabled Créer while codeStatus !== 'available', and single final API call (register OR register-google) with combined payload. Back button uses setStep(1) without resetting any state, so admin fields are preserved — verified empirically.",
+    "File is 848 lines — borderline; consider splitting the success screen and step-2 form into sub-components for readability (non-blocking).",
+    "The Google path capture handler correctly stores idToken in state and only fires POST /register-google when Créer is pressed at step 2 — matches spec (single API call at the end)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "0% (DB down — every DB-backed public endpoint returns 500)", "frontend": "100% for the 11 UI/logic checks that don't depend on the DB (all step nav + validation + back preservation + disabled-button gating)"},
+  "seed_data_creation": "None. Attempted to create TESTxxxxxx association but backend rejected due to DB outage.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview container has NO PostgreSQL installed (dpkg empty, binaries missing, nothing on :5432). Backend supervisor program is 'kotiz-backend' (Node/Express, port 8001); the 'backend' program (uvicorn template) is FATAL and can be ignored per task note. Once DB is back and seeded, only 3 checks remain to validate: (1) 'ASCB' shows red XCircle + 'Ce code est déjà utilisé' + create button stays disabled; (2) fresh TESTxxxxxx shows green CheckCircle + 'Code disponible !' + create button enabled; (3) clicking 'Créer mon association' triggers POST /api/public/associations/register and lands on success screen showing the created code. Everything else already passes.",
+  "rca_of_issue": "Root cause: PostgreSQL server is absent from the preview container (packages not installed, no listener on 5432). Prisma throws PrismaClientInitializationError on every DB query; the check-code and register endpoints catch it and return HTTP 500 'Erreur serveur'. The register-association frontend is correct: it debounces the check-code call, keeps codeStatus 'idle' when the request errors, keeps the 'Créer mon association' button disabled, and never triggers the final POST — exactly the safe behaviour. Reproduction: `curl https://ascb-join-request.preview.emergentagent.com/api/public/associations/check-code/ASCB` → 500. Mitigation: install and start postgresql-15, restore the Prisma schema (`npx prisma migrate deploy`), and re-seed the ASCB association; then re-run this iteration's playwright script to green-light the remaining 5 checks."
+}

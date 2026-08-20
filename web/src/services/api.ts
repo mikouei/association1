@@ -97,26 +97,39 @@ const handleError = (error: any) => {
     console.warn("Unauthorized request");
 
     if (typeof window !== "undefined") {
-      const failedToken = localStorage.getItem("authToken");
-      
-      // Retirer le compte mort de linkedAccounts si c'est une erreur association
-      if (failedToken && error.config?.baseURL?.includes('/api')) {
+      // Token exact utilisé par la requête qui a échoué
+      const reqAuth = error.config?.headers?.Authorization;
+
+      // Si la requête échouée n'utilisait AUCUN token (ex: tentative de connexion),
+      // ne toucher à aucun token existant (évite d'effacer la session d'un autre onglet).
+      if (!reqAuth) {
+        return Promise.reject(error);
+      }
+
+      const authToken = localStorage.getItem("authToken");
+      const platformToken = localStorage.getItem("platformToken");
+
+      // Ne supprimer QUE le token qui correspond EXACTEMENT à celui de la requête échouée
+      if (authToken && reqAuth === `Bearer ${authToken}`) {
+        // Retirer le compte mort de linkedAccounts
         try {
           const storedAccounts = localStorage.getItem("linkedAccounts");
           if (storedAccounts) {
             const accounts = JSON.parse(storedAccounts);
             const filteredAccounts = accounts.filter(
-              (acc: { token: string }) => acc.token !== failedToken
+              (acc: { token: string }) => acc.token !== authToken
             );
             localStorage.setItem("linkedAccounts", JSON.stringify(filteredAccounts));
           }
         } catch (e) {
           console.warn("Failed to update linkedAccounts after 401");
         }
+        localStorage.removeItem("authToken");
+      } else if (platformToken && reqAuth === `Bearer ${platformToken}`) {
+        localStorage.removeItem("platformToken");
       }
-      
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("platformToken");
+      // Sinon: le token qui a échoué n'est plus le token actif (autre onglet / autre session)
+      // => on ne supprime rien.
     }
   }
 

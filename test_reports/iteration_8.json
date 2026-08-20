@@ -1,0 +1,30 @@
+{
+  "summary": "Re-tested the 3 previously blocked checks of the 2-step association registration flow in /app/frontend/app/register-association.js after the PostgreSQL restore. All 3 checks PASS. (1) With code 'ASCB' the debounced check-code call returns taken; UI shows red XCircle + 'Ce code est déjà utilisé' and register-create-button is aria-disabled=true. (2) With a unique random code (ZZTEST12342) the UI shows green CheckCircle + 'Code disponible !' and register-create-button becomes enabled. (3) Full email/password creation path (register-admin-name, unique register-admin-phone, register-admin-password/confirm >=8, Suivant, register-assoc-name + unique register-assoc-code, click register-create-button) triggers POST /public/associations/register successfully and the success screen displays with the association code, 'Association créée avec succès !' title and the 'Continuer vers mon tableau de bord' button. Backend GET /public/associations/check-code/ASCB -> {available:false,reason:'taken'} and unique code -> {available:true} confirmed via curl on port 8001.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "register-association.js", "issue": "Console warning: 'shadow*' style props are deprecated. Use 'boxShadow'. Not blocking but should be migrated. Reference: /app/frontend/app/register-association.js"},
+      {"component": "register-association.js", "issue": "Console error observed on step transitions: 'Unexpected text node: . A text node cannot be a child of a <View>.' — likely a stray whitespace/expression between View children (possibly around the conditional google badge or hint text). Non-blocking but should be cleaned up. Reference: /app/frontend/app/register-association.js:411-418 (googleConnectedBadge conditional area) or nearby JSX."},
+      {"component": "global", "issue": "Console warning: props.pointerEvents is deprecated. Use style.pointerEvents. Comes from a shared component (likely GoogleSignInButton wrapper or Modal). Non-blocking."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate and clean up the 'Unexpected text node' React Native web warnings in register-association.js JSX (stray whitespace or empty expression inside a <View>).",
+    "Migrate deprecated 'shadow*' style props to 'boxShadow' and props.pointerEvents to style.pointerEvents (project-wide, low priority)."
+  ],
+  "critical_code_review_comments": [
+    "Debounce timer is 500ms as documented; combined with API latency, ~600-800ms wait is realistic before feedback appears — matches observed behavior.",
+    "register-create-button uses disabled + createButtonDisabled style based on codeStatus !== 'available' — behavior verified end-to-end."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created one association via UI with code ZZTEST12342 and admin phone 0783742335 (unique random). No cleanup performed; safe test data prefixed for identification.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 3 remaining checks of the register-association 2-step flow now PASS after the PostgreSQL reinstall. Real backend is supervisor program 'kotiz-backend' on port 8001 (ignore the template 'backend' uvicorn program). Public endpoint GET /public/associations/check-code/{code} is functional. Non-blocking react-native-web console warnings remain (unexpected text node, deprecated shadow/pointerEvents props).",
+  "rca_of_issue": "N/A — previously reported blockage was due to the DB being unavailable; now resolved. Retest confirms UI + backend integration end-to-end works."
+}

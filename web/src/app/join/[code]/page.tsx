@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Buildings, AndroidLogo, WhatsappLogo, Warning } from '@phosphor-icons/react';
+import { Buildings, AndroidLogo, WhatsappLogo, Warning, UserPlus, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
 import { toast } from 'sonner';
@@ -28,6 +28,49 @@ export default function JoinPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [showLoginHighlight, setShowLoginHighlight] = useState(false);
+
+  // Inscription manuelle (demande en attente de validation)
+  const [showForm, setShowForm] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formPassword, setFormPassword] = useState('');
+  const [formConfirm, setFormConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleJoinRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    const name = formName.trim();
+    const phone = formPhone.trim();
+    if (!name) { setFormError('Veuillez renseigner votre nom'); return; }
+    if (!phone) { setFormError('Veuillez renseigner votre numéro de téléphone'); return; }
+    if (formPassword.length < 8) { setFormError('Le mot de passe doit contenir au moins 8 caractères'); return; }
+    if (formPassword !== formConfirm) { setFormError('Les mots de passe ne correspondent pas'); return; }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_URL}/api/public/associations/${code}/join-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, password: formPassword }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Erreur lors de l'envoi de la demande");
+      }
+      setSubmitted(true);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setFormError(error.message || "Erreur lors de l'envoi de la demande");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchAssociationInfo = async () => {
@@ -140,6 +183,31 @@ export default function JoinPage() {
     }
   };
 
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-[var(--color-secondary)] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center" data-testid="join-request-success">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Buildings size={32} weight="duotone" className="text-green-600" />
+          </div>
+          <h2 className="text-xl font-bold text-[var(--color-text)] mb-2">
+            Votre demande a été envoyée
+          </h2>
+          <p className="text-[var(--color-text-muted)] mb-6">
+            Votre demande d&apos;inscription à {association.name} est en attente de validation
+            par un administrateur. Vous pourrez vous connecter une fois votre compte approuvé.
+          </p>
+          <Link
+            href={`/login?code=${code}`}
+            className="inline-block w-full py-3 bg-[var(--color-primary)] text-[var(--color-text-on-primary)] font-medium rounded-[var(--radius-button)] hover:opacity-90 transition-opacity text-center"
+          >
+            Aller à la connexion
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--color-secondary)] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
@@ -204,6 +272,118 @@ export default function JoinPage() {
           >
             {showLoginHighlight ? '→ ' : ''}Se connecter à {association.name}
           </Link>
+
+          {/* Inscription manuelle (demande en attente de validation) */}
+          {!showForm ? (
+            <button
+              type="button"
+              onClick={() => { setShowForm(true); setFormError(null); }}
+              data-testid="join-manual-request-button"
+              className="flex items-center justify-center gap-2 w-full py-3 border border-[var(--color-primary)] text-[var(--color-primary)] font-medium rounded-[var(--radius-button)] hover:bg-[var(--color-warning-bg)] transition-colors"
+            >
+              <UserPlus size={20} weight="bold" />
+              Demander à rejoindre manuellement
+            </button>
+          ) : (
+            <form onSubmit={handleJoinRequest} className="text-left space-y-3" data-testid="join-request-form">
+              <div>
+                <p className="text-sm font-semibold text-[var(--color-text)] mb-1">Demande d&apos;inscription</p>
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  Votre compte sera activé après validation par un administrateur.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Nom complet</label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="Ex: Jean Kouassi"
+                  data-testid="join-input-name"
+                  className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Téléphone</label>
+                <input
+                  type="tel"
+                  value={formPhone}
+                  onChange={(e) => setFormPhone(e.target.value)}
+                  placeholder="Ex: +225 07 00 00 00 00"
+                  data-testid="join-input-phone"
+                  className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Mot de passe</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formPassword}
+                    onChange={(e) => setFormPassword(e.target.value)}
+                    placeholder="Au moins 8 caractères"
+                    data-testid="join-input-password"
+                    className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 pr-10 text-sm text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    data-testid="join-toggle-password"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+                  >
+                    {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1">Confirmer le mot de passe</label>
+                <div className="relative">
+                  <input
+                    type={showConfirm ? 'text' : 'password'}
+                    value={formConfirm}
+                    onChange={(e) => setFormConfirm(e.target.value)}
+                    placeholder="Retapez le mot de passe"
+                    data-testid="join-input-confirm-password"
+                    className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 pr-10 text-sm text-[var(--color-text)] focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm((v) => !v)}
+                    data-testid="join-toggle-confirm-password"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+                  >
+                    {showConfirm ? <EyeSlash size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              {formError && (
+                <p className="text-sm text-[var(--color-error)]" data-testid="join-form-error">{formError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                data-testid="join-submit-button"
+                className="w-full py-3 bg-[var(--color-primary)] text-[var(--color-text-on-primary)] font-semibold rounded-[var(--radius-button)] hover:opacity-90 transition-opacity disabled:opacity-60"
+              >
+                {submitting ? 'Envoi...' : 'Envoyer ma demande'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setFormError(null); }}
+                data-testid="join-form-cancel"
+                className="w-full py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              >
+                Annuler
+              </button>
+            </form>
+          )}
           
           <a
             href={playStoreUrl}

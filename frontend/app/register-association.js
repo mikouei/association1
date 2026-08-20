@@ -61,6 +61,10 @@ export default function RegisterAssociation() {
   const [success, setSuccess] = useState(null);
   const [showTypeModal, setShowTypeModal] = useState(false);
 
+  // Navigation en 2 étapes
+  const [step, setStep] = useState(1);
+  const [googleIdToken, setGoogleIdToken] = useState(null);
+
   const types = [
     { value: 'association', label: 'Association' },
     { value: 'amicale', label: 'Amicale' },
@@ -94,52 +98,40 @@ export default function RegisterAssociation() {
     return () => clearTimeout(timer);
   }, [code]);
 
-  // Création via Google
-  const handleGoogleCredential = async (idToken) => {
-    // Validations minimales
-    if (!name.trim()) {
-      Alert.alert('Erreur', 'Veuillez d\'abord saisir le nom de l\'association');
-      return;
-    }
-    if (!code.trim() || codeStatus !== 'available') {
-      Alert.alert('Erreur', 'Veuillez choisir un code valide et disponible');
-      return;
-    }
-
-    setGoogleLoading(true);
-
-    try {
-      const response = await api.post('/public/associations/register-google', {
-        idToken,
-        name: name.trim(),
-        type,
-        code: code.toUpperCase().trim(),
-      });
-
-      const { token, association, admin } = response.data;
-
-      // Afficher le succès avec le code
-      setSuccess({
-        code: association.code,
-        name: association.name,
-        token,
-        admin,
-        association,
-      });
-    } catch (error) {
-      const message = error.response?.data?.error || 'Erreur lors de la création';
-      Alert.alert('Erreur', message);
-    } finally {
-      setGoogleLoading(false);
-    }
+  // Étape 1 avec Google : on capture UNIQUEMENT le idToken en mémoire (aucun appel API ici)
+  const handleGoogleCredential = (idToken) => {
+    setGoogleIdToken(idToken);
+    setStep(2);
   };
 
   const handleGoogleError = (message) => {
     Alert.alert('Erreur Google', message);
   };
 
+  // Étape 1 (chemin email/mot de passe) -> validation locale puis passage à l'étape 2
+  const goToStep2 = () => {
+    if (!adminName.trim()) {
+      Alert.alert('Erreur', 'Votre nom est requis');
+      return;
+    }
+    if (!adminEmail.trim() && !adminPhone.trim()) {
+      Alert.alert('Erreur', 'Email ou téléphone requis');
+      return;
+    }
+    if (adminPassword.length < 8) {
+      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+    if (adminPassword !== confirmPassword) {
+      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      return;
+    }
+    setGoogleIdToken(null); // chemin manuel
+    setStep(2);
+  };
+
+  // Étape 2 -> appel API final (une seule fois), avec les données combinées des 2 étapes
   const handleSubmit = async () => {
-    // Validations
     if (!name.trim()) {
       Alert.alert('Erreur', 'Nom de l\'association requis');
       return;
@@ -148,43 +140,33 @@ export default function RegisterAssociation() {
       Alert.alert('Erreur', 'Veuillez choisir un code valide et disponible');
       return;
     }
-    if (!adminName.trim()) {
-      Alert.alert('Erreur', 'Votre nom est requis');
-      return;
-    }
-    if (!adminEmail && !adminPhone) {
-      Alert.alert('Erreur', 'Email ou téléphone requis');
-      return;
-    }
-    if (!adminPassword) {
-      Alert.alert('Erreur', 'Mot de passe requis');
-      return;
-    }
-    if (adminPassword.length < 6) {
-      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 6 caractères');
-      return;
-    }
-    if (adminPassword !== confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
-      return;
-    }
 
     setLoading(true);
 
     try {
-      const response = await api.post('/public/associations/register', {
-        name: name.trim(),
-        type,
-        code: code.toUpperCase().trim(),
-        adminName: adminName.trim(),
-        adminEmail: adminEmail.trim() || undefined,
-        adminPhone: adminPhone.trim() || undefined,
-        adminPassword,
-      });
+      let response;
+      if (googleIdToken) {
+        // Google utilisé à l'étape 1
+        response = await api.post('/public/associations/register-google', {
+          idToken: googleIdToken,
+          name: name.trim(),
+          type,
+          code: code.toUpperCase().trim(),
+        });
+      } else {
+        // Chemin email/mot de passe
+        response = await api.post('/public/associations/register', {
+          name: name.trim(),
+          type,
+          code: code.toUpperCase().trim(),
+          adminName: adminName.trim(),
+          adminEmail: adminEmail.trim() || undefined,
+          adminPhone: adminPhone.trim() || undefined,
+          adminPassword,
+        });
+      }
 
       const { token, association, admin } = response.data;
-
-      // Afficher le succès avec le code
       setSuccess({
         code: association.code,
         name: association.name,
@@ -192,7 +174,6 @@ export default function RegisterAssociation() {
         admin,
         association,
       });
-
     } catch (error) {
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la création');
     } finally {
@@ -281,208 +262,242 @@ export default function RegisterAssociation() {
           </View>
           <Text style={styles.title}>Créer mon association</Text>
           <Text style={styles.subtitle}>Commencez à gérer vos cotisations</Text>
+          <View style={styles.progressBadge} testID="register-step-indicator">
+            <Text style={styles.progressText}>
+              Étape {step}/2 — {step === 1 ? 'Votre compte' : 'Votre association'}
+            </Text>
+          </View>
         </View>
 
-        {/* Formulaire */}
-        <View style={styles.form}>
-          {/* Nom de l'association */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nom de l'association *</Text>
-            <View style={styles.inputContainer}>
-              <Buildings size={20} color={colors.textMuted} />
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Amicale des Cadres de Bouaké"
-                value={name}
-                onChangeText={setName}
-                placeholderTextColor={colors.textMuted}
-              />
-            </View>
-          </View>
+        {step === 1 ? (
+          /* ÉTAPE 1 — Votre compte */
+          <View style={styles.form} testID="register-step-1">
+            <Text style={styles.sectionTitle}>Votre compte administrateur</Text>
 
-          {/* Type */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Type d'organisation</Text>
-            <TouchableOpacity 
-              style={styles.selectContainer}
-              onPress={() => setShowTypeModal(true)}
-            >
-              <Text style={styles.selectText}>
-                {types.find(t => t.value === type)?.label || 'Sélectionner'}
-              </Text>
+            {/* Nom admin */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Votre nom complet *</Text>
+              <View style={styles.inputContainer}>
+                <User size={20} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: Kouadio Jean-Marc"
+                  value={adminName}
+                  onChangeText={setAdminName}
+                  placeholderTextColor={colors.textMuted}
+                  testID="register-admin-name"
+                />
+              </View>
+            </View>
+
+            {/* Email */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <View style={styles.inputContainer}>
+                <Envelope size={20} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="email@exemple.com"
+                  value={adminEmail}
+                  onChangeText={setAdminEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  placeholderTextColor={colors.textMuted}
+                  testID="register-admin-email"
+                />
+              </View>
+            </View>
+
+            {/* Téléphone */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Téléphone</Text>
+              <View style={styles.inputContainer}>
+                <Phone size={20} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="07 00 00 00 00"
+                  value={adminPhone}
+                  onChangeText={setAdminPhone}
+                  keyboardType="phone-pad"
+                  placeholderTextColor={colors.textMuted}
+                  testID="register-admin-phone"
+                />
+              </View>
+            </View>
+            <Text style={styles.hint}>Email ou téléphone requis</Text>
+
+            {/* Mot de passe */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Mot de passe * <Text style={styles.hint}>(min. 8 caractères)</Text></Text>
+              <View style={styles.inputContainer}>
+                <Lock size={20} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••"
+                  value={adminPassword}
+                  onChangeText={setAdminPassword}
+                  secureTextEntry={!showPassword}
+                  placeholderTextColor={colors.textMuted}
+                  testID="register-admin-password"
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  {showPassword ? (
+                    <EyeSlash size={20} color={colors.textMuted} />
+                  ) : (
+                    <Eye size={20} color={colors.textMuted} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Confirmation */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Confirmation *</Text>
+              <View style={[
+                styles.inputContainer,
+                confirmPassword && adminPassword !== confirmPassword && styles.inputError,
+              ]}>
+                <Lock size={20} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirmez le mot de passe"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  placeholderTextColor={colors.textMuted}
+                  testID="register-admin-confirm"
+                />
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  {showConfirmPassword ? (
+                    <EyeSlash size={20} color={colors.textMuted} />
+                  ) : (
+                    <Eye size={20} color={colors.textMuted} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              {confirmPassword && adminPassword !== confirmPassword && (
+                <Text style={styles.errorText}>Les mots de passe ne correspondent pas</Text>
+              )}
+            </View>
+
+            {/* Bouton Suivant */}
+            <TouchableOpacity style={styles.createButton} onPress={goToStep2} testID="register-next-button">
+              <Text style={styles.createButtonText}>Suivant</Text>
+            </TouchableOpacity>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ou</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google : capture le idToken puis passe à l'étape 2 */}
+            <View style={styles.googleSection}>
+              <GoogleSignInButton
+                onCredential={handleGoogleCredential}
+                onError={handleGoogleError}
+                disabled={googleLoading}
+              />
+              <Text style={styles.googleHint}>Continuer avec Google</Text>
+            </View>
+
+            <TouchableOpacity style={styles.whatsappLink} onPress={openWhatsApp}>
+              <WhatsappLogo size={18} weight="fill" color="#25D366" />
+              <Text style={styles.whatsappText}>Besoin d'aide ? Contactez-nous sur WhatsApp</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Code */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Code souhaité * <Text style={styles.hint}>(3-20 caractères)</Text></Text>
-            <View style={[
-              styles.inputContainer,
-              codeStatus === 'available' && styles.inputSuccess,
-              (codeStatus === 'taken' || codeStatus === 'format') && styles.inputError,
-            ]}>
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Ex: ASCB ou MON-ASSO"
-                value={code}
-                onChangeText={(text) => setCode(text.toUpperCase())}
-                autoCapitalize="characters"
-                placeholderTextColor={colors.textMuted}
-              />
-              {codeStatus === 'checking' && <CircleNotch size={20} color={colors.textMuted} />}
-              {codeStatus === 'available' && <CheckCircle size={20} weight="fill" color={colors.success} />}
-              {(codeStatus === 'taken' || codeStatus === 'format') && <XCircle size={20} weight="fill" color={colors.error} />}
-            </View>
-            {codeStatus === 'taken' && <Text style={styles.errorText}>Ce code est déjà utilisé</Text>}
-            {codeStatus === 'format' && <Text style={styles.errorText}>Format invalide</Text>}
-            {codeStatus === 'available' && <Text style={styles.successText}>Code disponible !</Text>}
-          </View>
-
-          <View style={styles.separator} />
-
-          {/* Section Google - Création rapide */}
-          <Text style={styles.sectionTitle}>Créer rapidement avec Google</Text>
-          <View style={styles.googleSection}>
-            <GoogleSignInButton
-              onCredential={handleGoogleCredential}
-              onError={handleGoogleError}
-              disabled={googleLoading || codeStatus !== 'available' || !name.trim()}
-            />
-            {(codeStatus !== 'available' || !name.trim()) && (
-              <Text style={styles.googleHint}>
-                Remplissez le nom et le code ci-dessus
-              </Text>
+        ) : (
+          /* ÉTAPE 2 — Votre association */
+          <View style={styles.form} testID="register-step-2">
+            <Text style={styles.sectionTitle}>Votre association</Text>
+            {googleIdToken && (
+              <View style={styles.googleConnectedBadge}>
+                <CheckCircle size={18} weight="fill" color={colors.success} />
+                <Text style={styles.googleConnectedText}>Compte Google connecté</Text>
+              </View>
             )}
-          </View>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>ou créer avec email/mot de passe</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <Text style={styles.sectionTitle}>Votre compte administrateur</Text>
-
-          {/* Nom admin */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Votre nom complet *</Text>
-            <View style={styles.inputContainer}>
-              <User size={20} color={colors.textMuted} />
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Kouadio Jean-Marc"
-                value={adminName}
-                onChangeText={setAdminName}
-                placeholderTextColor={colors.textMuted}
-              />
+            {/* Nom de l'association */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Nom de l'association *</Text>
+              <View style={styles.inputContainer}>
+                <Buildings size={20} color={colors.textMuted} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: Amicale des Cadres de Bouaké"
+                  value={name}
+                  onChangeText={setName}
+                  placeholderTextColor={colors.textMuted}
+                  testID="register-assoc-name"
+                />
+              </View>
             </View>
-          </View>
 
-          {/* Email */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputContainer}>
-              <Envelope size={20} color={colors.textMuted} />
-              <TextInput
-                style={styles.input}
-                placeholder="email@exemple.com"
-                value={adminEmail}
-                onChangeText={setAdminEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholderTextColor={colors.textMuted}
-              />
-            </View>
-          </View>
-
-          {/* Téléphone */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Téléphone</Text>
-            <View style={styles.inputContainer}>
-              <Phone size={20} color={colors.textMuted} />
-              <TextInput
-                style={styles.input}
-                placeholder="07 00 00 00 00"
-                value={adminPhone}
-                onChangeText={setAdminPhone}
-                keyboardType="phone-pad"
-                placeholderTextColor={colors.textMuted}
-              />
-            </View>
-          </View>
-          <Text style={styles.hint}>Email ou téléphone requis</Text>
-
-          {/* Mot de passe */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mot de passe * <Text style={styles.hint}>(min. 6 caractères)</Text></Text>
-            <View style={styles.inputContainer}>
-              <Lock size={20} color={colors.textMuted} />
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                value={adminPassword}
-                onChangeText={setAdminPassword}
-                secureTextEntry={!showPassword}
-                placeholderTextColor={colors.textMuted}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                {showPassword ? (
-                  <EyeSlash size={20} color={colors.textMuted} />
-                ) : (
-                  <Eye size={20} color={colors.textMuted} />
-                )}
+            {/* Type */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Type d'organisation</Text>
+              <TouchableOpacity
+                style={styles.selectContainer}
+                onPress={() => setShowTypeModal(true)}
+              >
+                <Text style={styles.selectText}>
+                  {types.find(t => t.value === type)?.label || 'Sélectionner'}
+                </Text>
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Confirmation */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Confirmation *</Text>
-            <View style={[
-              styles.inputContainer,
-              confirmPassword && adminPassword !== confirmPassword && styles.inputError,
-            ]}>
-              <Lock size={20} color={colors.textMuted} />
-              <TextInput
-                style={styles.input}
-                placeholder="Confirmez le mot de passe"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                placeholderTextColor={colors.textMuted}
-              />
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                {showConfirmPassword ? (
-                  <EyeSlash size={20} color={colors.textMuted} />
-                ) : (
-                  <Eye size={20} color={colors.textMuted} />
-                )}
-              </TouchableOpacity>
+            {/* Code */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Code souhaité * <Text style={styles.hint}>(3-20 caractères)</Text></Text>
+              <View style={[
+                styles.inputContainer,
+                codeStatus === 'available' && styles.inputSuccess,
+                (codeStatus === 'taken' || codeStatus === 'format') && styles.inputError,
+              ]}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="Ex: ASCB ou MON-ASSO"
+                  value={code}
+                  onChangeText={(text) => setCode(text.toUpperCase())}
+                  autoCapitalize="characters"
+                  placeholderTextColor={colors.textMuted}
+                  testID="register-assoc-code"
+                />
+                {codeStatus === 'checking' && <CircleNotch size={20} color={colors.textMuted} />}
+                {codeStatus === 'available' && <CheckCircle size={20} weight="fill" color={colors.success} />}
+                {(codeStatus === 'taken' || codeStatus === 'format') && <XCircle size={20} weight="fill" color={colors.error} />}
+              </View>
+              {codeStatus === 'taken' && <Text style={styles.errorText}>Ce code est déjà utilisé</Text>}
+              {codeStatus === 'format' && <Text style={styles.errorText}>Format invalide</Text>}
+              {codeStatus === 'available' && <Text style={styles.successText}>Code disponible !</Text>}
             </View>
-            {confirmPassword && adminPassword !== confirmPassword && (
-              <Text style={styles.errorText}>Les mots de passe ne correspondent pas</Text>
-            )}
+
+            {/* Bouton créer */}
+            <TouchableOpacity
+              style={[styles.createButton, (loading || codeStatus !== 'available') && styles.createButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading || codeStatus !== 'available'}
+              testID="register-create-button"
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.textOnPrimary} />
+              ) : (
+                <Text style={styles.createButtonText}>Créer mon association</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Bouton retour (préserve les données) */}
+            <TouchableOpacity style={styles.backStepButton} onPress={() => setStep(1)} testID="register-back-button">
+              <CaretLeft size={18} color={colors.text} />
+              <Text style={styles.backStepText}>Retour</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.whatsappLink} onPress={openWhatsApp}>
+              <WhatsappLogo size={18} weight="fill" color="#25D366" />
+              <Text style={styles.whatsappText}>Besoin d'aide ? Contactez-nous sur WhatsApp</Text>
+            </TouchableOpacity>
           </View>
-
-          {/* Bouton créer */}
-          <TouchableOpacity
-            style={[styles.createButton, (loading || codeStatus !== 'available') && styles.createButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading || codeStatus !== 'available'}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.textOnPrimary} />
-            ) : (
-              <Text style={styles.createButtonText}>Créer mon association</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Lien WhatsApp */}
-          <TouchableOpacity style={styles.whatsappLink} onPress={openWhatsApp}>
-            <WhatsappLogo size={18} weight="fill" color="#25D366" />
-            <Text style={styles.whatsappText}>Besoin d'aide ? Contactez-nous sur WhatsApp</Text>
-          </TouchableOpacity>
-        </View>
+        )}
       </ScrollView>
 
       {/* Modal sélection type */}
@@ -556,6 +571,49 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: typography.body.fontSize,
     color: colors.textMuted,
+  },
+  progressBadge: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.button,
+  },
+  progressText: {
+    fontSize: typography.caption.fontSize + 1,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  backStepButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  backStepText: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  googleConnectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.backgroundWhite,
+    borderWidth: 1,
+    borderColor: colors.success,
+    borderRadius: borderRadius.button,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    alignSelf: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  googleConnectedText: {
+    fontSize: typography.caption.fontSize + 1,
+    color: colors.success,
+    fontWeight: '600',
   },
   form: {
     gap: spacing.md,

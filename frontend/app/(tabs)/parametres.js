@@ -36,7 +36,7 @@ import { formatNumber, formatCurrency } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
 
 // Domaine de l'application pour les liens d'invitation
-const APP_DOMAIN = 'https://mobile-bug-crush-1.preview.emergentagent.com';
+const APP_DOMAIN = 'https://web-bx1a.onrender.com';
 
 export default function Parametres() {
   const { user, logout, association, linkedAccounts, switchAccount, removeLinkedAccount, biometricEnabled, biometricSupported, setBiometricEnabled } = useAuth();

@@ -60,6 +60,7 @@ router.get('/', requireAdmin, async (req, res) => {
       email: user.email,
       phone: user.phone,
       active: user.active,
+      approvalStatus: user.approvalStatus,
       token: req.user.role === 'ADMIN' ? user.token : undefined,
       name: user.member?.name || null,
       customFieldValue: user.member?.customFieldValue || null,

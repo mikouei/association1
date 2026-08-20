@@ -243,11 +243,16 @@ export default function MembersPage() {
     {
       key: 'active',
       header: 'Statut',
-      render: (member: Member) => (
-        <Badge variant={member.active ? 'success' : 'danger'}>
-          {member.active ? 'Actif' : 'Inactif'}
-        </Badge>
-      ),
+      render: (member: Member) => {
+        if (member.approvalStatus === 'PENDING') {
+          return <Badge variant="warning">En attente de validation</Badge>;
+        }
+        return (
+          <Badge variant={member.active ? 'success' : 'danger'}>
+            {member.active ? 'Actif' : 'Inactif'}
+          </Badge>
+        );
+      },
     },
     {
       key: 'createdAt',

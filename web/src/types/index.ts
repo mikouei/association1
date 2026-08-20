@@ -29,6 +29,7 @@ export interface Member {
   email?: string;
   phone?: string;
   active: boolean;
+  approvalStatus?: string;
   name: string;
   customFieldValue?: string;
   token?: string;

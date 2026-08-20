@@ -1,0 +1,35 @@
+{
+  "summary": "Backend-only validation of the 'approvalStatus' fix on GET /api/members (Kotiz/ASCB). All 7 pytest tests pass (100%). The endpoint now returns approvalStatus in addition to active/name/phone/email/id/createdAt. The seeded PENDING member 'Membre En Attente' (+2250700111222) is correctly returned with approvalStatus='PENDING' and active=true (the bug root cause: Member.active defaults to true, so the UI must rely on approvalStatus to display 'En attente de validation'). The seeded APPROVED member 'Membre Note' (+2250700123456) is returned with approvalStatus='APPROVED'. Non-regression: 200 for authenticated admin, 401/403 without auth, all legacy keys still present, no REJECTED entries, no MongoDB _id leak (N/A here — Postgres/Prisma stack).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_members_approval_status.py",
+    "/app/test_reports/pytest/members_approval_status.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/members.js: GET /:id (line 400-410) does NOT expose approvalStatus in its response, unlike the list route. If the web detail view ever needs to display the pending badge, it should be added there too for consistency.",
+    "routes/members.js is 1073 lines; consider splitting (list/CRUD vs QR vs PDF export vs bulk) — exceeds the 700-line soft limit.",
+    "routes/members.js: DELETE /bulk-delete is declared AFTER DELETE /:id, so a request to /api/members/bulk-delete is matched by /:id first and treated as a member id (silently returning 404 'Membre non trouvé'). Move bulk-delete above /:id — not in scope of this bug but worth flagging."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_members_approval_status.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 pytest)",
+    "frontend": "N/A (backend-only per review_request)"
+  },
+  "seed_data_creation": "None — used the pre-seeded members ('Membre Note' APPROVED and 'Membre En Attente' PENDING). Fallback path (creating a PENDING via /public/associations/ASCB/join-request) was not triggered.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend on kotiz-backend supervisor program (port 8001). Ignore the 'backend' supervisor entry (FastAPI template, FATAL). Admin ASCB: phone +2250708510832 / admin123 / associationCode ASCB. Tests live in /app/backend/tests/ and use http://localhost:8001 by default (override via KOTIZ_BACKEND_URL). Reject flow (users deleted) guarantees no REJECTED value can appear in /api/members.",
+  "rca_of_issue": "Root cause: Member/User.active defaults to true (application-side) even when User.approvalStatus is created as 'PENDING' via the public join-request. The web members list previously projected only 'active' → showed 'Actif' for pending users. Fix (routes/members.js:63) adds approvalStatus to the projection. Front-end can now render 'En attente de validation' when approvalStatus==='PENDING', else 'Actif'/'Inactif' from active. Verified: GET /api/members returns {name:'Membre En Attente', active:true, approvalStatus:'PENDING'} and {name:'Membre Note', active:true, approvalStatus:'APPROVED'}."
+}

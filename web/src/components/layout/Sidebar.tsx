@@ -113,7 +113,8 @@ export function Sidebar() {
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1 rounded hover:bg-[var(--color-secondary-pressed)] transition-colors"
+          className="flex items-center justify-center min-w-[40px] min-h-[40px] rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-colors"
+          aria-label={collapsed ? 'Étendre le menu' : 'Réduire le menu'}
         >
           {collapsed ? (
             <CaretRight size={20} weight="bold" />

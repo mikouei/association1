@@ -280,7 +280,8 @@ export default function Exceptionnelles() {
   // Détails
   const handleShowDetail = async (contribution) => {
     try {
-      const response = await api.get(`/exceptional/${contribution.id}`);
+      const url = isAdmin ? `/exceptional/${contribution.id}` : `/exceptional/mine/${contribution.id}`;
+      const response = await api.get(url);
       setSelectedContribution(response.data);
       setDetailModal(true);
     } catch (error) {
@@ -292,7 +293,8 @@ export default function Exceptionnelles() {
   const refreshDetail = async () => {
     if (selectedContribution) {
       try {
-        const response = await api.get(`/exceptional/${selectedContribution.id}`);
+        const url = isAdmin ? `/exceptional/${selectedContribution.id}` : `/exceptional/mine/${selectedContribution.id}`;
+        const response = await api.get(url);
         setSelectedContribution(response.data);
       } catch (error) {
         console.error('Erreur refresh:', error);

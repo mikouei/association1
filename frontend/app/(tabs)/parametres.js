@@ -1070,14 +1070,18 @@ export default function Parametres() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Comptes liés</Text>
           
-          {/* Bouton Ajouter un compte - toujours visible */}
-          <TouchableOpacity 
-            style={styles.addAccountButton} 
-            onPress={handleAddAccount}
-          >
-            <Plus size={20} color={colors.primary} />
-            <Text style={styles.addAccountButtonText}>Ajouter un compte</Text>
-          </TouchableOpacity>
+          {/* Bouton Ajouter un compte - masqué temporairement : /login ne permet pas encore
+              de rejoindre une nouvelle association, seulement de se reconnecter ou créer
+              la sienne. Le vrai flux "rejoindre depuis l'app" arrivera dans une prochaine version. */}
+          {false && (
+            <TouchableOpacity
+              style={styles.addAccountButton}
+              onPress={handleAddAccount}
+            >
+              <Plus size={20} color={colors.primary} />
+              <Text style={styles.addAccountButtonText}>Ajouter un compte</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Liste des comptes liés - uniquement si plus d'un */}
           {linkedAccounts && linkedAccounts.length > 1 && (

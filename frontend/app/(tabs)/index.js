@@ -333,9 +333,9 @@ export default function Dashboard() {
             <Text style={styles.onboardingTitle}>Bienvenue ! Encore quelques étapes</Text>
           </View>
           
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.onboardingItem}
-            onPress={() => router.push('/(tabs)/cotisations')}
+            onPress={() => router.push('/(tabs)/parametres')}
           >
             <View style={[styles.onboardingCheck, yearsCount > 0 && styles.onboardingCheckDone]}>
               {yearsCount > 0 ? (

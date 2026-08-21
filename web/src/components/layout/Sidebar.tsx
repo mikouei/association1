@@ -18,6 +18,7 @@ import {
   UsersThree,
   QrCode,
   Eye,
+  Calendar,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 import { useState, useMemo } from 'react';
@@ -43,6 +44,7 @@ const adminNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Tableau de bord', icon: SquaresFour, allowedRoles: ['ADMIN'] },
   { href: '/members', label: 'Membres', icon: Users, allowedRoles: ['ADMIN'] },
   { href: '/payments', label: 'Cotisations', icon: Wallet, allowedRoles: ['ADMIN'] },
+  { href: '/events', label: 'Événements', icon: Calendar, allowedRoles: ['ADMIN'] },
   { href: '/tontines', label: 'Tontines', icon: UsersThree, requiresFeature: 'tontines', allowedRoles: ['ADMIN'] },
   { href: '/admins', label: 'Gestion des accès', icon: UserCircleGear, allowedRoles: ['ADMIN'] },
   { href: '/audit', label: 'Consultation', icon: Eye, allowedRoles: ['ADMIN', 'AUDITEUR'] },

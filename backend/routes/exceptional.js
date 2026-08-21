@@ -363,6 +363,45 @@ router.get('/:eventId/stats/pdf', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/exceptional/mine/:id
+// Détail d'une cotisation pour le membre courant (accessible à tout utilisateur connecté)
+router.get('/mine/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const member = await prisma.member.findFirst({
+      where: { userId: req.user.id, associationId: req.associationId }
+    });
+    if (!member) return res.status(404).json({ error: 'Aucun profil membre associé à ce compte' });
+
+    const contribution = await prisma.exceptionalContribution.findFirst({
+      where: { id, associationId: req.associationId },
+      include: { payments: { where: { memberId: member.id } } }
+    });
+    if (!contribution) return res.status(404).json({ error: 'Cotisation introuvable' });
+
+    const allPayments = await prisma.exceptionalPayment.findMany({
+      where: { contributionId: id },
+      select: { amount: true, memberId: true }
+    });
+    const totalCollected = allPayments.reduce((sum, p) => sum + p.amount, 0);
+    const participantsCount = new Set(allPayments.map(p => p.memberId)).size;
+    const myPayment = contribution.payments[0] || null;
+
+    res.json({
+      id: contribution.id, title: contribution.title, type: contribution.type,
+      description: contribution.description, eventDate: contribution.eventDate,
+      hasCollection: contribution.hasCollection, recurrence: contribution.recurrence,
+      active: contribution.active, createdAt: contribution.createdAt,
+      totalCollected, participantsCount,
+      myAmountPaid: myPayment ? myPayment.amount : 0,
+      myPaidAt: myPayment ? myPayment.createdAt : null,
+    });
+  } catch (error) {
+    console.error('Get my exceptional contribution error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération de la cotisation' });
+  }
+});
+
 // GET /api/exceptional/:id
 // Détail d'une cotisation exceptionnelle - ADMIN ONLY
 router.get('/:id', requireAdmin, async (req, res) => {

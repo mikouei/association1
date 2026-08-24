@@ -12,12 +12,7 @@
           "package_name": "com.kotiz.ci"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "112628988540-hes6mplkbe58bsspcggv65dut97trtff.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
           "current_key": "AIzaSyBdDGIwx0UzriLKFg5gDB30R3rjLJS4k4E"
@@ -25,12 +20,7 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "112628988540-hes6mplkbe58bsspcggv65dut97trtff.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

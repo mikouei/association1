@@ -19,7 +19,8 @@ export default function GoogleSignInButtonComponent({
   const [loading, setLoading] = useState(false);
 
   // Vérifier si Google Sign-In est configuré
-  const isConfigured = !!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  //const isConfigured = !!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const isConfigured = false; // Google temporairement désactivé - à réactiver plus tard
 
   const handleGoogleSignIn = async () => {
     if (!isConfigured) {

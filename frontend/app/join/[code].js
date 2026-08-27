@@ -244,21 +244,21 @@ export default function JoinScreen() {
           <Text style={styles.codeValue}>{association.code}</Text>
         </View>
 
-        {/* Bouton Google pour créer un compte membre */}
-        <View style={styles.googleSection}>
-          <Text style={styles.googleLabel}>Nouveau ? Rejoignez en un clic</Text>
-          <GoogleSignInButton
-            onCredential={handleGoogleCredential}
-            onError={handleGoogleError}
-            disabled={googleLoading}
-          />
-        </View>
+      //  {/* Bouton Google pour créer un compte membre */}
+      //  <View style={styles.googleSection}>
+      //    <Text style={styles.googleLabel}>Nouveau ? Rejoignez en un clic</Text>
+      //    <GoogleSignInButton
+      //      onCredential={handleGoogleCredential}
+      //      onError={handleGoogleError}
+      //      disabled={googleLoading}
+      //    />
+      //  </View>
 
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>ou</Text>
-          <View style={styles.dividerLine} />
-        </View>
+      //  <View style={styles.divider}>
+      //    <View style={styles.dividerLine} />
+       //   <Text style={styles.dividerText}>ou</Text>
+      //    <View style={styles.dividerLine} />
+       // </View>
 
         {joinError && (
           <Text style={styles.errorText}>{joinError}</Text>

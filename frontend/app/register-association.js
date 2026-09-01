@@ -385,21 +385,22 @@ export default function RegisterAssociation() {
               <Text style={styles.createButtonText}>Suivant</Text>
             </TouchableOpacity>
 
-          //  <View style={styles.divider}>
-          //    <View style={styles.dividerLine} />
-          //    <Text style={styles.dividerText}>ou</Text>
-          //    <View style={styles.dividerLine} />
-          //  </View>
+            {/*
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ou</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
-          //  {/* Google : capture le idToken puis passe à l'étape 2 */}
-           // <View style={styles.googleSection}>
-           //   <GoogleSignInButton
-           //     onCredential={handleGoogleCredential}
-           //     onError={handleGoogleError}
-           //     disabled={googleLoading}
-           //   />
-             // <Text style={styles.googleHint}>Continuer avec Google</Text>
-            //</View>
+            <View style={styles.googleSection}>
+              <GoogleSignInButton
+                onCredential={handleGoogleCredential}
+                onError={handleGoogleError}
+                disabled={googleLoading}
+              />
+              <Text style={styles.googleHint}>Continuer avec Google</Text>
+            </View>
+            */}
 
             <TouchableOpacity style={styles.whatsappLink} onPress={openWhatsApp}>
               <WhatsappLogo size={18} weight="fill" color="#25D366" />

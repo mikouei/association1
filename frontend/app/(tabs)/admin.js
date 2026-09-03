@@ -24,6 +24,7 @@ import {
   Prohibit,
   QrCode,
   Eye,
+  EyeSlash,
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
@@ -59,6 +60,11 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [resetUser, setResetUser] = useState(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [newUser, setNewUser] = useState({
     email: '',
     phone: '',
@@ -141,30 +147,30 @@ export default function Admin() {
   };
 
   const handleResetPassword = (user) => {
-    Alert.prompt(
-      'Réinitialiser le mot de passe',
-      `Nouveau mot de passe pour ${user.email}:`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Confirmer',
-          onPress: async (newPassword) => {
-            if (!newPassword || newPassword.length < 4) {
-              Alert.alert('Erreur', 'Mot de passe trop court (minimum 4 caractères)');
-              return;
-            }
-            try {
-              await api.post(`/admin/${user.id}/reset-password`, { newPassword });
-              Alert.alert('Succès', 'Mot de passe réinitialisé');
-            } catch (error) {
-              console.error('Erreur reset password:', error);
-              Alert.alert('Erreur', 'Erreur lors de la réinitialisation');
-            }
-          },
-        },
-      ],
-      'plain-text'
-    );
+    setResetUser(user);
+    setResetPassword('');
+    setShowResetPassword(false);
+    setResetModalVisible(true);
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (!resetPassword || resetPassword.length < 8) {
+      Alert.alert('Erreur', 'Mot de passe trop court (minimum 8 caractères)');
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      await api.post(`/admin/${resetUser.id}/reset-password`, { newPassword: resetPassword });
+      setResetModalVisible(false);
+      setResetUser(null);
+      setResetPassword('');
+      Alert.alert('Succès', 'Mot de passe réinitialisé');
+    } catch (error) {
+      console.error('Erreur reset password:', error);
+      Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la réinitialisation');
+    } finally {
+      setResettingPassword(false);
+    }
   };
 
   const renderQuotaCard = (role) => {
@@ -415,6 +421,68 @@ export default function Admin() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Modal Réinitialisation mot de passe */}
+      <Modal
+        visible={resetModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setResetModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Réinitialiser le mot de passe</Text>
+              <TouchableOpacity onPress={() => setResetModalVisible(false)} testID="reset-password-close">
+                <X size={28} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>
+              Nouveau mot de passe pour {resetUser?.email || resetUser?.phone || 'ce compte'}
+            </Text>
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Au moins 8 caractères"
+                placeholderTextColor={colors.textMuted}
+                value={resetPassword}
+                onChangeText={setResetPassword}
+                secureTextEntry={!showResetPassword}
+                autoCapitalize="none"
+                testID="reset-password-input"
+              />
+              <TouchableOpacity
+                onPress={() => setShowResetPassword((v) => !v)}
+                style={styles.eyeButton}
+                testID="reset-password-toggle"
+              >
+                {showResetPassword ? (
+                  <EyeSlash size={22} color={colors.textMuted} />
+                ) : (
+                  <Eye size={22} color={colors.textMuted} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, resettingPassword && styles.submitButtonDisabled]}
+              onPress={handleConfirmResetPassword}
+              disabled={resettingPassword}
+              testID="reset-password-confirm"
+            >
+              {resettingPassword ? (
+                <ActivityIndicator color={colors.textOnPrimary} />
+              ) : (
+                <Text style={styles.submitButtonText}>Confirmer</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -423,6 +491,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.backgroundWhite,
+    marginTop: spacing.xs,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.text,
+  },
+  eyeButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   loadingContainer: {
     flex: 1,

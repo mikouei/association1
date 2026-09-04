@@ -273,22 +273,7 @@ router.put('/:id/activate', async (req, res) => {
 router.post('/:id/reset-password', async (req, res) => {
   try {
     const { id } = req.params;
-    const { newPassword, currentPassword } = req.body;
-
-    // SÉCURITÉ: Exiger le mot de passe actuel de l'admin effectuant l'action
-    if (!currentPassword) {
-      return res.status(400).json({ error: 'Mot de passe actuel requis pour confirmer cette action' });
-    }
-
-    // Vérifier le mot de passe actuel de l'admin connecté
-    const currentAdmin = await prisma.user.findUnique({
-      where: { id: req.user.id }
-    });
-
-    const validCurrentPassword = await bcrypt.compare(currentPassword, currentAdmin.passwordHash);
-    if (!validCurrentPassword) {
-      return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
-    }
+    const { newPassword } = req.body;
 
     if (!newPassword || newPassword.length < 8) {
       return res.status(400).json({ error: 'Mot de passe trop court (minimum 8 caractères)' });
@@ -338,6 +323,50 @@ router.post('/:id/reset-password', async (req, res) => {
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });
+  }
+});
+
+// DELETE /api/admin/:id
+// Supprimer un compte staff (ADMIN/SCANNER/AUDITEUR)
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Empêcher un admin de se supprimer lui-même
+    if (id === req.user.id) {
+      return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
+    }
+
+    // Récupérer le compte (filtré par association + rôles staff)
+    const userData = await prisma.user.findFirst({
+      where: {
+        id,
+        role: { in: ['ADMIN', 'SCANNER', 'AUDITEUR'] },
+        associationId: req.associationId
+      }
+    });
+
+    if (!userData) {
+      return res.status(404).json({ error: 'Compte non trouvé' });
+    }
+
+    await prisma.user.delete({ where: { id } });
+
+    res.json({ message: 'Compte supprimé avec succès' });
+
+    // Log de l'activité
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'admin.delete',
+      targetType: 'User',
+      targetId: id,
+      details: `${ROLE_LABELS[userData.role]} supprimé: ${userData.email}`
+    });
+  } catch (error) {
+    console.error('Delete admin error:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du compte' });
   }
 });
 

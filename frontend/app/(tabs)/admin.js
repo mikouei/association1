@@ -25,6 +25,7 @@ import {
   QrCode,
   Eye,
   EyeSlash,
+  Trash,
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
@@ -153,6 +154,30 @@ export default function Admin() {
     setResetModalVisible(true);
   };
 
+  const handleDeleteStaff = (user) => {
+    Alert.alert(
+      'Supprimer le compte',
+      `Êtes-vous sûr de vouloir supprimer le compte de ${user.email || user.phone} ? Cette action est irréversible.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/admin/${user.id}`);
+              Alert.alert('Succès', 'Compte supprimé');
+              loadData();
+            } catch (error) {
+              console.error('Erreur suppression compte:', error);
+              Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la suppression');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleConfirmResetPassword = async () => {
     if (!resetPassword || resetPassword.length < 8) {
       Alert.alert('Erreur', 'Mot de passe trop court (minimum 8 caractères)');
@@ -256,6 +281,15 @@ export default function Admin() {
           >
             <Key size={16} color={colors.textOnSecondary} weight="fill" />
             <Text style={styles.actionButtonText}>Reset MDP</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.error }]}
+            onPress={() => handleDeleteStaff(item)}
+            testID={`delete-staff-${item.id}`}
+          >
+            <Trash size={16} color={colors.textOnSecondary} weight="fill" />
+            <Text style={styles.actionButtonText}>Supprimer</Text>
           </TouchableOpacity>
         </View>
       </View>

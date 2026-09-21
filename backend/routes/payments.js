@@ -94,6 +94,66 @@ router.get('/my/year/:yearId', async (req, res) => {
   }
 });
 
+// GET /api/payments/my/receipt/monthly/:id
+// Reçu PDF (A5) d'un paiement mensuel du membre courant
+router.get('/my/receipt/monthly/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const payment = await prisma.monthlyPayment.findFirst({
+      where: {
+        id,
+        member: { userId: req.user.id, associationId: req.associationId }
+      },
+      include: { member: true, year: true }
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Paiement introuvable' });
+    }
+
+    const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+    const currency = association?.currency || 'FCFA';
+    const monthName = MONTHS[payment.month - 1] || `Mois ${payment.month}`;
+    const remaining = Math.max(0, (payment.year.monthlyAmount || 0) - payment.amountPaid);
+    const receiptNo = `R-${payment.year.year}-${String(payment.month).padStart(2, '0')}-${payment.id.substring(0, 6).toUpperCase()}`;
+
+    const PDFDocument = (await import('pdfkit')).default;
+    const doc = new PDFDocument({ margin: 40, size: 'A5' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="recu_${receiptNo}.pdf"`);
+    doc.pipe(res);
+
+    doc.fontSize(16).text(association?.name || 'Association', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(13).text('Reçu de paiement', { align: 'center' });
+    doc.moveDown(0.2);
+    doc.fontSize(9).fillColor('#666').text(`N° ${receiptNo}`, { align: 'center' });
+    doc.moveDown(1).fillColor('#000');
+
+    const line = (label, value) => {
+      doc.fontSize(11).fillColor('#666').text(label, { continued: true });
+      doc.fillColor('#000').text(`  ${value}`);
+      doc.moveDown(0.4);
+    };
+
+    line('Membre :', payment.member.name);
+    line('Période :', `${monthName} ${payment.year.year}`);
+    line('Montant payé :', `${payment.amountPaid} ${currency}`);
+    line('Reste à payer :', `${remaining} ${currency}`);
+    line('Date de paiement :', new Date(payment.paymentDate).toLocaleDateString('fr-FR'));
+
+    doc.moveDown(1);
+    doc.fontSize(9).fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
+
+    doc.end();
+  } catch (error) {
+    console.error('Monthly receipt PDF error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du reçu' });
+  }
+});
+
+
 // GET /api/payments/year/:yearId
 // Tous les paiements d'une année avec calculs par membre - ADMIN ONLY
 router.get('/year/:yearId', requireAdmin, async (req, res) => {

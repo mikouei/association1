@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Heart, Gift, HandHeart, Star, SmileyMeh, Plus, X, Pencil, Trash, Download, CaretDown, CaretRight, MagnifyingGlass, User, UsersThree, CurrencyCircleDollar, Check, ArrowRight } from 'phosphor-react-native';
 import api from '../../utils/api';
+import { downloadPdf } from '../../utils/downloadPdf';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber } from '../../utils/format';
 import * as Sharing from 'expo-sharing';
@@ -1054,21 +1055,39 @@ export default function Exceptionnelles() {
 
                 {selectedContribution.hasCollection !== false && (
                   <>
-                    {/* Bouton Télécharger PDF (visible pour tous) */}
-                    <TouchableOpacity
-                      style={[styles.downloadPdfButton, downloadingPdf && styles.downloadPdfButtonDisabled]}
-                      onPress={handleDownloadPdf}
-                      disabled={downloadingPdf}
-                    >
-                      {downloadingPdf ? (
-                        <ActivityIndicator size="small" color={colors.textOnSecondary} />
-                      ) : (
-                        <>
-                          <Download size={20} color={colors.textOnSecondary} />
-                          <Text style={styles.downloadPdfText}>Télécharger statistiques (PDF)</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
+                    {/* Bouton Télécharger statistiques PDF — admin uniquement */}
+                    {isAdmin && (
+                      <TouchableOpacity
+                        style={[styles.downloadPdfButton, downloadingPdf && styles.downloadPdfButtonDisabled]}
+                        onPress={handleDownloadPdf}
+                        disabled={downloadingPdf}
+                      >
+                        {downloadingPdf ? (
+                          <ActivityIndicator size="small" color={colors.textOnSecondary} />
+                        ) : (
+                          <>
+                            <Download size={20} color={colors.textOnSecondary} />
+                            <Text style={styles.downloadPdfText}>Télécharger statistiques (PDF)</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Reçu du paiement — membre uniquement */}
+                    {!isAdmin && selectedContribution.myAmountPaid > 0 && selectedContribution.myPaymentId && (
+                      <TouchableOpacity
+                        style={styles.downloadPdfButton}
+                        onPress={() => downloadPdf(
+                          `/exceptional/mine/receipt/${selectedContribution.myPaymentId}`,
+                          `recu_${selectedContribution.title}`,
+                          'Reçu de paiement'
+                        )}
+                        testID="exceptional-receipt-button"
+                      >
+                        <Download size={20} color={colors.textOnSecondary} />
+                        <Text style={styles.downloadPdfText}>Reçu ({formatNumber(selectedContribution.myAmountPaid)} FCFA)</Text>
+                      </TouchableOpacity>
+                    )}
 
                     <View style={styles.paymentsSection}>
                       <View style={styles.paymentsSectionHeader}>

@@ -26,6 +26,7 @@ import {
   WifiSlash
 } from 'phosphor-react-native';
 import api from '../../utils/api';
+import { downloadPdf } from '../../utils/downloadPdf';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
@@ -192,8 +193,19 @@ export default function Cotisations() {
   };
 
   const handleCellPress = (member, month) => {
-    if (!isAdmin) return;
-    
+    if (!isAdmin) {
+      // Membre : télécharger le reçu du paiement si le mois est payé
+      const md = member.paymentsByMonth[month];
+      if (md && md.amountPaid > 0 && md.payments && md.payments[0]) {
+        downloadPdf(
+          `/payments/my/receipt/monthly/${md.payments[0].id}`,
+          `recu_${MONTHS_FULL[month - 1]}_${selectedYear.year}`,
+          'Reçu de paiement'
+        );
+      }
+      return;
+    }
+
     setSelectedCell({ member, month });
     const monthData = member.paymentsByMonth[month];
     setPaymentAmount(monthData.amountPaid > 0 ? monthData.amountPaid.toString() : selectedYear.monthlyAmount.toString());
@@ -310,6 +322,21 @@ export default function Cotisations() {
         </View>
       )}
 
+      {!isAdmin && selectedYear && (
+        <TouchableOpacity
+          style={styles.monEtatButton}
+          onPress={() => downloadPdf(
+            `/members/me/export-pdf?year=${selectedYear.year}`,
+            `mon_etat_${selectedYear.year}`,
+            'Mon état de cotisation'
+          )}
+          testID="mon-etat-button"
+        >
+          <Calendar size={18} color={colors.textOnPrimary} weight="fill" />
+          <Text style={styles.monEtatButtonText}>Mon état ({selectedYear.year})</Text>
+        </TouchableOpacity>
+      )}
+
       <ScrollView
         style={styles.scrollContainer}
         refreshControl={
@@ -350,7 +377,7 @@ export default function Cotisations() {
                         { backgroundColor: getCellColor(monthData, selectedYear.monthlyAmount) }
                       ]}
                       onPress={() => handleCellPress(member, month)}
-                      disabled={!isAdmin}
+                      disabled={!isAdmin && !(monthData.amountPaid > 0)}
                     >
                       <Text style={styles.monthCardLabel}>{MONTHS[month - 1]}</Text>
                       <Text style={styles.monthCardValue}>
@@ -603,6 +630,23 @@ const styles = StyleSheet.create({
     fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
+  monEtatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.button,
+  },
+  monEtatButtonText: {
+    color: colors.textOnPrimary,
+    fontWeight: '700',
+    fontSize: typography.body.fontSize,
+  },
+
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',

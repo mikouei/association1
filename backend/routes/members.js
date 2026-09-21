@@ -796,9 +796,10 @@ router.delete('/bulk-delete', requireAdmin, async (req, res) => {
 
 // GET /api/members/:id/export-pdf
 // Exporter le résumé des paiements d'un membre en PDF
-router.get('/:id/export-pdf', requireAdmin, async (req, res) => {
+const memberPdfHandler = async (req, res) => {
   try {
-    const { id } = req.params;
+    const isMe = !req.params.id;
+    const id = isMe ? req.user.id : req.params.id;
     const { year } = req.query; // Optionnel: filtrer par année
 
     // Récupérer le membre
@@ -806,7 +807,7 @@ router.get('/:id/export-pdf', requireAdmin, async (req, res) => {
       where: {
         id,
         associationId: req.associationId,
-        role: 'MEMBER'
+        ...(isMe ? {} : { role: 'MEMBER' })
       },
       include: {
         member: true
@@ -1007,7 +1008,10 @@ router.get('/:id/export-pdf', requireAdmin, async (req, res) => {
     console.error('Export PDF error:', error);
     res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
   }
-});
+};
+
+router.get('/me/export-pdf', memberPdfHandler);
+router.get('/:id/export-pdf', requireAdmin, memberPdfHandler);
 
 // POST /api/members/link-admin
 // Attacher un profil Membre à un compte ADMIN déjà existant (au lieu de créer un second compte)

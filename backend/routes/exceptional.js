@@ -363,6 +363,64 @@ router.get('/:eventId/stats/pdf', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/exceptional/mine/receipt/:id
+// Reçu PDF (A5) d'un paiement exceptionnel du membre courant
+router.get('/mine/receipt/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const payment = await prisma.exceptionalPayment.findFirst({
+      where: {
+        id,
+        member: { userId: req.user.id, associationId: req.associationId }
+      },
+      include: { member: true, contribution: true }
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Paiement introuvable' });
+    }
+
+    const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+    const currency = association?.currency || 'FCFA';
+    const payDate = new Date(payment.paymentDate);
+    const receiptNo = `R-${payDate.getFullYear()}-${String(payDate.getMonth() + 1).padStart(2, '0')}-${payment.id.substring(0, 6).toUpperCase()}`;
+
+    const PDFDocument = (await import('pdfkit')).default;
+    const doc = new PDFDocument({ margin: 40, size: 'A5' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="recu_${receiptNo}.pdf"`);
+    doc.pipe(res);
+
+    doc.fontSize(16).text(association?.name || 'Association', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(13).text('Reçu de paiement', { align: 'center' });
+    doc.moveDown(0.2);
+    doc.fontSize(9).fillColor('#666').text(`N° ${receiptNo}`, { align: 'center' });
+    doc.moveDown(1).fillColor('#000');
+
+    const line = (label, value) => {
+      doc.fontSize(11).fillColor('#666').text(label, { continued: true });
+      doc.fillColor('#000').text(`  ${value}`);
+      doc.moveDown(0.4);
+    };
+
+    line('Membre :', payment.member.name);
+    line('Libellé :', payment.contribution.title);
+    line('Montant payé :', `${payment.amount} ${currency}`);
+    line('Reste à payer :', `0 ${currency}`);
+    line('Date de paiement :', payDate.toLocaleDateString('fr-FR'));
+
+    doc.moveDown(1);
+    doc.fontSize(9).fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
+
+    doc.end();
+  } catch (error) {
+    console.error('Exceptional receipt PDF error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du reçu' });
+  }
+});
+
 // GET /api/exceptional/mine/:id
 // Détail d'une cotisation pour le membre courant (accessible à tout utilisateur connecté)
 router.get('/mine/:id', authenticateToken, async (req, res) => {
@@ -395,6 +453,7 @@ router.get('/mine/:id', authenticateToken, async (req, res) => {
       totalCollected, participantsCount,
       myAmountPaid: myPayment ? myPayment.amount : 0,
       myPaidAt: myPayment ? myPayment.createdAt : null,
+      myPaymentId: myPayment ? myPayment.id : null,
     });
   } catch (error) {
     console.error('Get my exceptional contribution error:', error);

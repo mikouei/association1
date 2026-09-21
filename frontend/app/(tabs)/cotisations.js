@@ -337,6 +337,10 @@ export default function Cotisations() {
         </TouchableOpacity>
       )}
 
+      {!isAdmin && selectedYear && (
+        <Text style={styles.receiptHint}>Touchez un mois payé pour obtenir son reçu</Text>
+      )}
+
       <ScrollView
         style={styles.scrollContainer}
         refreshControl={
@@ -645,6 +649,14 @@ const styles = StyleSheet.create({
     color: colors.textOnPrimary,
     fontWeight: '700',
     fontSize: typography.body.fontSize,
+  },
+
+  receiptHint: {
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
 
   searchContainer: {

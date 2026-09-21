@@ -382,7 +382,7 @@ router.get('/mine/receipt/:id', async (req, res) => {
     }
 
     const association = await prisma.association.findUnique({ where: { id: req.associationId } });
-    const currency = association?.currency || 'FCFA';
+    const currency = (association?.currency && association.currency !== 'XOF') ? association.currency : 'FCFA';
     const payDate = new Date(payment.paymentDate);
     const receiptNo = `R-${payDate.getFullYear()}-${String(payDate.getMonth() + 1).padStart(2, '0')}-${payment.id.substring(0, 6).toUpperCase()}`;
 

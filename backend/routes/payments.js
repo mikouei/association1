@@ -113,7 +113,7 @@ router.get('/my/receipt/monthly/:id', async (req, res) => {
     }
 
     const association = await prisma.association.findUnique({ where: { id: req.associationId } });
-    const currency = association?.currency || 'FCFA';
+    const currency = (association?.currency && association.currency !== 'XOF') ? association.currency : 'FCFA';
     const monthName = MONTHS[payment.month - 1] || `Mois ${payment.month}`;
     const remaining = Math.max(0, (payment.year.monthlyAmount || 0) - payment.amountPaid);
     const receiptNo = `R-${payment.year.year}-${String(payment.month).padStart(2, '0')}-${payment.id.substring(0, 6).toUpperCase()}`;

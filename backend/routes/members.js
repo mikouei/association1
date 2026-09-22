@@ -968,14 +968,12 @@ const memberPdfHandler = async (req, res) => {
         const amountPaid = payment?.amount || 0;
         totalExceptionalPaid += amountPaid;
         
-        const status = amountPaid >= contrib.amount ? '✓ Complet' 
-                     : amountPaid > 0 ? `◐ Partiel (${amountPaid.toLocaleString('fr-FR')})` 
-                     : '○ Non payé';
+        const status = amountPaid > 0 ? '✓ Payé' : '○ Non payé';
 
         doc.fontSize(10).font('Helvetica-Bold')
            .text(`${contrib.title}: `, { continued: true })
            .font('Helvetica')
-           .text(`${contrib.amount.toLocaleString('fr-FR')} FCFA - ${status}`);
+           .text(`${amountPaid.toLocaleString('fr-FR')} FCFA - ${status}`);
       }
 
       doc.moveDown(0.5);

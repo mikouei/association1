@@ -1,6 +1,6 @@
 import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import api from './api';
 
@@ -50,6 +50,6 @@ export async function downloadPdf(path, filename, title) {
     window.open(url, '_blank');
   } catch (error) {
     console.error('downloadPdf error:', error);
-    Alert.alert('Erreur', 'Erreur lors de la génération du PDF');
+    Alert.alert('Erreur', error?.message || 'Erreur lors de la génération du PDF');
   }
 }

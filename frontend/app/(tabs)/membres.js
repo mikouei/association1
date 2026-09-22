@@ -35,7 +35,7 @@ import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 export default function Membres() {

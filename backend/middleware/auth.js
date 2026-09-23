@@ -84,7 +84,8 @@ export const authenticateToken = async (req, res, next) => {
 
     // Vérifier si le mot de passe a été changé après l'émission du token
     const currentPwdTs = Math.floor(new Date(user.passwordChangedAt).getTime() / 1000);
-    if (decoded.pwdTs !== undefined && decoded.pwdTs < currentPwdTs) {
+    // Un token sans pwdTs (émis avant l'ajout de ce champ) est considéré périmé → invalide
+    if (decoded.pwdTs === undefined || decoded.pwdTs < currentPwdTs) {
       return res.status(401).json({ error: 'Session expirée, veuillez vous reconnecter' });
     }
 

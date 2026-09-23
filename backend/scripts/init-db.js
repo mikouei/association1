@@ -2,16 +2,20 @@
 // Crée le SuperAdmin et une association par défaut
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// ⚠️ Ce script contient des identifiants par défaut faibles
-// NE JAMAIS exécuter en production sans avoir changé les mots de passe
-if (process.env.NODE_ENV === 'production') {
-  console.error('❌ Ce script ne doit pas être exécuté en production avec des identifiants par défaut');
+// Garde-fou explicite : ce script crée des comptes privilégiés.
+// Il refuse de s'exécuter sauf si SEED_CONFIRM=yes est fourni.
+if (process.env.SEED_CONFIRM !== 'yes') {
+  console.error('❌ Refus d\'exécution : définissez SEED_CONFIRM=yes pour lancer ce script de seed.');
   process.exit(1);
 }
+
+// Génère un mot de passe aléatoire fort (20 caractères) si aucun n'est fourni via l'environnement.
+const generatePassword = () => crypto.randomBytes(20).toString('base64url').slice(0, 20);
 
 const prisma = new PrismaClient();
 
@@ -19,8 +23,8 @@ async function main() {
   console.log('🔄 Initialisation de la base de données AssocManager...');
 
   // 1. Créer le SuperAdmin
-  const superAdminEmail = 'superadmin@platform.local';
-  const superAdminPassword = 'superadmin';
+  const superAdminEmail = process.env.SUPERADMIN_EMAIL || 'superadmin@platform.local';
+  const superAdminPassword = process.env.SUPERADMIN_PASSWORD || generatePassword();
 
   const existingSuperAdmin = await prisma.superAdmin.findUnique({
     where: { email: superAdminEmail }
@@ -51,8 +55,8 @@ async function main() {
   });
 
   if (!existingAssociation) {
-    const adminEmail = 'drigo@drigo.local';
-    const adminPassword = 'drigo';
+    const adminEmail = process.env.ADMIN_EMAIL || 'drigo@drigo.local';
+    const adminPassword = process.env.ADMIN_PASSWORD || generatePassword();
     const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
 
     const association = await prisma.association.create({

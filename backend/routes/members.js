@@ -606,6 +606,15 @@ router.post('/:id/reset-password', requireAdmin, async (req, res) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
+    // Régénérer le token de reconnexion rapide pour invalider tout ancien token fuité
+    let accessToken = generateAccessToken();
+    let tokenExists = true;
+    while (tokenExists) {
+      const existing = await prisma.user.findFirst({ where: { token: accessToken } });
+      if (!existing) tokenExists = false;
+      else accessToken = generateAccessToken();
+    }
+
     await prisma.user.updateMany({
       where: { 
         id, 
@@ -615,6 +624,7 @@ router.post('/:id/reset-password', requireAdmin, async (req, res) => {
       data: { 
         passwordHash, 
         passwordChangedAt: new Date(),
+        token: accessToken,
         failedLoginAttempts: 0,
         lockedUntil: null
       }

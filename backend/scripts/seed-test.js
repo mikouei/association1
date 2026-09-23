@@ -1,6 +1,18 @@
 // Seed de test local pour la fonctionnalité "inscription en attente"
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
+
+// Garde-fou explicite : ce script crée un compte admin.
+// Il refuse de s'exécuter sauf si SEED_CONFIRM=yes est fourni.
+if (process.env.SEED_CONFIRM !== 'yes') {
+  console.error('❌ Refus d\'exécution : définissez SEED_CONFIRM=yes pour lancer ce script de seed.');
+  process.exit(1);
+}
+
+// Mot de passe admin : via ADMIN_PASSWORD sinon généré aléatoirement (20 caractères).
+const generatePassword = () => crypto.randomBytes(20).toString('base64url').slice(0, 20);
+const adminPassword = process.env.ADMIN_PASSWORD || generatePassword();
 
 const prisma = new PrismaClient();
 
@@ -32,7 +44,7 @@ async function main() {
     where: { associationId: association.id, phone: adminPhone },
   });
   if (!admin) {
-    const passwordHash = await bcrypt.hash('admin123', 10);
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
     admin = await prisma.user.create({
       data: {
         associationId: association.id,
@@ -54,7 +66,7 @@ async function main() {
         active: true,
       },
     });
-    console.log('Admin créé:', adminPhone, '/ admin123');
+    console.log('Admin créé:', adminPhone, '/', adminPassword);
   } else {
     console.log('Admin existant:', adminPhone);
   }

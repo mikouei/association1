@@ -917,6 +917,9 @@ const memberPdfHandler = async (req, res) => {
     
     doc.moveDown(2);
 
+    // Formatage FCFA avec espace normal (évite l'espace insécable qui s'affiche mal en PDF)
+    const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
+
     // === PAIEMENTS MENSUELS ===
     doc.fontSize(14).font('Helvetica-Bold')
        .text('Cotisations Mensuelles', { underline: true });
@@ -936,14 +939,14 @@ const memberPdfHandler = async (req, res) => {
       totalMonthlyDue += yearDue;
 
       doc.fontSize(11).font('Helvetica-Bold')
-         .text(`Année ${yearData.year} - ${yearData.monthlyAmount.toLocaleString('fr-FR')} FCFA/mois`);
+         .text(`Année ${yearData.year} - ${fcfa(yearData.monthlyAmount)} FCFA/mois`);
       
-      // Tableau des mois
+      // Détail par mois (montant réellement payé)
       let monthLine = '';
       for (let m = 1; m <= 12; m++) {
         const payment = yearPayments.find(p => p.month === m);
-        const status = payment && payment.amountPaid > 0 ? '✓' : '○';
-        monthLine += `${monthNames[m-1]}:${status}  `;
+        const paid = payment ? payment.amountPaid : 0;
+        monthLine += `${monthNames[m-1]}: ${fcfa(paid)} FCFA   `;
         if (m === 6) {
           doc.fontSize(9).font('Helvetica').text(monthLine.trim());
           monthLine = '';
@@ -954,14 +957,14 @@ const memberPdfHandler = async (req, res) => {
       }
       
       doc.fontSize(10).font('Helvetica')
-         .text(`Payé: ${yearPaid.toLocaleString('fr-FR')} / ${yearDue.toLocaleString('fr-FR')} FCFA (${paidMonths}/12 mois)`);
+         .text(`Total: ${fcfa(yearPaid)} / ${fcfa(yearDue)} FCFA (${paidMonths}/12 mois)`);
       doc.moveDown(0.5);
     }
 
     // Total mensuels
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica-Bold')
-       .text(`Total cotisations mensuelles: ${totalMonthlyPaid.toLocaleString('fr-FR')} FCFA payés`);
+       .text(`Total cotisations mensuelles: ${fcfa(totalMonthlyPaid)} FCFA`);
     
     doc.moveDown(2);
 
@@ -977,18 +980,16 @@ const memberPdfHandler = async (req, res) => {
         const payment = contrib.payments[0];
         const amountPaid = payment?.amount || 0;
         totalExceptionalPaid += amountPaid;
-        
-        const status = amountPaid > 0 ? '✓ Payé' : '○ Non payé';
 
         doc.fontSize(10).font('Helvetica-Bold')
            .text(`${contrib.title}: `, { continued: true })
            .font('Helvetica')
-           .text(`${amountPaid.toLocaleString('fr-FR')} FCFA - ${status}`);
+           .text(`${fcfa(amountPaid)} FCFA`);
       }
 
       doc.moveDown(0.5);
       doc.fontSize(11).font('Helvetica-Bold')
-         .text(`Total exceptionnelles: ${totalExceptionalPaid.toLocaleString('fr-FR')} FCFA payés`);
+         .text(`Total exceptionnelles: ${fcfa(totalExceptionalPaid)} FCFA`);
       
       doc.moveDown(2);
     }
@@ -1000,7 +1001,7 @@ const memberPdfHandler = async (req, res) => {
     doc.fontSize(12).font('Helvetica-Bold')
        .text(`═══════════════════════════════════`);
     doc.fontSize(14).font('Helvetica-Bold')
-       .text(`TOTAL GÉNÉRAL: ${grandTotal.toLocaleString('fr-FR')} FCFA`);
+       .text(`TOTAL GÉNÉRAL: ${fcfa(grandTotal)} FCFA`);
     doc.fontSize(12).font('Helvetica-Bold')
        .text(`═══════════════════════════════════`);
 

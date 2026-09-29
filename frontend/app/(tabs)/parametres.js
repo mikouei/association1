@@ -72,6 +72,8 @@ export default function Parametres() {
     name: '',
     type: '',
     memberFieldLabel: '',
+    receiptHeader: '',
+    receiptSignature: '',
   });
 
   // Années
@@ -175,6 +177,8 @@ export default function Parametres() {
         name: response.data.name || '',
         type: response.data.type || '',
         memberFieldLabel: response.data.memberFieldLabel || '',
+        receiptHeader: response.data.receiptHeader || '',
+        receiptSignature: response.data.receiptSignature || '',
       });
     } catch (error) {
       console.error('Erreur chargement config:', error);
@@ -234,6 +238,11 @@ export default function Parametres() {
       // Sauvegarder le libellé du champ personnalisé via la nouvelle route
       await api.put('/auth/association-settings', {
         memberFieldLabel: formData.memberFieldLabel
+      });
+      // Sauvegarder l'en-tête et la signature des reçus
+      await api.put('/admin/association-settings', {
+        receiptHeader: formData.receiptHeader,
+        receiptSignature: formData.receiptSignature
       });
       Alert.alert('Succès', 'Paramètres enregistrés');
       setEditing(false);
@@ -735,6 +744,30 @@ export default function Parametres() {
                   />
                 </View>
 
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>En-tête des reçus</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Syndic BNI - Reçus officiels"
+                    placeholderTextColor={colors.textMuted}
+                    value={formData.receiptHeader}
+                    onChangeText={(text) => setFormData({ ...formData, receiptHeader: text })}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Signature des reçus</Text>
+                  <TextInput
+                    style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
+                    placeholder={"Ex: Étude de Maître Sylla Yaya\nSyndic BNI"}
+                    placeholderTextColor={colors.textMuted}
+                    value={formData.receiptSignature}
+                    onChangeText={(text) => setFormData({ ...formData, receiptSignature: text })}
+                    multiline
+                    numberOfLines={2}
+                  />
+                </View>
+
                 <View style={styles.buttonRow}>
                   <TouchableOpacity
                     style={[styles.button, styles.cancelButton]}
@@ -744,6 +777,8 @@ export default function Parametres() {
                         name: config?.name || '',
                         type: config?.type || '',
                         memberFieldLabel: config?.memberFieldLabel || '',
+                        receiptHeader: config?.receiptHeader || '',
+                        receiptSignature: config?.receiptSignature || '',
                       });
                     }}
                   >

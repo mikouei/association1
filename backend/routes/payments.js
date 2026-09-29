@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken, requireAdmin, requireRole, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
+import { nombreEnLettres } from '../utils/nombreEnLettres.js';
 
 const router = express.Router();
 
@@ -11,6 +12,63 @@ const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
+
+// Montant en toutes lettres (ex: "vingt et un mille cinq cents francs CFA")
+const enLettres = (n) => `${nombreEnLettres(n)} francs CFA`;
+
+// En-tête commun des reçus : uniquement receiptHeader (pas le nom de l'association)
+function renderReceiptHeader(doc, association) {
+  if (association?.receiptHeader) {
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text(association.receiptHeader, { align: 'center' });
+  } else {
+    doc.moveDown(1.2);
+  }
+}
+
+// Bloc signature en bas à droite : ligne horizontale + signature (ou "Signature") au-dessus
+function renderSignature(doc, association) {
+  doc.moveDown(2.5);
+  const rightX = doc.page.width - doc.page.margins.right;
+  const blockW = 200;
+  const startX = rightX - blockW;
+  const sig = association?.receiptSignature;
+  doc.fontSize(10).font('Helvetica').fillColor('#000')
+     .text(sig || 'Signature', startX, doc.y, { width: blockW, align: 'center' });
+  const y = doc.y + 2;
+  doc.moveTo(startX, y).lineTo(rightX, y).stroke();
+}
+
+// Corps commun d'un reçu mensuel (A5)
+function renderMonthlyReceipt(doc, payment, association, receiptNo) {
+  const currency = (association?.currency && association.currency !== 'XOF') ? association.currency : 'FCFA';
+  const monthName = MONTHS[payment.month - 1] || `Mois ${payment.month}`;
+  const remaining = Math.max(0, (payment.year.monthlyAmount || 0) - payment.amountPaid);
+
+  renderReceiptHeader(doc, association);
+  doc.moveDown(0.3);
+  doc.fontSize(13).font('Helvetica-Bold').fillColor('#000').text('Reçu de paiement', { align: 'center' });
+  doc.moveDown(0.2);
+  doc.fontSize(9).font('Helvetica').fillColor('#666').text(`N° ${receiptNo}`, { align: 'center' });
+  doc.moveDown(1).fillColor('#000');
+
+  const line = (label, value) => {
+    doc.fontSize(11).font('Helvetica').fillColor('#666').text(label, { continued: true });
+    doc.fillColor('#000').text(`  ${value}`);
+    doc.moveDown(0.4);
+  };
+
+  line('Membre :', payment.member.name);
+  line('Période :', `${monthName} ${payment.year.year}`);
+  line('Montant payé :', `${payment.amountPaid} ${currency}`);
+  line('La somme de :', enLettres(payment.amountPaid));
+  line('Reste à payer :', `${remaining} ${currency}`);
+  line('Date de paiement :', new Date(payment.paymentDate).toLocaleDateString('fr-FR'));
+
+  doc.moveDown(1);
+  doc.fontSize(9).fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
+
+  renderSignature(doc, association);
+}
 
 // GET /api/payments/my/year/:yearId
 // Mes paiements d'une année - ACCESSIBLE À TOUT UTILISATEUR CONNECTÉ (retourne uniquement SES propres données)
@@ -113,9 +171,6 @@ router.get('/my/receipt/monthly/:id', async (req, res) => {
     }
 
     const association = await prisma.association.findUnique({ where: { id: req.associationId } });
-    const currency = (association?.currency && association.currency !== 'XOF') ? association.currency : 'FCFA';
-    const monthName = MONTHS[payment.month - 1] || `Mois ${payment.month}`;
-    const remaining = Math.max(0, (payment.year.monthlyAmount || 0) - payment.amountPaid);
     const receiptNo = `R-${payment.year.year}-${String(payment.month).padStart(2, '0')}-${payment.id.substring(0, 6).toUpperCase()}`;
 
     const PDFDocument = (await import('pdfkit')).default;
@@ -124,31 +179,47 @@ router.get('/my/receipt/monthly/:id', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="recu_${receiptNo}.pdf"`);
     doc.pipe(res);
 
-    doc.fontSize(16).text(association?.name || 'Association', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(13).text('Reçu de paiement', { align: 'center' });
-    doc.moveDown(0.2);
-    doc.fontSize(9).fillColor('#666').text(`N° ${receiptNo}`, { align: 'center' });
-    doc.moveDown(1).fillColor('#000');
-
-    const line = (label, value) => {
-      doc.fontSize(11).fillColor('#666').text(label, { continued: true });
-      doc.fillColor('#000').text(`  ${value}`);
-      doc.moveDown(0.4);
-    };
-
-    line('Membre :', payment.member.name);
-    line('Période :', `${monthName} ${payment.year.year}`);
-    line('Montant payé :', `${payment.amountPaid} ${currency}`);
-    line('Reste à payer :', `${remaining} ${currency}`);
-    line('Date de paiement :', new Date(payment.paymentDate).toLocaleDateString('fr-FR'));
-
-    doc.moveDown(1);
-    doc.fontSize(9).fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
+    renderMonthlyReceipt(doc, payment, association, receiptNo);
 
     doc.end();
   } catch (error) {
     console.error('Monthly receipt PDF error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du reçu' });
+  }
+});
+
+// GET /api/payments/:id/receipt
+// Reçu PDF (A5) d'un paiement mensuel précis - ADMIN (n'importe quel membre de son association)
+router.get('/:id/receipt', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const payment = await prisma.monthlyPayment.findFirst({
+      where: {
+        id,
+        member: { associationId: req.associationId }
+      },
+      include: { member: true, year: true }
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Paiement introuvable' });
+    }
+
+    const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+    const receiptNo = `R-${payment.year.year}-${String(payment.month).padStart(2, '0')}-${payment.id.substring(0, 6).toUpperCase()}`;
+
+    const PDFDocument = (await import('pdfkit')).default;
+    const doc = new PDFDocument({ margin: 40, size: 'A5' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="recu_${receiptNo}.pdf"`);
+    doc.pipe(res);
+
+    renderMonthlyReceipt(doc, payment, association, receiptNo);
+
+    doc.end();
+  } catch (error) {
+    console.error('Admin monthly receipt PDF error:', error);
     res.status(500).json({ error: 'Erreur lors de la génération du reçu' });
   }
 });

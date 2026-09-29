@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
 import { sendToAssociationMembers } from '../utils/pushNotifications.js';
+import { nombreEnLettres } from '../utils/nombreEnLettres.js';
 
 const router = express.Router();
 
@@ -9,6 +10,31 @@ const router = express.Router();
 router.use(authenticateToken);
 
 const CONTRIBUTION_TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'réunion', 'autre'];
+
+// Montant en toutes lettres (ex: "vingt et un mille cinq cents francs CFA")
+const enLettres = (n) => `${nombreEnLettres(n)} francs CFA`;
+
+// En-tête commun des reçus : uniquement receiptHeader (pas le nom de l'association)
+function renderReceiptHeader(doc, association) {
+  if (association?.receiptHeader) {
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text(association.receiptHeader, { align: 'center' });
+  } else {
+    doc.moveDown(1.2);
+  }
+}
+
+// Bloc signature en bas à droite : ligne horizontale + signature (ou "Signature") au-dessus
+function renderSignature(doc, association) {
+  doc.moveDown(2.5);
+  const rightX = doc.page.width - doc.page.margins.right;
+  const blockW = 200;
+  const startX = rightX - blockW;
+  const sig = association?.receiptSignature;
+  doc.fontSize(10).font('Helvetica').fillColor('#000')
+     .text(sig || 'Signature', startX, doc.y, { width: blockW, align: 'center' });
+  const y = doc.y + 2;
+  doc.moveTo(startX, y).lineTo(rightX, y).stroke();
+}
 
 // Helper pour échapper le HTML (sécurité XSS)
 const escapeHtml = (str) =>
@@ -392,15 +418,15 @@ router.get('/mine/receipt/:id', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="recu_${receiptNo}.pdf"`);
     doc.pipe(res);
 
-    doc.fontSize(16).text(association?.name || 'Association', { align: 'center' });
+    renderReceiptHeader(doc, association);
     doc.moveDown(0.3);
-    doc.fontSize(13).text('Reçu de paiement', { align: 'center' });
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#000').text('Reçu de paiement', { align: 'center' });
     doc.moveDown(0.2);
-    doc.fontSize(9).fillColor('#666').text(`N° ${receiptNo}`, { align: 'center' });
+    doc.fontSize(9).font('Helvetica').fillColor('#666').text(`N° ${receiptNo}`, { align: 'center' });
     doc.moveDown(1).fillColor('#000');
 
     const line = (label, value) => {
-      doc.fontSize(11).fillColor('#666').text(label, { continued: true });
+      doc.fontSize(11).font('Helvetica').fillColor('#666').text(label, { continued: true });
       doc.fillColor('#000').text(`  ${value}`);
       doc.moveDown(0.4);
     };
@@ -408,11 +434,14 @@ router.get('/mine/receipt/:id', async (req, res) => {
     line('Membre :', payment.member.name);
     line('Libellé :', payment.contribution.title);
     line('Montant payé :', `${payment.amount} ${currency}`);
+    line('La somme de :', enLettres(payment.amount));
     line('Reste à payer :', `0 ${currency}`);
     line('Date de paiement :', payDate.toLocaleDateString('fr-FR'));
 
     doc.moveDown(1);
     doc.fontSize(9).fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
+
+    renderSignature(doc, association);
 
     doc.end();
   } catch (error) {

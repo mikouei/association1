@@ -23,7 +23,8 @@ import {
   XCircle, 
   X, 
   CheckCircle,
-  WifiSlash
+  WifiSlash,
+  Receipt
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { downloadPdf } from '../../utils/downloadPdf';
@@ -355,6 +356,20 @@ export default function Cotisations() {
         {filteredMembers.map((member, idx) => (
           <View key={member.id} style={styles.memberCard}>
             <View style={styles.memberCardHeader}>
+              {isAdmin && (
+                <TouchableOpacity
+                  style={styles.recapBtn}
+                  onPress={() => downloadPdf(
+                    `/members/${member.id}/receipt-recap`,
+                    `recu_recap_${member.name}`,
+                    'Reçu récapitulatif'
+                  )}
+                  testID={`recap-btn-${member.id}`}
+                >
+                  <Receipt size={16} color={colors.primary} weight="bold" />
+                  <Text style={styles.recapBtnText}>Récap</Text>
+                </TouchableOpacity>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.memberCardName}>{member.name}</Text>
                 <Text style={styles.memberCardField}>{member.customFieldValue}</Text>
@@ -373,6 +388,7 @@ export default function Cotisations() {
               <View key={rowIdx} style={styles.monthRow}>
                 {row.map((month) => {
                   const monthData = member.paymentsByMonth[month];
+                  const cellPaymentId = monthData?.payments?.[0]?.id;
                   return (
                     <TouchableOpacity
                       key={month}
@@ -391,6 +407,20 @@ export default function Cotisations() {
                               : monthData.amountPaid)
                           : '-'}
                       </Text>
+                      {isAdmin && monthData.amountPaid > 0 && cellPaymentId && (
+                        <TouchableOpacity
+                          style={styles.cellReceiptBtn}
+                          onPress={() => downloadPdf(
+                            `/payments/${cellPaymentId}/receipt`,
+                            `recu_${MONTHS_FULL[month - 1]}_${member.name}`,
+                            'Reçu de paiement'
+                          )}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          testID={`cell-receipt-${cellPaymentId}`}
+                        >
+                          <Receipt size={12} color={colors.secondary} weight="fill" />
+                        </TouchableOpacity>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
@@ -735,6 +765,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cellReceiptBtn: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.warningBg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.button,
+    marginRight: spacing.sm,
+  },
+  recapBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
   },
   monthCardLabel: {
     fontSize: 10,

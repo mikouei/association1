@@ -5,8 +5,34 @@ import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, requireAdmin, requireRole, generateAccessToken, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
 import { checkMemberLimit } from '../utils/planLimits.js';
+import { nombreEnLettres } from '../utils/nombreEnLettres.js';
 
 const router = express.Router();
+
+// Montant en toutes lettres (ex: "vingt et un mille cinq cents francs CFA")
+const enLettres = (n) => `${nombreEnLettres(n)} francs CFA`;
+
+// En-tête commun des reçus : uniquement receiptHeader (pas le nom de l'association)
+function renderReceiptHeader(doc, association, size) {
+  if (association?.receiptHeader) {
+    doc.fontSize(size || 20).font('Helvetica-Bold').fillColor('#000').text(association.receiptHeader, { align: 'center' });
+  } else {
+    doc.moveDown(1.2);
+  }
+}
+
+// Bloc signature en bas à droite : ligne horizontale + signature (ou "Signature") au-dessus
+function renderSignature(doc, association) {
+  doc.moveDown(2.5);
+  const rightX = doc.page.width - doc.page.margins.right;
+  const blockW = 200;
+  const startX = rightX - blockW;
+  const sig = association?.receiptSignature;
+  doc.fontSize(10).font('Helvetica').fillColor('#000')
+     .text(sig || 'Signature', startX, doc.y, { width: blockW, align: 'center' });
+  const y = doc.y + 2;
+  doc.moveTo(startX, y).lineTo(rightX, y).stroke();
+}
 
 // Authentification requise pour toutes les routes
 router.use(authenticateToken);
@@ -884,8 +910,7 @@ const memberPdfHandler = async (req, res) => {
     doc.pipe(res);
 
     // === EN-TÊTE ===
-    doc.fontSize(20).font('Helvetica-Bold')
-       .text(association.name, { align: 'center' });
+    renderReceiptHeader(doc, association, 20);
     doc.fontSize(12).font('Helvetica')
        .text('Relevé des paiements', { align: 'center' });
     doc.moveDown();
@@ -965,6 +990,9 @@ const memberPdfHandler = async (req, res) => {
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica-Bold')
        .text(`Total cotisations mensuelles: ${fcfa(totalMonthlyPaid)} FCFA`);
+    doc.fontSize(9).font('Helvetica').fillColor('#444')
+       .text(`La somme de : ${enLettres(totalMonthlyPaid)}`);
+    doc.fillColor('#000');
     
     doc.moveDown(2);
 
@@ -990,6 +1018,9 @@ const memberPdfHandler = async (req, res) => {
       doc.moveDown(0.5);
       doc.fontSize(11).font('Helvetica-Bold')
          .text(`Total exceptionnelles: ${fcfa(totalExceptionalPaid)} FCFA`);
+      doc.fontSize(9).font('Helvetica').fillColor('#444')
+         .text(`La somme de : ${enLettres(totalExceptionalPaid)}`);
+      doc.fillColor('#000');
       
       doc.moveDown(2);
     }
@@ -1004,6 +1035,12 @@ const memberPdfHandler = async (req, res) => {
        .text(`TOTAL GÉNÉRAL: ${fcfa(grandTotal)} FCFA`);
     doc.fontSize(12).font('Helvetica-Bold')
        .text(`═══════════════════════════════════`);
+    doc.fontSize(9).font('Helvetica').fillColor('#444')
+       .text(`La somme de : ${enLettres(grandTotal)}`);
+    doc.fillColor('#000');
+
+    // Bloc signature
+    renderSignature(doc, association);
 
     // Pied de page
     doc.moveDown(3);
@@ -1021,6 +1058,96 @@ const memberPdfHandler = async (req, res) => {
 
 router.get('/me/export-pdf', memberPdfHandler);
 router.get('/:id/export-pdf', requireAdmin, memberPdfHandler);
+
+// GET /api/members/:id/receipt-recap
+// Reçu récapitulatif d'un membre : de janvier au mois calendaire actuel (année en cours) - ADMIN
+router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const member = await prisma.member.findFirst({
+      where: { id, associationId: req.associationId }
+    });
+    if (!member) {
+      return res.status(404).json({ error: 'Membre introuvable' });
+    }
+
+    const now = new Date();
+    const currentYearNum = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12 (mois actuel inclus)
+
+    const year = await prisma.year.findFirst({
+      where: { associationId: req.associationId, year: currentYearNum }
+    });
+    if (!year) {
+      return res.status(404).json({ error: 'Aucune année de cotisation pour l\'année en cours' });
+    }
+
+    const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+    const payments = await prisma.monthlyPayment.findMany({
+      where: { memberId: member.id, yearId: year.id }
+    });
+
+    const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
+
+    let totalPaid = 0;
+    const rows = [];
+    for (let m = 1; m <= currentMonth; m++) {
+      const paid = payments.filter(p => p.month === m).reduce((s, p) => s + p.amountPaid, 0);
+      totalPaid += paid;
+      rows.push({ month: MONTHS_FR[m - 1], paid });
+    }
+    const totalDue = currentMonth * (year.monthlyAmount || 0);
+
+    const receiptNo = `R-${currentYearNum}-RECAP-${member.id.substring(0, 6).toUpperCase()}`;
+
+    const PDFDocument = (await import('pdfkit')).default;
+    const doc = new PDFDocument({ margin: 40, size: 'A5' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="recu_recap_${receiptNo}.pdf"`);
+    doc.pipe(res);
+
+    renderReceiptHeader(doc, association, 14);
+    doc.moveDown(0.3);
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#000').text('Reçu récapitulatif', { align: 'center' });
+    doc.moveDown(0.2);
+    doc.fontSize(9).font('Helvetica').fillColor('#666').text(`N° ${receiptNo}`, { align: 'center' });
+    doc.moveDown(0.8).fillColor('#000');
+
+    doc.fontSize(11).font('Helvetica-Bold').text('Membre : ', { continued: true })
+       .font('Helvetica').text(member.name);
+    doc.fontSize(11).font('Helvetica-Bold').text('Année : ', { continued: true })
+       .font('Helvetica').text(`${currentYearNum} (Janvier à ${MONTHS_FR[currentMonth - 1]})`);
+    doc.moveDown(0.6);
+
+    // Détail par mois (de janvier au mois actuel)
+    for (const r of rows) {
+      doc.fontSize(10).font('Helvetica').fillColor('#666').text(`${r.month} :`, { continued: true });
+      doc.fillColor('#000').text(`  ${fcfa(r.paid)} FCFA`);
+      doc.moveDown(0.2);
+    }
+
+    doc.moveDown(0.6);
+    doc.fontSize(11).font('Helvetica-Bold').text(`Total payé : ${fcfa(totalPaid)} FCFA`);
+    doc.fontSize(9).font('Helvetica').fillColor('#444').text(`La somme de : ${enLettres(totalPaid)}`);
+    doc.fillColor('#000');
+    doc.fontSize(11).font('Helvetica-Bold').text(`Total dû : ${fcfa(totalDue)} FCFA`);
+    doc.fontSize(10).font('Helvetica').text(`Reste à payer : ${fcfa(Math.max(0, totalDue - totalPaid))} FCFA`);
+
+    doc.moveDown(0.6);
+    doc.fontSize(9).font('Helvetica').fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
+    doc.fillColor('#000');
+
+    renderSignature(doc, association);
+
+    doc.end();
+  } catch (error) {
+    console.error('Receipt recap PDF error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du reçu récapitulatif' });
+  }
+});
 
 // POST /api/members/link-admin
 // Attacher un profil Membre à un compte ADMIN déjà existant (au lieu de créer un second compte)

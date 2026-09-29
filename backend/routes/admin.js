@@ -489,4 +489,30 @@ router.post('/pending-members/reject', async (req, res) => {
   }
 });
 
+// PUT /api/admin/association-settings
+// Mettre à jour les paramètres de reçu de l'association (en-tête et signature)
+router.put('/association-settings', async (req, res) => {
+  try {
+    const { receiptHeader, receiptSignature } = req.body;
+
+    const data = {};
+    if (receiptHeader !== undefined) data.receiptHeader = receiptHeader || null;
+    if (receiptSignature !== undefined) data.receiptSignature = receiptSignature || null;
+
+    const association = await prisma.association.update({
+      where: { id: req.associationId },
+      data
+    });
+
+    res.json({
+      message: 'Paramètres enregistrés',
+      receiptHeader: association.receiptHeader,
+      receiptSignature: association.receiptSignature
+    });
+  } catch (error) {
+    console.error('Update association settings error:', error);
+    res.status(500).json({ error: 'Erreur lors de la sauvegarde des paramètres' });
+  }
+});
+
 export default router;

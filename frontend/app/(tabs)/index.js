@@ -27,11 +27,13 @@ import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency, formatAmount } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
+import { getVocab } from '../../utils/vocabulary';
 
 export default function Dashboard() {
   const { user, association } = useAuth();
   const router = useRouter();
   const isAdmin = user?.role === 'ADMIN';
+  const vocab = getVocab(association?.type);
   const [config, setConfig] = useState(null);
   const [memberStats, setMemberStats] = useState(null);
   const [paymentStats, setPaymentStats] = useState(null);
@@ -219,7 +221,7 @@ export default function Dashboard() {
           <View style={styles.welcomeInfo}>
             <Text style={styles.welcomeText}>{user?.member?.name || 'Administrateur'}</Text>
             <Text style={styles.roleText}>
-              {user?.role === 'ADMIN' ? 'Administrateur' : 'Membre'}
+              {user?.role === 'ADMIN' ? 'Administrateur' : vocab.Member}
               {association ? ` · ${association.code}` : ''}
             </Text>
           </View>
@@ -231,7 +233,7 @@ export default function Dashboard() {
         <View style={styles.myPaymentCard}>
           <View style={styles.myPaymentHeader}>
             <CurrencyCircleDollar size={24} color={colors.primary} weight="duotone" />
-            <Text style={styles.myPaymentTitle}>Mes cotisations {myPaymentData.year}</Text>
+            <Text style={styles.myPaymentTitle}>Mes {vocab.contributions} {myPaymentData.year}</Text>
           </View>
           
           <View style={styles.myPaymentProgress}>
@@ -279,7 +281,7 @@ export default function Dashboard() {
         >
           <WarningCircle size={20} color={colors.warning} weight="fill" />
           <Text style={styles.exceptionalAlertText}>
-            Cotisation exceptionnelle en attente : {myExceptionalData[0].title}
+            {vocab.Contribution} exceptionnelle en attente : {myExceptionalData[0].title}
           </Text>
         </TouchableOpacity>
       )}
@@ -346,7 +348,7 @@ export default function Dashboard() {
             </View>
             <View style={styles.onboardingItemContent}>
               <Text style={[styles.onboardingItemTitle, yearsCount > 0 && styles.onboardingItemDone]}>
-                Créer votre première année de cotisation
+                Créer votre première année de {vocab.contribution}
               </Text>
               {yearsCount === 0 && (
                 <Text style={styles.onboardingItemHint}>Définir le montant mensuel à collecter</Text>
@@ -367,7 +369,7 @@ export default function Dashboard() {
             </View>
             <View style={styles.onboardingItemContent}>
               <Text style={[styles.onboardingItemTitle, memberStats?.totalMembers > 0 && styles.onboardingItemDone]}>
-                Ajouter vos premiers membres
+                Ajouter vos premiers {vocab.members}
               </Text>
               {memberStats?.totalMembers === 0 && (
                 <Text style={styles.onboardingItemHint}>Ajout manuel ou import depuis un fichier</Text>
@@ -380,7 +382,7 @@ export default function Dashboard() {
       {/* Statistiques membres */}
       {user?.role === 'ADMIN' && memberStats && (
         <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Membres</Text>
+          <Text style={styles.sectionTitle}>{vocab.Members}</Text>
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: colors.accentTeal }]}>
               <Users size={28} color={colors.textOnSecondary} weight="fill" />
@@ -405,7 +407,7 @@ export default function Dashboard() {
       {user?.role === 'ADMIN' && paymentStats && (
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>
-            Cotisations {paymentStats.year || ''}
+            {vocab.Contributions} {paymentStats.year || ''}
           </Text>
           
           {paymentStats.noYear ? (

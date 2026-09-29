@@ -34,6 +34,7 @@ import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
 import { formatNumber, formatCurrency } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
+import { getVocab } from '../../utils/vocabulary';
 
 // Domaine de l'application pour les liens d'invitation
 const APP_DOMAIN = 'https://web-bx1a.onrender.com';
@@ -59,6 +60,7 @@ export default function Parametres() {
   };
   const router = useRouter();
   const isAdmin = user?.role === 'ADMIN';
+  const vocab = getVocab(association?.type);
 
   // Lien d'invitation
   const inviteLink = association?.code ? `${APP_DOMAIN}/join/${association.code}` : '';
@@ -242,7 +244,8 @@ export default function Parametres() {
       // Sauvegarder l'en-tête et la signature des reçus
       await api.put('/admin/association-settings', {
         receiptHeader: formData.receiptHeader,
-        receiptSignature: formData.receiptSignature
+        receiptSignature: formData.receiptSignature,
+        type: formData.type === 'SYNDIC' ? 'SYNDIC' : 'ASSOCIATION'
       });
       Alert.alert('Succès', 'Paramètres enregistrés');
       setEditing(false);
@@ -645,7 +648,7 @@ export default function Parametres() {
               <View style={styles.profileInfo}>
                 <Text style={styles.profileLabel}>Rôle</Text>
                 <Text style={styles.profileValue}>
-                  {user?.role === 'ADMIN' ? 'Administrateur' : 'Membre'}
+                  {user?.role === 'ADMIN' ? 'Administrateur' : vocab.Member}
                 </Text>
               </View>
             </View>
@@ -723,18 +726,24 @@ export default function Parametres() {
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Type d'association</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Ex: Syndic, Tontine, ONG..."
-                    placeholderTextColor={colors.textMuted}
-                    value={formData.type}
-                    onChangeText={(text) => setFormData({ ...formData, type: text })}
-                  />
+                  <Text style={styles.label}>Type d'organisation</Text>
+                  <View style={styles.bioRow}>
+                    <View style={styles.bioTextWrap}>
+                      <Text style={styles.bioLabel}>Ceci est un syndic de copropriété</Text>
+                      <Text style={styles.bioHint}>Change le vocabulaire (copropriétaires, charges)</Text>
+                    </View>
+                    <Switch
+                      value={formData.type === 'SYNDIC'}
+                      onValueChange={(v) => setFormData({ ...formData, type: v ? 'SYNDIC' : 'ASSOCIATION' })}
+                      trackColor={{ true: colors.primary, false: colors.border }}
+                      thumbColor={colors.backgroundWhite}
+                      testID="syndic-toggle"
+                    />
+                  </View>
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Libellé du champ membre *</Text>
+                  <Text style={styles.label}>Libellé du champ {vocab.member} *</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Ex: Villa, Groupe, Section..."
@@ -869,7 +878,7 @@ export default function Parametres() {
                 onPress={() => setImportModalVisible(true)}
               >
                 <CloudArrowUp size={24} color={colors.primary} />
-                <Text style={styles.optionText}>Importer membres (TXT/CSV)</Text>
+                <Text style={styles.optionText}>Importer {vocab.members} (TXT/CSV)</Text>
                 <CaretRight size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
@@ -878,7 +887,7 @@ export default function Parametres() {
                 onPress={handleExportMembers}
               >
                 <Download size={24} color={colors.success} />
-                <Text style={styles.optionText}>Exporter membres (CSV)</Text>
+                <Text style={styles.optionText}>Exporter {vocab.members} (CSV)</Text>
                 <CaretRight size={20} color={colors.textMuted} />
               </TouchableOpacity>
 
@@ -906,7 +915,7 @@ export default function Parametres() {
         {/* Inviter des membres - Visible pour les admins uniquement */}
         {isAdmin && association?.code && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Inviter des membres</Text>
+            <Text style={styles.sectionTitle}>Inviter des {vocab.members}</Text>
             <View style={styles.inviteCard}>
               <View style={styles.inviteQRContainer}>
                 <QRCode
@@ -1315,7 +1324,7 @@ export default function Parametres() {
               <ArrowLeft size={24} color={colors.textOnSecondary} />
               <Text style={styles.backButtonText}>Retour</Text>
             </TouchableOpacity>
-            <Text style={styles.fullModalTitle}>Importer membres</Text>
+            <Text style={styles.fullModalTitle}>Importer {vocab.members}</Text>
             <View style={{ width: 80 }} />
           </View>
 

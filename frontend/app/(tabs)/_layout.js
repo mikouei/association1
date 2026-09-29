@@ -3,14 +3,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography } from '../../utils/theme';
+import { getVocab } from '../../utils/vocabulary';
 import { House, Wallet, CalendarDots, Users, ShieldCheck, GearSix, Bell, QrCode, Eye } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import api from '../../utils/api';
 
 export default function TabsLayout() {
-  const { user, token } = useAuth();
+  const { user, token, association } = useAuth();
   const role = user?.role || 'MEMBER';
+  const vocab = getVocab(association?.type);
   const isAdmin = role === 'ADMIN';
   const isScanner = role === 'SCANNER';
   const isAuditeur = role === 'AUDITEUR';
@@ -119,7 +121,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="cotisations"
           options={{
-            title: 'Cotisations',
+            title: vocab.Contributions,
             // Accessible à MEMBER et ADMIN, pas SCANNER
             href: isScanner ? null : '/cotisations',
             tabBarIcon: ({ color, focused }) => (
@@ -141,7 +143,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="membres"
           options={{
-            title: 'Membres',
+            title: vocab.Members,
             href: isAdmin ? '/membres' : null,
             tabBarIcon: ({ color, focused }) => (
               <Users size={24} color={color} weight={focused ? 'fill' : 'regular'} />

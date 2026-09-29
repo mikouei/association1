@@ -23,12 +23,14 @@ import { formatNumber } from '../../utils/format';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
+import { getVocab } from '../../utils/vocabulary';
 
 const TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité', 'réunion', 'autre'];
 
 export default function Exceptionnelles() {
-  const { user } = useAuth();
+  const { user, association } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const vocab = getVocab(association?.type);
 
   // Segment actif: 'events' ou 'tontines'
   const [activeSegment, setActiveSegment] = useState('events');
@@ -760,7 +762,7 @@ export default function Exceptionnelles() {
             ListEmptyComponent={() => (
               <View style={styles.emptyContainer}>
                 <Gift size={64} color={colors.border} weight="duotone" />
-                <Text style={styles.emptyText}>Aucune cotisation exceptionnelle</Text>
+                <Text style={styles.emptyText}>Aucune {vocab.contribution} exceptionnelle</Text>
               </View>
             )}
           />
@@ -824,7 +826,7 @@ export default function Exceptionnelles() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingContribution ? 'Modifier cotisation' : 'Nouvelle cotisation'}
+                {editingContribution ? `Modifier ${vocab.contribution}` : `Nouvelle ${vocab.contribution}`}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <X size={28} color={colors.text} />
@@ -1157,13 +1159,13 @@ export default function Exceptionnelles() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Membre *</Text>
+              <Text style={styles.label}>{vocab.Member} *</Text>
               <TouchableOpacity
                 style={styles.memberSelector}
                 onPress={() => setMemberSelectModal(true)}
               >
                 <Text style={paymentData.memberName ? styles.memberSelectorText : styles.memberSelectorPlaceholder}>
-                  {paymentData.memberName || 'Sélectionner un membre'}
+                  {paymentData.memberName || `Sélectionner un ${vocab.member}`}
                 </Text>
                 <CaretDown size={20} color={colors.textMuted} />
               </TouchableOpacity>
@@ -1206,7 +1208,7 @@ export default function Exceptionnelles() {
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { maxHeight: '80%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sélectionner un membre</Text>
+              <Text style={styles.modalTitle}>Sélectionner un {vocab.member}</Text>
               <TouchableOpacity onPress={() => setMemberSelectModal(false)}>
                 <X size={28} color={colors.text} />
               </TouchableOpacity>
@@ -1244,7 +1246,7 @@ export default function Exceptionnelles() {
                 </TouchableOpacity>
               )}
               ListEmptyComponent={() => (
-                <Text style={styles.noMembers}>Aucun membre trouvé</Text>
+                <Text style={styles.noMembers}>Aucun {vocab.member} trouvé</Text>
               )}
             />
           </View>
@@ -1328,7 +1330,7 @@ export default function Exceptionnelles() {
                 >
                   <Text style={tontineFormData.memberIds.length > 0 ? styles.memberSelectorText : styles.memberSelectorPlaceholder}>
                     {tontineFormData.memberIds.length > 0 
-                      ? `${tontineFormData.memberIds.length} membre(s) sélectionné(s)` 
+                      ? `${tontineFormData.memberIds.length} ${vocab.member}(s) sélectionné(s)` 
                       : 'Sélectionner les participants'}
                   </Text>
                   <CaretDown size={20} color={colors.textMuted} />
@@ -1408,7 +1410,7 @@ export default function Exceptionnelles() {
                 );
               }}
               ListEmptyComponent={() => (
-                <Text style={styles.noMembers}>Aucun membre trouvé</Text>
+                <Text style={styles.noMembers}>Aucun {vocab.member} trouvé</Text>
               )}
             />
 
@@ -1595,7 +1597,7 @@ export default function Exceptionnelles() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Membre</Text>
+              <Text style={styles.label}>{vocab.Member}</Text>
               <View style={styles.readOnlyField}>
                 <Text style={styles.readOnlyText}>{tontinePaymentData.memberName}</Text>
               </View>

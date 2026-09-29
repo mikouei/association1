@@ -1149,6 +1149,109 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/members/:id/charge-notice
+// Appel de charges (lettre formelle A4) pour un membre - ADMIN (mode SYNDIC)
+router.get('/:id/charge-notice', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const member = await prisma.member.findFirst({
+      where: { id, associationId: req.associationId }
+    });
+    if (!member) {
+      return res.status(404).json({ error: 'Membre introuvable' });
+    }
+
+    const now = new Date();
+    const currentYearNum = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12 (mois actuel inclus)
+
+    const year = await prisma.year.findFirst({
+      where: { associationId: req.associationId, year: currentYearNum }
+    });
+    if (!year) {
+      return res.status(404).json({ error: 'Aucune année de cotisation pour l\'année en cours' });
+    }
+
+    const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+    const payments = await prisma.monthlyPayment.findMany({
+      where: { memberId: member.id, yearId: year.id }
+    });
+
+    const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
+
+    let totalPaid = 0;
+    for (let m = 1; m <= currentMonth; m++) {
+      totalPaid += payments.filter(p => p.month === m).reduce((s, p) => s + p.amountPaid, 0);
+    }
+    const totalDue = currentMonth * (year.monthlyAmount || 0);
+    const diff = Math.abs(totalDue - totalPaid);
+
+    const safeName = (member.name || 'membre').replace(/[^a-zA-Z0-9]/g, '_');
+
+    const PDFDocument = (await import('pdfkit')).default;
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="appel_charges_${safeName}.pdf"`);
+    doc.pipe(res);
+
+    // En-tête + date
+    renderReceiptHeader(doc, association, 16);
+    doc.moveDown(0.5);
+    doc.fontSize(10).font('Helvetica').fillColor('#000')
+       .text(`Le ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
+    doc.moveDown(0.5);
+    doc.fontSize(12).font('Helvetica-Bold').text('LE SYNDIC');
+    doc.moveDown(1);
+
+    // Objet
+    doc.fontSize(12).font('Helvetica-Bold')
+       .text(`Objet : Appel de charges — ${MONTHS_FR[currentMonth - 1]} ${currentYearNum}`);
+    doc.moveDown(1);
+
+    // Destinataire
+    doc.fontSize(11).font('Helvetica').text(`Monsieur/Madame ${member.name}`);
+    if (member.customFieldValue) {
+      doc.text(`${association?.memberFieldLabel || 'Villa'} ${member.customFieldValue}`);
+    }
+    doc.moveDown(1);
+
+    // Corps
+    doc.fontSize(11).font('Helvetica')
+       .text('Je vous informe de l\'état actuel de votre compte de charges à ce jour :');
+    doc.moveDown(0.8);
+
+    doc.font('Helvetica-Bold').text('Charges mensuelles : ', { continued: true })
+       .font('Helvetica').text(`${fcfa(year.monthlyAmount)} FCFA`);
+    doc.font('Helvetica-Bold').text('Période : ', { continued: true })
+       .font('Helvetica').text(`Janvier à ${MONTHS_FR[currentMonth - 1]} ${currentYearNum} soit ${currentMonth} mois`);
+    doc.font('Helvetica-Bold').text('Montant dû : ', { continued: true })
+       .font('Helvetica').text(`${fcfa(totalDue)} FCFA`);
+    doc.font('Helvetica-Bold').text('Montant payé : ', { continued: true })
+       .font('Helvetica').text(`${fcfa(totalPaid)} FCFA`);
+    if (totalDue > totalPaid) {
+      doc.font('Helvetica-Bold').text('Reste dû : ', { continued: true })
+         .font('Helvetica').text(`${fcfa(diff)} FCFA`);
+    } else {
+      doc.font('Helvetica-Bold').text('Avance : ', { continued: true })
+         .font('Helvetica').text(`${fcfa(diff)} FCFA`);
+    }
+    doc.moveDown(1);
+
+    doc.fontSize(11).font('Helvetica')
+       .text('Nous vous rappelons que ces charges sont essentielles au bon fonctionnement et à l\'entretien de la copropriété. Merci de bien vouloir régulariser votre situation dans les meilleurs délais.', { align: 'justify' });
+
+    renderSignature(doc, association);
+
+    doc.end();
+  } catch (error) {
+    console.error('Charge notice PDF error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération de l\'appel de charges' });
+  }
+});
+
 // POST /api/members/link-admin
 // Attacher un profil Membre à un compte ADMIN déjà existant (au lieu de créer un second compte)
 router.post('/link-admin', requireAdmin, async (req, res) => {

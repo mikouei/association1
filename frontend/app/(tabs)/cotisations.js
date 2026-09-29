@@ -24,13 +24,15 @@ import {
   X, 
   CheckCircle,
   WifiSlash,
-  Receipt
+  Receipt,
+  FileText
 } from 'phosphor-react-native';
 import api from '../../utils/api';
 import { downloadPdf } from '../../utils/downloadPdf';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
+import { getVocab } from '../../utils/vocabulary';
 import OfflineIndicator from '../../components/OfflineIndicator';
 
 const MONTHS = [
@@ -44,9 +46,11 @@ const MONTHS_FULL = [
 ];
 
 export default function Cotisations() {
-  const { user } = useAuth();
+  const { user, association } = useAuth();
   const { isOnline, cachePayments, cacheYears, getCachedPayments } = useOffline();
   const isAdmin = user?.role === 'ADMIN';
+  const vocab = getVocab(association?.type);
+  const isSyndic = association?.type === 'SYNDIC';
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -370,6 +374,20 @@ export default function Cotisations() {
                   <Text style={styles.recapBtnText}>Récap</Text>
                 </TouchableOpacity>
               )}
+              {isAdmin && isSyndic && (
+                <TouchableOpacity
+                  style={styles.recapBtn}
+                  onPress={() => downloadPdf(
+                    `/members/${member.id}/charge-notice`,
+                    `appel_charges_${member.name}`,
+                    'Appel de charges'
+                  )}
+                  testID={`charge-notice-btn-${member.id}`}
+                >
+                  <FileText size={16} color={colors.primary} weight="bold" />
+                  <Text style={styles.recapBtnText}>Charges</Text>
+                </TouchableOpacity>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.memberCardName}>{member.name}</Text>
                 <Text style={styles.memberCardField}>{member.customFieldValue}</Text>
@@ -432,7 +450,7 @@ export default function Cotisations() {
         {filteredMembers.length === 0 && (
           <View style={styles.noResults}>
             <Text style={styles.noResultsText}>
-              {searchQuery ? 'Aucun résultat trouvé' : 'Aucun membre'}
+              {searchQuery ? 'Aucun résultat trouvé' : `Aucun ${vocab.member}`}
             </Text>
           </View>
         )}

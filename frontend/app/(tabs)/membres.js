@@ -35,12 +35,14 @@ import api from '../../utils/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNumber, formatCurrency } from '../../utils/format';
 import { colors, spacing, borderRadius, typography } from '../../utils/theme';
+import { getVocab } from '../../utils/vocabulary';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 export default function Membres() {
   const { user, association } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const vocab = getVocab(association?.type);
   
   const [members, setMembers] = useState([]);
   const [filteredMembers, setFilteredMembers] = useState([]);
@@ -688,7 +690,7 @@ export default function Membres() {
             <CheckSquare size={20} color={colors.primary} />
             <Text style={styles.selectModeText}>Sélection multiple</Text>
           </TouchableOpacity>
-          <Text style={styles.memberCount}>{filteredMembers.length} membre(s)</Text>
+          <Text style={styles.memberCount}>{filteredMembers.length} {vocab.member}(s)</Text>
         </View>
       )}
 
@@ -696,7 +698,7 @@ export default function Membres() {
         <MagnifyingGlass size={20} color={colors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher un membre..."
+          placeholder={`Rechercher un ${vocab.member}...`}
           placeholderTextColor={colors.textMuted}
           value={search}
           onChangeText={setSearch}
@@ -721,7 +723,7 @@ export default function Membres() {
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <UsersThree size={64} color={colors.border} />
-            <Text style={styles.emptyText}>Aucun membre trouvé</Text>
+            <Text style={styles.emptyText}>Aucun {vocab.member} trouvé</Text>
           </View>
         )}
       />
@@ -747,7 +749,7 @@ export default function Membres() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingMember ? 'Modifier membre' : 'Nouveau membre'}
+                {editingMember ? `Modifier ${vocab.member}` : `Nouveau ${vocab.member}`}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <X size={28} color={colors.text} />

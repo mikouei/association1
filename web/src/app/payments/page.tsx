@@ -6,7 +6,10 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal, LoadingSpinner } from '@/components/ui';
 import { api } from '@/services/api';
 import { formatCurrency, MONTHS } from '@/lib/utils';
-import { CreditCard, Check } from 'lucide-react';
+import { CreditCard, Check, Receipt, FileText } from 'lucide-react';
+import { toast } from '@/components/ui';
+import { useAuth } from '@/contexts/AuthContext';
+import { getVocab } from '@/utils/vocabulary';
 
 interface MemberPayment {
   id: string;
@@ -14,7 +17,7 @@ interface MemberPayment {
   name: string;
   customFieldValue?: string;
   phone?: string;
-  paymentsByMonth: Record<number, { paid: boolean; amountPaid: number; payments: Array<{ notes?: string | null }> }>;
+  paymentsByMonth: Record<number, { paid: boolean; amountPaid: number; payments: Array<{ id: string; notes?: string | null }> }>;
   totalPaid: number;
   totalDue: number;
   remaining: number;
@@ -30,6 +33,9 @@ interface Year {
 
 export default function PaymentsPage() {
   const queryClient = useQueryClient();
+  const { association } = useAuth();
+  const isSyndic = association?.type === 'SYNDIC';
+  const vocab = getVocab(association?.type);
   const [selectedYear, setSelectedYear] = useState<Year | null>(null);
   const [paymentModal, setPaymentModal] = useState<{
     isOpen: boolean;
@@ -95,6 +101,28 @@ export default function PaymentsPage() {
     setPaymentModal({ isOpen: true, member, month });
   };
 
+  // Téléchargement générique d'un PDF (blob)
+  const downloadBlob = async (url: string, filename: string) => {
+    try {
+      toast.info('Génération du PDF en cours...');
+      const response = await api.get(url, { responseType: 'blob' });
+      const objUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = objUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(objUrl);
+      toast.success('PDF téléchargé avec succès');
+    } catch (error) {
+      console.error('Download PDF error:', error);
+      toast.error('Erreur lors de la génération du PDF');
+    }
+  };
+
+  const safe = (s: string) => (s || 'membre').replace(/\s+/g, '_');
+
   const handlePayment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!paymentModal.member || !selectedYear) return;
@@ -141,10 +169,10 @@ export default function PaymentsPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>
-                Cotisations {selectedYear?.year} - {formatCurrency(selectedYear?.monthlyAmount || 0)}/mois
+                {vocab.Contributions} {selectedYear?.year} - {formatCurrency(selectedYear?.monthlyAmount || 0)}/mois
               </CardTitle>
               <Badge variant="info">
-                {payments?.members?.length || 0} membre(s)
+                {payments?.members?.length || 0} {vocab.Member.toLowerCase()}(s)
               </Badge>
             </div>
           </CardHeader>
@@ -155,7 +183,7 @@ export default function PaymentsPage() {
               </div>
             ) : payments?.members?.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
-                Aucun membre pour cette année
+                Aucun {vocab.Member.toLowerCase()} pour cette année
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -163,7 +191,7 @@ export default function PaymentsPage() {
                   <thead>
                     <tr className="border-b bg-gray-50">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                        Membre
+                        {vocab.Member}
                       </th>
                       {MONTHS.map((month, idx) => (
                         <th key={idx} className="px-2 py-3 text-center text-xs font-semibold text-gray-600">
@@ -181,6 +209,26 @@ export default function PaymentsPage() {
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-900">{member.name}</p>
                           <p className="text-xs text-gray-500">{member.customFieldValue}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <button
+                              onClick={() => downloadBlob(`/members/${member.id}/receipt-recap`, `recu_recap_${safe(member.name)}.pdf`)}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              data-testid={`recap-btn-${member.id}`}
+                            >
+                              <Receipt className="w-3 h-3" />
+                              Récap
+                            </button>
+                            {isSyndic && (
+                              <button
+                                onClick={() => downloadBlob(`/members/${member.id}/charge-notice`, `appel_charges_${safe(member.name)}.pdf`)}
+                                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                data-testid={`charge-notice-btn-${member.id}`}
+                              >
+                                <FileText className="w-3 h-3" />
+                                Appel de charges
+                              </button>
+                            )}
+                          </div>
                         </td>
                         {MONTHS.map((_, idx) => {
                           const monthData = member.paymentsByMonth[idx + 1];
@@ -188,27 +236,45 @@ export default function PaymentsPage() {
                           
                           return (
                             <td key={idx} className="px-1 py-2 text-center">
-                              <button
-                                onClick={() => openPaymentModal(member, idx + 1)}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                                  isPaid
-                                    ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                                    : (monthData?.amountPaid ?? 0) > 0
-                                    ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
-                                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                                }`}
-                                title={`${MONTHS[idx]}: ${formatCurrency(monthData?.amountPaid || 0)}`}
-                              >
-                                {isPaid ? (
-                                  <Check className="w-4 h-4" />
-                                ) : (monthData?.amountPaid ?? 0) > 0 ? (
-                                  <span className="text-xs font-medium">
-                                    {Math.round(((monthData?.amountPaid ?? 0) / 1000))}
-                                  </span>
-                                ) : (
-                                  <CreditCard className="w-4 h-4" />
+                              <div className="relative inline-flex">
+                                <button
+                                  onClick={() => openPaymentModal(member, idx + 1)}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                    isPaid
+                                      ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                                      : (monthData?.amountPaid ?? 0) > 0
+                                      ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
+                                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                  }`}
+                                  title={`${MONTHS[idx]}: ${formatCurrency(monthData?.amountPaid || 0)}`}
+                                >
+                                  {isPaid ? (
+                                    <Check className="w-4 h-4" />
+                                  ) : (monthData?.amountPaid ?? 0) > 0 ? (
+                                    <span className="text-xs font-medium">
+                                      {Math.round(((monthData?.amountPaid ?? 0) / 1000))}
+                                    </span>
+                                  ) : (
+                                    <CreditCard className="w-4 h-4" />
+                                  )}
+                                </button>
+                                {isPaid && monthData?.payments?.[0]?.id && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      downloadBlob(
+                                        `/payments/${monthData.payments[0].id}/receipt`,
+                                        `recu_${MONTHS[idx]}_${safe(member.name)}.pdf`
+                                      );
+                                    }}
+                                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-green-600 hover:bg-green-50"
+                                    title="Télécharger le reçu"
+                                    data-testid={`receipt-btn-${monthData.payments[0].id}`}
+                                  >
+                                    <Receipt className="w-2.5 h-2.5" />
+                                  </button>
                                 )}
-                              </button>
+                              </div>
                             </td>
                           );
                         })}

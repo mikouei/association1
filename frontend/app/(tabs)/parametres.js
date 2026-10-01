@@ -40,7 +40,7 @@ import { getVocab } from '../../utils/vocabulary';
 const APP_DOMAIN = 'https://web-bx1a.onrender.com';
 
 export default function Parametres() {
-  const { user, logout, association, linkedAccounts, switchAccount, removeLinkedAccount, biometricEnabled, biometricSupported, setBiometricEnabled } = useAuth();
+  const { user, logout, association, refreshUser, linkedAccounts, switchAccount, removeLinkedAccount, biometricEnabled, biometricSupported, setBiometricEnabled } = useAuth();
   const [bioToggling, setBioToggling] = useState(false);
 
   const handleToggleBiometric = async (value) => {
@@ -249,6 +249,7 @@ export default function Parametres() {
       });
       Alert.alert('Succès', 'Paramètres enregistrés');
       setEditing(false);
+      await refreshUser();
       loadConfig();
     } catch (error) {
       console.error('Erreur sauvegarde config:', error);

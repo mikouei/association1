@@ -24,6 +24,7 @@ import type { Icon } from '@phosphor-icons/react';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { getVocab } from '@/utils/vocabulary';
 
 interface NavItem {
   href: string;
@@ -60,8 +61,9 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, isPlatformAuth, platformLogout, logout, selectedAssociation } = useAuth();
+  const { user, isPlatformAuth, platformLogout, logout, selectedAssociation, association } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const vocab = getVocab(association?.type);
 
   // Charger les paramètres de l'association (uniquement pour les admins d'association)
   const { data: settings } = useQuery({
@@ -90,8 +92,13 @@ export function Sidebar() {
         return settings?.tontinesEnabled === true;
       }
       return true;
+    }).map(item => {
+      // Adapter le vocabulaire selon le type d'organisation (association/syndic)
+      if (item.href === '/members') return { ...item, label: vocab.Members };
+      if (item.href === '/payments') return { ...item, label: vocab.Contributions };
+      return item;
     });
-  }, [isPlatformAuth, settings?.tontinesEnabled, user?.role]);
+  }, [isPlatformAuth, settings?.tontinesEnabled, user?.role, vocab.Members, vocab.Contributions]);
 
   const handleLogout = isPlatformAuth ? platformLogout : logout;
 

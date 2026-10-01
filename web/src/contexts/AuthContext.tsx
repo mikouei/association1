@@ -29,6 +29,7 @@ interface AuthContextType {
   // Association selection
   selectAssociation: (association: Association) => void;
   selectedAssociation: Association | null;
+  refreshAssociation: () => Promise<void>;
 
   // Comptes liés
   linkedAccounts: LinkedAccount[];
@@ -94,6 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const response = await api.get('/auth/me');
         setUser(response.data);
         setIsPlatformAuth(false);
+
+        // Renseigner l'association complète (avec type, receiptHeader, etc.) depuis /auth/me
+        if (response.data.association) {
+          setAssociation(response.data.association);
+          localStorage.setItem('selectedAssociation', JSON.stringify(response.data.association));
+        }
         
         let parsedAssociation: Association | null = null;
         if (storedAssociation) {
@@ -211,6 +218,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSelectedAssociation(assoc);
   };
 
+  // Rafraîchir l'association courante depuis le backend (après modification des paramètres)
+  const refreshAssociation = async () => {
+    try {
+      const response = await api.get('/auth/me');
+      const assoc = response.data?.association;
+      if (assoc) {
+        setAssociation(assoc);
+        setSelectedAssociation(assoc);
+        localStorage.setItem('selectedAssociation', JSON.stringify(assoc));
+      }
+    } catch (error) {
+      console.error('refreshAssociation failed:', error);
+    }
+  };
+
   // Basculer vers un autre compte lié
   const switchAccount = (associationId: string) => {
     const targetAccount = linkedAccounts.find(acc => acc.association?.id === associationId);
@@ -266,6 +288,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         selectAssociation,
         selectedAssociation,
+        refreshAssociation,
         linkedAccounts,
         switchAccount,
         removeLinkedAccount,

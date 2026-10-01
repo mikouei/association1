@@ -312,7 +312,11 @@ router.get('/me', authenticateToken, async (req, res) => {
       association: {
         id: req.association.id,
         name: req.association.name,
-        code: req.association.code
+        code: req.association.code,
+        type: req.association.type,
+        receiptHeader: req.association.receiptHeader,
+        receiptSignature: req.association.receiptSignature,
+        memberFieldLabel: req.association.memberFieldLabel
       }
     });
   } catch (error) {

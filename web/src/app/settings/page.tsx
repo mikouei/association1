@@ -36,7 +36,7 @@ const getJoinUrl = (code: string) => {
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const { user, selectedAssociation, linkedAccounts, switchAccount, removeLinkedAccount } = useAuth();
+  const { user, selectedAssociation, refreshAssociation, linkedAccounts, switchAccount, removeLinkedAccount } = useAuth();
   const qrRef = useRef<SVGSVGElement>(null);
   const [isYearModalOpen, setIsYearModalOpen] = useState(false);
   const [editingYear, setEditingYear] = useState<Year | null>(null);
@@ -96,6 +96,12 @@ export default function SettingsPage() {
   const [removeAccountConfirm, setRemoveAccountConfirm] = useState<{ id: string; name: string } | null>(null);
   const [selectedPending, setSelectedPending] = useState<string[]>([]);
 
+  // Paramètres des reçus + type d'organisation
+  const [receiptHeader, setReceiptHeader] = useState('');
+  const [receiptSignature, setReceiptSignature] = useState('');
+  const [isSyndic, setIsSyndic] = useState(false);
+  const [savingReceipt, setSavingReceipt] = useState(false);
+
   const isAdmin = user?.role === 'ADMIN';
 
   // Gestion des comptes liés
@@ -131,7 +137,30 @@ export default function SettingsPage() {
     if (config?.memberFieldLabel) {
       setMemberFieldLabel(config.memberFieldLabel);
     }
+    if (config) {
+      setReceiptHeader(config.receiptHeader || '');
+      setReceiptSignature(config.receiptSignature || '');
+      setIsSyndic(config.type === 'SYNDIC');
+    }
   }, [config]);
+
+  const handleSaveReceiptSettings = async () => {
+    setSavingReceipt(true);
+    try {
+      await api.put('/admin/association-settings', {
+        receiptHeader,
+        receiptSignature,
+        type: isSyndic ? 'SYNDIC' : 'ASSOCIATION',
+      });
+      toast.success('Paramètres enregistrés');
+      queryClient.invalidateQueries({ queryKey: ['config'] });
+      await refreshAssociation();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la sauvegarde');
+    } finally {
+      setSavingReceipt(false);
+    }
+  };
 
   const { data: years, isLoading: loadingYears } = useQuery({
     queryKey: ['years'],
@@ -376,6 +405,52 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-400 mt-2">
                 Ce libellé apparaît dans les fiches membres (ex: &quot;Villa 42&quot;, &quot;Trésorier&quot;, etc.)
               </p>
+            </div>
+
+            {/* Reçus & type d'organisation */}
+            <div className="border-t pt-4 mt-4 space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isSyndic}
+                  onChange={(e) => setIsSyndic(e.target.checked)}
+                  className="w-4 h-4 accent-primary"
+                  data-testid="syndic-checkbox"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Ceci est un syndic de copropriété
+                  <span className="block text-xs text-gray-400 font-normal">
+                    Change le vocabulaire (copropriétaires, charges)
+                  </span>
+                </span>
+              </label>
+
+              <div>
+                <label className="text-sm text-gray-500 block mb-1">En-tête des reçus</label>
+                <Input
+                  value={receiptHeader}
+                  onChange={(e) => setReceiptHeader(e.target.value)}
+                  placeholder="Ex: Syndic BNI - Reçus officiels"
+                  data-testid="receipt-header-input"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-500 block mb-1">Signature des reçus</label>
+                <textarea
+                  value={receiptSignature}
+                  onChange={(e) => setReceiptSignature(e.target.value)}
+                  placeholder={"Ex: Étude de Maître Sylla Yaya\nSyndic BNI"}
+                  rows={2}
+                  data-testid="receipt-signature-input"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary resize-none"
+                />
+              </div>
+
+              <Button onClick={handleSaveReceiptSettings} disabled={savingReceipt} size="sm">
+                <Save className="w-4 h-4 mr-1" />
+                {savingReceipt ? '...' : 'Enregistrer'}
+              </Button>
             </div>
           </CardContent>
         </Card>

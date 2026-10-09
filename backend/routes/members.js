@@ -1151,43 +1151,54 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
 
 // GET /api/members/:id/charge-notice
 // Appel de charges (lettre formelle A4) pour un membre - ADMIN (mode SYNDIC)
+// Calcul commun pour l'appel de charges (PDF + Word)
+async function getChargeNoticeData(req, id) {
+  const member = await prisma.member.findFirst({
+    where: { id, associationId: req.associationId }
+  });
+  if (!member) {
+    return { error: 'Membre introuvable', status: 404 };
+  }
+
+  const now = new Date();
+  const currentYearNum = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-12 (mois actuel inclus)
+
+  const year = await prisma.year.findFirst({
+    where: { associationId: req.associationId, year: currentYearNum }
+  });
+  if (!year) {
+    return { error: 'Aucune année de cotisation pour l\'année en cours', status: 404 };
+  }
+
+  const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+  const payments = await prisma.monthlyPayment.findMany({
+    where: { memberId: member.id, yearId: year.id }
+  });
+
+  const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+  const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
+
+  let totalPaid = 0;
+  for (let m = 1; m <= currentMonth; m++) {
+    totalPaid += payments.filter(p => p.month === m).reduce((s, p) => s + p.amountPaid, 0);
+  }
+  const totalDue = currentMonth * (year.monthlyAmount || 0);
+  const diff = Math.abs(totalDue - totalPaid);
+
+  return { member, association, year, currentYearNum, currentMonth, totalPaid, totalDue, diff, MONTHS_FR, fcfa };
+}
+
 router.get('/:id/charge-notice', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const member = await prisma.member.findFirst({
-      where: { id, associationId: req.associationId }
-    });
-    if (!member) {
-      return res.status(404).json({ error: 'Membre introuvable' });
+    const data = await getChargeNoticeData(req, id);
+    if (data.error) {
+      return res.status(data.status).json({ error: data.error });
     }
-
-    const now = new Date();
-    const currentYearNum = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-12 (mois actuel inclus)
-
-    const year = await prisma.year.findFirst({
-      where: { associationId: req.associationId, year: currentYearNum }
-    });
-    if (!year) {
-      return res.status(404).json({ error: 'Aucune année de cotisation pour l\'année en cours' });
-    }
-
-    const association = await prisma.association.findUnique({ where: { id: req.associationId } });
-    const payments = await prisma.monthlyPayment.findMany({
-      where: { memberId: member.id, yearId: year.id }
-    });
-
-    const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
-
-    let totalPaid = 0;
-    for (let m = 1; m <= currentMonth; m++) {
-      totalPaid += payments.filter(p => p.month === m).reduce((s, p) => s + p.amountPaid, 0);
-    }
-    const totalDue = currentMonth * (year.monthlyAmount || 0);
-    const diff = Math.abs(totalDue - totalPaid);
+    const { member, association, year, currentYearNum, currentMonth, totalPaid, totalDue, diff, MONTHS_FR, fcfa } = data;
 
     const safeName = (member.name || 'membre').replace(/[^a-zA-Z0-9]/g, '_');
 
@@ -1249,6 +1260,110 @@ router.get('/:id/charge-notice', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Charge notice PDF error:', error);
     res.status(500).json({ error: 'Erreur lors de la génération de l\'appel de charges' });
+  }
+});
+
+// GET /api/members/:id/charge-notice-word
+// Même appel de charges au format Word (.docx) - ADMIN (mode SYNDIC)
+router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const data = await getChargeNoticeData(req, id);
+    if (data.error) {
+      return res.status(data.status).json({ error: data.error });
+    }
+    const { member, association, year, currentYearNum, currentMonth, totalPaid, totalDue, diff, MONTHS_FR, fcfa } = data;
+
+    const { Document, Paragraph, TextRun, AlignmentType, Packer } = await import('docx');
+
+    const safeName = (member.name || 'membre').replace(/[^a-zA-Z0-9]/g, '_');
+    const restLabel = totalDue > totalPaid ? 'Reste dû : ' : 'Avance : ';
+
+    const children = [];
+
+    // En-tête (receiptHeader en gras centré si renseigné)
+    if (association?.receiptHeader) {
+      children.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: association.receiptHeader, bold: true, size: 32 })]
+      }));
+    }
+
+    // Date du jour alignée à droite
+    children.push(new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { before: 200 },
+      children: [new TextRun(`Le ${new Date().toLocaleDateString('fr-FR')}`)]
+    }));
+
+    // LE SYNDIC
+    children.push(new Paragraph({
+      spacing: { before: 200 },
+      children: [new TextRun({ text: 'LE SYNDIC', bold: true })]
+    }));
+
+    // Objet
+    children.push(new Paragraph({
+      spacing: { before: 300 },
+      children: [new TextRun({ text: `Objet : Appel de charges — ${MONTHS_FR[currentMonth - 1]} ${currentYearNum}`, bold: true })]
+    }));
+
+    // Destinataire
+    children.push(new Paragraph({
+      spacing: { before: 300 },
+      children: [new TextRun(`Monsieur/Madame ${member.name}`)]
+    }));
+    if (member.customFieldValue) {
+      children.push(new Paragraph({
+        children: [new TextRun(`${association?.memberFieldLabel || 'Villa'} ${member.customFieldValue}`)]
+      }));
+    }
+
+    // Corps
+    children.push(new Paragraph({
+      spacing: { before: 300 },
+      children: [new TextRun('Je vous informe de l\'état actuel de votre compte de charges à ce jour :')]
+    }));
+
+    const lineBold = (label, value, before) => new Paragraph({
+      spacing: before ? { before } : undefined,
+      children: [new TextRun({ text: label, bold: true }), new TextRun(value)]
+    });
+
+    children.push(lineBold('Charges mensuelles : ', `${fcfa(year.monthlyAmount)} FCFA`, 200));
+    children.push(lineBold('Période : ', `Janvier à ${MONTHS_FR[currentMonth - 1]} ${currentYearNum} soit ${currentMonth} mois`));
+    children.push(lineBold('Montant dû : ', `${fcfa(totalDue)} FCFA`));
+    children.push(lineBold('Montant payé : ', `${fcfa(totalPaid)} FCFA`));
+    children.push(lineBold(restLabel, `${fcfa(diff)} FCFA`));
+
+    // Paragraphe de rappel
+    children.push(new Paragraph({
+      spacing: { before: 300 },
+      alignment: AlignmentType.JUSTIFIED,
+      children: [new TextRun('Nous vous rappelons que ces charges sont essentielles au bon fonctionnement et à l\'entretien de la copropriété. Merci de bien vouloir régulariser votre situation dans les meilleurs délais.')]
+    }));
+
+    // Signature alignée à droite + ligne de soulignement
+    children.push(new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { before: 600 },
+      children: [new TextRun(association?.receiptSignature || 'Signature')]
+    }));
+    children.push(new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [new TextRun('_______________________')]
+    }));
+
+    const docx = new Document({ sections: [{ children }] });
+    const buffer = await Packer.toBuffer(docx);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="appel_charges_${safeName}.docx"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('Charge notice Word error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération de l\'appel de charges (Word)' });
   }
 });
 

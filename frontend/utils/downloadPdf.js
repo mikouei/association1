@@ -6,11 +6,14 @@ import api from './api';
 
 // Télécharge un PDF authentifié puis propose le partage (mobile).
 // Sur web, ouvre l'URL dans un nouvel onglet.
-export async function downloadPdf(path, filename, title) {
+export async function downloadPdf(path, filename, title, options = {}) {
   try {
+    const ext = options.ext || 'pdf';
+    const mimeType = options.mimeType || 'application/pdf';
+    const uti = options.uti || 'com.adobe.pdf';
     if (Platform.OS !== 'web') {
       const safeName = (filename || 'document').replace(/[^a-zA-Z0-9]/g, '_');
-      const finalName = `${safeName}_${Date.now()}.pdf`;
+      const finalName = `${safeName}_${Date.now()}.${ext}`;
       const fileUri = FileSystem.documentDirectory + finalName;
 
       const authToken = await AsyncStorage.getItem('authToken');
@@ -36,9 +39,9 @@ export async function downloadPdf(path, filename, title) {
       const isAvailable = await Sharing.isAvailableAsync();
       if (isAvailable) {
         await Sharing.shareAsync(downloadResult.uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: title || 'Document PDF',
-          UTI: 'com.adobe.pdf',
+          mimeType,
+          dialogTitle: title || 'Document',
+          UTI: uti,
         });
       } else {
         Alert.alert('Info', 'Le partage n\'est pas disponible sur cet appareil.');

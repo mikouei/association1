@@ -228,6 +228,16 @@ export default function PaymentsPage() {
                                 Appel de charges
                               </button>
                             )}
+                            {isSyndic && (
+                              <button
+                                onClick={() => downloadBlob(`/members/${member.id}/charge-notice-word`, `appel_charges_${safe(member.name)}.docx`)}
+                                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                data-testid={`charge-notice-word-btn-${member.id}`}
+                              >
+                                <FileText className="w-3 h-3" />
+                                Word
+                              </button>
+                            )}
                           </div>
                         </td>
                         {MONTHS.map((_, idx) => {

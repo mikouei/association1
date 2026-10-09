@@ -19,6 +19,7 @@
     "@prisma/client": "^5.9.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
+    "docx": "^9.0.2",
     "dotenv": "^16.4.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.5.1",

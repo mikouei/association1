@@ -388,6 +388,21 @@ export default function Cotisations() {
                   <Text style={styles.recapBtnText}>Charges</Text>
                 </TouchableOpacity>
               )}
+              {isAdmin && isSyndic && (
+                <TouchableOpacity
+                  style={styles.recapBtn}
+                  onPress={() => downloadPdf(
+                    `/members/${member.id}/charge-notice-word`,
+                    `appel_charges_word_${member.name}`,
+                    'Appel de charges (Word)',
+                    { ext: 'docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', uti: 'org.openxmlformats.wordprocessingml.document' }
+                  )}
+                  testID={`charge-notice-word-btn-${member.id}`}
+                >
+                  <FileText size={16} color={colors.primary} weight="bold" />
+                  <Text style={styles.recapBtnText}>Word</Text>
+                </TouchableOpacity>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.memberCardName}>{member.name}</Text>
                 <Text style={styles.memberCardField}>{member.customFieldValue}</Text>

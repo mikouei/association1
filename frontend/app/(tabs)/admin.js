@@ -87,6 +87,7 @@ export default function Admin() {
       setStaffUsers(usersRes.data);
       setQuotas(quotasRes.data);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement:', error);
       Alert.alert('Erreur', 'Impossible de charger les données');
     } finally {
@@ -114,6 +115,7 @@ export default function Admin() {
       setNewUser({ email: '', phone: '', password: '', role: 'ADMIN' });
       loadData();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur création:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la création');
     } finally {
@@ -138,6 +140,7 @@ export default function Admin() {
               Alert.alert('Succès', `Compte ${action} avec succès`);
               loadData();
             } catch (error) {
+      if (error?.isSessionExpired) return;
               console.error('Erreur toggle active:', error);
               Alert.alert('Erreur', error.response?.data?.error || 'Une erreur est survenue');
             }
@@ -169,6 +172,7 @@ export default function Admin() {
               Alert.alert('Succès', 'Compte supprimé');
               loadData();
             } catch (error) {
+      if (error?.isSessionExpired) return;
               console.error('Erreur suppression compte:', error);
               Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la suppression');
             }
@@ -191,6 +195,7 @@ export default function Admin() {
       setResetPassword('');
       Alert.alert('Succès', 'Mot de passe réinitialisé');
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur reset password:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la réinitialisation');
     } finally {

@@ -66,6 +66,7 @@ export default function AnnoncesScreen() {
       const membersRes = await api.get('/members');
       setMembers(membersRes.data.filter(m => m.active));
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement annonces:', error);
     } finally {
       setLoading(false);
@@ -135,6 +136,7 @@ export default function AnnoncesScreen() {
       resetForm();
       loadData();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur envoi annonce:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'envoi');
     } finally {
@@ -159,6 +161,7 @@ export default function AnnoncesScreen() {
       setReminderModal(false);
       loadData();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur envoi rappel:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'envoi');
     } finally {

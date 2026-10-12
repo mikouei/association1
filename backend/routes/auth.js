@@ -428,7 +428,7 @@ router.delete('/me', authenticateToken, async (req, res) => {
     // Vérifier le mot de passe
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) {
-      return res.status(401).json({ error: 'Mot de passe incorrect' });
+      return res.status(400).json({ error: 'Mot de passe incorrect' });
     }
 
     // Si l'utilisateur est ADMIN, vérifier qu'il n'est pas le dernier admin actif

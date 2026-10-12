@@ -100,6 +100,18 @@ export const setOnUnauthorized = (callback, scope = 'user') => {
 // le message et on ne déclenche la déconnexion qu'une seule fois.
 let lastUnauthorizedAt = 0;
 
+// Déclenche le traitement « session expirée » (déconnexion + message + redirection).
+// Exposé pour les flux hors axios (ex: téléchargements via FileSystem.downloadAsync).
+export const triggerUnauthorized = (scope = 'user') => {
+  const now = Date.now();
+  const showMessage = now - lastUnauthorizedAt > 1500;
+  lastUnauthorizedAt = now;
+  const handler = unauthorizedHandlers[scope] || unauthorizedHandlers.user;
+  if (handler) {
+    Promise.resolve(handler({ showMessage })).catch(() => {});
+  }
+};
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -111,23 +123,16 @@ api.interceptors.response.use(
     const isAuthEntry =
       url.startsWith('/auth/login') ||
       url.startsWith('/auth/google') ||
-      url.startsWith('/platform/login');
+      url.startsWith('/platform/login') ||
+      url.startsWith('/public/');
 
     if (status === 401 && !isAuthEntry) {
       const isPlatformRoute = url.startsWith('/platform');
 
-      const now = Date.now();
-      const showMessage = now - lastUnauthorizedAt > 1500;
-      lastUnauthorizedAt = now;
+      // Marqueur pour que les écrans n'affichent pas leur propre alerte d'erreur
+      error.isSessionExpired = true;
 
-      const handler = isPlatformRoute
-        ? unauthorizedHandlers.platform
-        : unauthorizedHandlers.user;
-
-      if (handler) {
-        // Déconnexion + redirection gérées par le contexte enregistré
-        Promise.resolve(handler({ showMessage })).catch(() => {});
-      }
+      triggerUnauthorized(isPlatformRoute ? 'platform' : 'user');
     }
 
     // On rejette toujours l'erreur : les 500 / erreurs réseau continuent

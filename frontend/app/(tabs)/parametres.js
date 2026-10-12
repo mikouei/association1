@@ -110,6 +110,7 @@ export default function Parametres() {
       // Nettoyer la sélection des IDs qui n'existent plus
       setSelectedPending((prev) => prev.filter((id) => response.data.some((m) => m.id === id)));
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement demandes:', error);
     }
   };
@@ -129,6 +130,7 @@ export default function Parametres() {
       setSelectedPending([]);
       await loadPendingMembers();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       Alert.alert('Erreur', error.response?.data?.error || "Erreur lors de l'approbation");
     } finally {
       setApprovingPending(false);
@@ -153,6 +155,7 @@ export default function Parametres() {
               setSelectedPending([]);
               await loadPendingMembers();
             } catch (error) {
+      if (error?.isSessionExpired) return;
               Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors du refus');
             } finally {
               setApprovingPending(false);
@@ -183,6 +186,7 @@ export default function Parametres() {
         receiptSignature: response.data.receiptSignature || '',
       });
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement config:', error);
     } finally {
       setLoading(false);
@@ -194,6 +198,7 @@ export default function Parametres() {
       const response = await api.get('/years');
       setYears(response.data);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement années:', error);
     }
   };
@@ -221,6 +226,7 @@ export default function Parametres() {
         }}]
       );
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur suppression compte:', error);
       const errorMessage = error.response?.data?.error || 'Erreur lors de la suppression du compte';
       Alert.alert('Erreur', errorMessage);
@@ -252,6 +258,7 @@ export default function Parametres() {
       await refreshUser();
       loadConfig();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur sauvegarde config:', error);
       const errorMessage = error.response?.data?.error || 'Erreur lors de la sauvegarde';
       Alert.alert('Erreur', errorMessage);
@@ -299,6 +306,7 @@ export default function Parametres() {
       setYearModalVisible(false);
       loadYears();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur sauvegarde année:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la sauvegarde');
     } finally {
@@ -312,6 +320,7 @@ export default function Parametres() {
       Alert.alert('Succès', `Année ${year.year} activée`);
       loadYears();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur activation:', error);
       Alert.alert('Erreur', 'Impossible d\'activer l\'année');
     }
@@ -345,6 +354,7 @@ export default function Parametres() {
         Alert.alert('Succès', `Fichier "${file.name}" chargé`);
       }
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur lecture fichier:', error);
       Alert.alert('Erreur', 'Impossible de lire le fichier');
     }
@@ -371,6 +381,7 @@ export default function Parametres() {
         );
       }
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur preview:', error);
       Alert.alert('Erreur', 'Erreur lors de la prévisualisation');
     } finally {
@@ -400,6 +411,7 @@ export default function Parametres() {
       setImportContent('');
       setImportPreview(null);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur import:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'import');
     } finally {
@@ -441,6 +453,7 @@ export default function Parametres() {
         }
       }
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur export:', error);
       Alert.alert('Erreur', `Impossible d'exporter les membres: ${error.message || 'Erreur inconnue'}`);
     }
@@ -469,6 +482,7 @@ export default function Parametres() {
       
       return true;
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur saveToDownloads:', error);
       Alert.alert('Erreur', `Impossible de créer le fichier: ${error.message || 'Erreur inconnue'}`);
       return false;
@@ -494,6 +508,7 @@ export default function Parametres() {
       
       return true;
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur savePdfToDownloads:', error);
       Alert.alert('Erreur', `Impossible de partager le fichier: ${error.message}`);
       return false;
@@ -530,6 +545,7 @@ export default function Parametres() {
         await saveToDownloads(content, filename, 'text/plain');
       }
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur export stats:', error);
       Alert.alert('Erreur', 'Impossible d\'exporter les statistiques');
     }
@@ -559,6 +575,7 @@ export default function Parametres() {
         printWindow.document.close();
         printWindow.print();
       } catch (error) {
+      if (error?.isSessionExpired) return;
         console.error('Erreur export PDF:', error);
         printWindow.document.write('<p style="color:red">Erreur lors du chargement.</p>');
       }
@@ -571,6 +588,7 @@ export default function Parametres() {
       const { uri } = await Print.printToFileAsync({ html: response.data, base64: false });
       await savePdfToDownloads(uri, `statistiques_${activeYear.year}.pdf`);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur export PDF mobile:', error);
       Alert.alert('Erreur', 'Impossible de générer le PDF');
     }
@@ -621,6 +639,7 @@ export default function Parametres() {
         router.replace('/login');
       }, 100);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur déconnexion:', error);
       router.replace('/login');
     }
@@ -957,6 +976,7 @@ export default function Parametres() {
                           message: `Rejoignez ${association.name || config?.name || 'notre association'} sur Kotiz !\n\nCode: ${association.code}\nLien: ${inviteLink}`,
                         });
                       } catch (error) {
+      if (error?.isSessionExpired) return;
                         console.error('Share error:', error);
                       }
                     }}

@@ -117,6 +117,7 @@ export default function Exceptionnelles() {
       const response = await api.get('/tontines');
       setTontines(response.data);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement tontines:', error);
     } finally {
       setLoadingTontines(false);
@@ -129,6 +130,7 @@ export default function Exceptionnelles() {
       const response = await api.get(`/tontines/${id}`);
       setTontineDetail(response.data);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement détail tontine:', error);
       Alert.alert('Erreur', 'Impossible de charger les détails');
     }
@@ -141,6 +143,7 @@ export default function Exceptionnelles() {
       const response = await api.get(url);
       setContributions(response.data);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement:', error);
       Alert.alert('Erreur', 'Impossible de charger les cotisations');
     } finally {
@@ -154,6 +157,7 @@ export default function Exceptionnelles() {
       const response = await api.get('/members');
       setMembers(response.data.filter(m => m.active));
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement membres:', error);
     }
   };
@@ -247,6 +251,7 @@ export default function Exceptionnelles() {
       setEditingContribution(null);
       loadContributions();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur sauvegarde:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la sauvegarde');
     } finally {
@@ -271,6 +276,7 @@ export default function Exceptionnelles() {
               setDetailModal(false);
               loadContributions();
             } catch (error) {
+      if (error?.isSessionExpired) return;
               console.error('Erreur suppression:', error);
               Alert.alert('Erreur', 'Impossible de supprimer');
             }
@@ -288,6 +294,7 @@ export default function Exceptionnelles() {
       setSelectedContribution(response.data);
       setDetailModal(true);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur détail:', error);
       Alert.alert('Erreur', 'Impossible de charger les détails');
     }
@@ -300,6 +307,7 @@ export default function Exceptionnelles() {
         const response = await api.get(url);
         setSelectedContribution(response.data);
       } catch (error) {
+      if (error?.isSessionExpired) return;
         console.error('Erreur refresh:', error);
       }
     }
@@ -344,6 +352,7 @@ export default function Exceptionnelles() {
       refreshDetail();
       loadContributions();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur paiement:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'enregistrement');
     } finally {
@@ -367,6 +376,7 @@ export default function Exceptionnelles() {
               refreshDetail();
               loadContributions();
             } catch (error) {
+      if (error?.isSessionExpired) return;
               console.error('Erreur suppression paiement:', error);
               Alert.alert('Erreur', 'Impossible de supprimer le paiement');
             }
@@ -395,6 +405,7 @@ export default function Exceptionnelles() {
       
       return true;
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur savePdfToDownloads:', error);
       Alert.alert('Erreur', `Impossible de partager le fichier: ${error.message}`);
       return false;
@@ -436,6 +447,7 @@ export default function Exceptionnelles() {
         await savePdfToDownloads(uri, filename);
       }
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur téléchargement PDF:', error);
       Alert.alert('Erreur', 'Impossible de générer le PDF');
     } finally {
@@ -498,6 +510,7 @@ export default function Exceptionnelles() {
       setTontineFormData({ name: '', amount: '', frequency: 'monthly', memberIds: [] });
       loadTontines();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur création tontine:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Impossible de créer la tontine');
     } finally {
@@ -525,6 +538,7 @@ export default function Exceptionnelles() {
                 setTontineDetail(null);
               }
             } catch (error) {
+      if (error?.isSessionExpired) return;
               console.error('Erreur suppression tontine:', error);
               Alert.alert('Erreur', error.response?.data?.error || 'Impossible de supprimer (des paiements existent peut-être)');
             }
@@ -558,6 +572,7 @@ export default function Exceptionnelles() {
       await loadTontineDetail(selectedTontine.id);
       loadTontines();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur paiement tontine:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Impossible d\'enregistrer le paiement');
     } finally {
@@ -581,6 +596,7 @@ export default function Exceptionnelles() {
               await loadTontineDetail(selectedTontine.id);
               loadTontines();
             } catch (error) {
+      if (error?.isSessionExpired) return;
               console.error('Erreur clôture tour:', error);
               Alert.alert('Erreur', error.response?.data?.error || 'Impossible de clôturer le tour');
             } finally {

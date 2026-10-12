@@ -178,12 +178,12 @@ router.put('/me/password', authenticateSuperAdmin, async (req, res) => {
     });
 
     if (!superAdmin) {
-      return res.status(401).json({ error: 'Compte introuvable' });
+      return res.status(400).json({ error: 'Compte introuvable' });
     }
 
     const validPassword = await bcrypt.compare(currentPassword, superAdmin.passwordHash);
     if (!validPassword) {
-      return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
+      return res.status(400).json({ error: 'Mot de passe actuel incorrect' });
     }
 
     // Mettre à jour le mot de passe

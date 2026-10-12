@@ -120,6 +120,7 @@ export default function Cotisations() {
       }
       setUsingCache(false);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement années:', error);
       // En cas d'erreur, essayer le cache
       const cachedPayments = await getCachedPayments(user?.id);
@@ -169,6 +170,7 @@ export default function Cotisations() {
       }, user?.id);
       
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement paiements:', error);
       // En cas d'erreur, essayer le cache
       const cachedPayments = await getCachedPayments(user?.id);
@@ -241,6 +243,7 @@ export default function Cotisations() {
       setPaymentModal(false);
       loadPayments(selectedYear.id);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur sauvegarde paiement:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'enregistrement');
     } finally {

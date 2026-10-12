@@ -2,7 +2,7 @@ import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import api from './api';
+import api, { triggerUnauthorized } from './api';
 
 // Télécharge un PDF authentifié puis propose le partage (mobile).
 // Sur web, ouvre l'URL dans un nouvel onglet.
@@ -31,6 +31,12 @@ export async function downloadPdf(path, filename, title, options = {}) {
           },
         }
       );
+
+      if (downloadResult.status === 401) {
+        // Hors intercepteur axios : déclencher le même traitement de session expirée
+        triggerUnauthorized('user');
+        return;
+      }
 
       if (downloadResult.status !== 200) {
         throw new Error('Erreur lors du téléchargement');

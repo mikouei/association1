@@ -112,6 +112,7 @@ export default function Membres() {
       const response = await api.get('/config');
       setConfig(response.data);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement config:', error);
     }
   };
@@ -124,6 +125,7 @@ export default function Membres() {
         setAssociationSettings(response.data);
       }
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement paramètres association:', error);
     }
   };
@@ -135,6 +137,7 @@ export default function Membres() {
       const admins = response.data || [];
       setAdminsWithoutMember(admins.filter(a => !a.member));
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement admins:', error);
       setAdminsWithoutMember([]);
     }
@@ -148,6 +151,7 @@ export default function Membres() {
       setMembers(response.data || []);
       setFilteredMembers(response.data || []);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement membres:', error);
       setMembers([]);
       setFilteredMembers([]);
@@ -165,6 +169,7 @@ export default function Membres() {
       setMembers(response.data || []);
       setFilteredMembers(response.data || []);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur rafraîchissement membres:', error);
     }
   };
@@ -270,6 +275,7 @@ export default function Membres() {
       setSelectedAdminId('');
       await refreshMembers();
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur sauvegarde:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la sauvegarde');
     } finally {
@@ -292,6 +298,7 @@ export default function Membres() {
               await api.put(`/members/${member.id}/${endpoint}`);
               await refreshMembers();
             } catch (error) {
+      if (error?.isSessionExpired) return;
               Alert.alert('Erreur', 'Impossible de modifier le statut');
             }
           }
@@ -320,6 +327,7 @@ export default function Membres() {
       setNewPassword('');
       setResetPasswordMember(null);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur reset password:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de la réinitialisation');
     } finally {
@@ -342,6 +350,7 @@ export default function Membres() {
               Alert.alert('Succès', 'Membre supprimé avec succès');
               await refreshMembers();
             } catch (error) {
+      if (error?.isSessionExpired) return;
               console.error('Erreur suppression:', error);
               Alert.alert('Erreur', error.response?.data?.error || 'Impossible de supprimer le membre');
             }
@@ -409,6 +418,7 @@ export default function Membres() {
               setSelectedMembers([]);
               await refreshMembers();
             } catch (error) {
+      if (error?.isSessionExpired) return;
               console.error('Erreur suppression multiple:', error);
               Alert.alert('Erreur', error.response?.data?.error || 'Impossible de supprimer les membres');
             } finally {
@@ -430,6 +440,7 @@ export default function Membres() {
       const response = await api.get(`/vehicles/member/${member.id}`);
       setMemberVehicles(response.data);
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur chargement véhicules:', error);
       setMemberVehicles([]);
     } finally {
@@ -458,6 +469,7 @@ export default function Membres() {
       setNewPlateDescription('');
       Alert.alert('Succès', 'Matricule ajouté');
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Erreur ajout véhicule:', error);
       Alert.alert('Erreur', error.response?.data?.error || 'Erreur lors de l\'ajout');
     } finally {
@@ -480,6 +492,7 @@ export default function Membres() {
               const response = await api.get(`/vehicles/member/${selectedMemberForVehicle.id}`);
               setMemberVehicles(response.data);
             } catch (error) {
+      if (error?.isSessionExpired) return;
               Alert.alert('Erreur', 'Impossible de supprimer');
             }
           }
@@ -541,6 +554,7 @@ export default function Membres() {
       window.open(url, '_blank');
       
     } catch (error) {
+      if (error?.isSessionExpired) return;
       console.error('Export PDF error:', error);
       Alert.alert('Erreur', 'Impossible de générer le PDF: ' + error.message);
     }

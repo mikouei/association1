@@ -1,7 +1,8 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform, AppState } from 'react-native';
-import api from '../utils/api';
+import { Platform, AppState, Alert } from 'react-native';
+import { router } from 'expo-router';
+import api, { setOnUnauthorized } from '../utils/api';
 import { useOffline } from './OfflineContext';
 import { 
   registerForPushNotifications, 
@@ -98,6 +99,17 @@ export const AuthProvider = ({ children }) => {
   // Charger l'utilisateur depuis le cache au démarrage
   useEffect(() => {
     loadUser();
+  }, []);
+
+  // Enregistrer le gestionnaire de 401 (jeton expiré) pour les routes non-platform
+  useEffect(() => {
+    setOnUnauthorized(async ({ showMessage }) => {
+      await logout();
+      if (showMessage) {
+        Alert.alert('Session expirée', 'Votre session a expiré, veuillez vous reconnecter');
+      }
+      router.replace('/login');
+    }, 'user');
   }, []);
 
   // Gestion des notifications et badges

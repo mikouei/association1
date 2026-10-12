@@ -9,6 +9,7 @@
     "dev": "node server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "init-db": "node scripts/init-db.js"
   },

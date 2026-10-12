@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-import api from '../utils/api';
+import { Platform, Alert } from 'react-native';
+import { router } from 'expo-router';
+import api, { setOnUnauthorized } from '../utils/api';
 
 const PlatformAuthContext = createContext(null);
 
@@ -72,6 +73,17 @@ export function PlatformAuthProvider({ children }) {
 
   useEffect(() => {
     checkAuth();
+  }, []);
+
+  // Enregistrer le gestionnaire de 401 (jeton expiré) pour les routes /platform/*
+  useEffect(() => {
+    setOnUnauthorized(async ({ showMessage }) => {
+      await logout();
+      if (showMessage) {
+        Alert.alert('Session expirée', 'Votre session a expiré, veuillez vous reconnecter');
+      }
+      router.replace('/platform');
+    }, 'platform');
   }, []);
 
   const checkAuth = async () => {

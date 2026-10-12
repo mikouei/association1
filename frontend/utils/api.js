@@ -6,6 +6,10 @@ const API_BASE_URL =
   process.env.EXPO_PUBLIC_BACKEND_URL ||
   "https://association1.onrender.com";
 
+if (__DEV__) {
+  console.log('[API] base URL:', API_BASE_URL);
+}
+
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   timeout: 30000,
@@ -81,5 +85,55 @@ api.interceptors.request.use(async (config) => {
   
   return config;
 });
+
+// ── Gestion centralisée des 401 (jeton expiré) ──
+// Pour éviter l'import circulaire avec les contextes d'auth, ceux-ci enregistrent
+// un callback via setOnUnauthorized(). L'intercepteur se contente de l'appeler.
+const unauthorizedHandlers = { user: null, platform: null };
+
+// scope = 'user' (AuthProvider) ou 'platform' (PlatformAuthProvider)
+export const setOnUnauthorized = (callback, scope = 'user') => {
+  unauthorizedHandlers[scope] = callback;
+};
+
+// Anti-rebond : si plusieurs requêtes échouent en même temps, on n'affiche
+// le message et on ne déclenche la déconnexion qu'une seule fois.
+let lastUnauthorizedAt = 0;
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url || '';
+
+    // Routes d'entrée d'authentification : un 401 y est une erreur de connexion
+    // normale (mauvais identifiants), pas une session expirée.
+    const isAuthEntry =
+      url.startsWith('/auth/login') ||
+      url.startsWith('/auth/google') ||
+      url.startsWith('/platform/login');
+
+    if (status === 401 && !isAuthEntry) {
+      const isPlatformRoute = url.startsWith('/platform');
+
+      const now = Date.now();
+      const showMessage = now - lastUnauthorizedAt > 1500;
+      lastUnauthorizedAt = now;
+
+      const handler = isPlatformRoute
+        ? unauthorizedHandlers.platform
+        : unauthorizedHandlers.user;
+
+      if (handler) {
+        // Déconnexion + redirection gérées par le contexte enregistré
+        Promise.resolve(handler({ showMessage })).catch(() => {});
+      }
+    }
+
+    // On rejette toujours l'erreur : les 500 / erreurs réseau continuent
+    // d'afficher l'alerte habituelle des écrans, sans déconnexion.
+    return Promise.reject(error);
+  }
+);
 
 export default api;

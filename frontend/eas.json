@@ -14,6 +14,9 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://association1.onrender.com"
       }
     },
 
@@ -21,6 +24,9 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://association1.onrender.com"
       }
     }
 

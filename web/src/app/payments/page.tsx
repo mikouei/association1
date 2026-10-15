@@ -212,29 +212,29 @@ export default function PaymentsPage() {
                           <div className="flex items-center gap-2 mt-1">
                             <button
                               onClick={() => downloadBlob(`/members/${member.id}/receipt-recap`, `recu_recap_${safe(member.name)}.pdf`)}
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                               data-testid={`recap-btn-${member.id}`}
                             >
-                              <Receipt className="w-3 h-3" />
+                              <Receipt className="w-4 h-4" />
                               Récap
                             </button>
                             {isSyndic && (
                               <button
                                 onClick={() => downloadBlob(`/members/${member.id}/charge-notice`, `appel_charges_${safe(member.name)}.pdf`)}
-                                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                                 data-testid={`charge-notice-btn-${member.id}`}
                               >
-                                <FileText className="w-3 h-3" />
+                                <FileText className="w-4 h-4" />
                                 Appel de charges
                               </button>
                             )}
                             {isSyndic && (
                               <button
                                 onClick={() => downloadBlob(`/members/${member.id}/charge-notice-word`, `appel_charges_${safe(member.name)}.docx`)}
-                                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                                 data-testid={`charge-notice-word-btn-${member.id}`}
                               >
-                                <FileText className="w-3 h-3" />
+                                <FileText className="w-4 h-4" />
                                 Word
                               </button>
                             )}

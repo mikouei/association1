@@ -251,10 +251,10 @@ export default function PaymentsPage() {
                                   onClick={() => openPaymentModal(member, idx + 1)}
                                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                                     isPaid
-                                      ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                                      ? 'bg-[#2E7D32] text-white hover:bg-[#256a28]'
                                       : (monthData?.amountPaid ?? 0) > 0
-                                      ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
-                                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                      ? 'bg-[#B26A00] text-white hover:bg-[#945800]'
+                                      : 'bg-[#B00020] text-white hover:bg-[#8e001a]'
                                   }`}
                                   title={`${MONTHS[idx]}: ${formatCurrency(monthData?.amountPaid || 0)}`}
                                 >
@@ -277,11 +277,11 @@ export default function PaymentsPage() {
                                         `recu_${MONTHS[idx]}_${safe(member.name)}.pdf`
                                       );
                                     }}
-                                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-green-600 hover:bg-green-50"
+                                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-green-600 hover:bg-green-50"
                                     title="Télécharger le reçu"
                                     data-testid={`receipt-btn-${monthData.payments[0].id}`}
                                   >
-                                    <Receipt className="w-2.5 h-2.5" />
+                                    <Receipt className="w-3 h-3" />
                                   </button>
                                 )}
                               </div>

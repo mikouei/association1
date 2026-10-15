@@ -15,6 +15,7 @@ const MONTHS = [
 
 // Montant en toutes lettres (ex: "vingt et un mille cinq cents francs CFA")
 const enLettres = (n) => `${nombreEnLettres(n)} francs CFA`;
+const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
 
 // En-tête commun des reçus : uniquement receiptHeader (pas le nom de l'association)
 function renderReceiptHeader(doc, association) {
@@ -43,39 +44,56 @@ function renderMonthlyReceipt(doc, payment, association, receiptNo) {
   const currency = (association?.currency && association.currency !== 'XOF') ? association.currency : 'FCFA';
   const monthName = MONTHS[payment.month - 1] || `Mois ${payment.month}`;
   const remaining = Math.max(0, (payment.year.monthlyAmount || 0) - payment.amountPaid);
-
+  const marginX = doc.page.margins.left;
+  const pageW = doc.page.width - marginX * 2;
   renderReceiptHeader(doc, association);
   doc.moveDown(0.3);
   doc.fontSize(13).font('Helvetica-Bold').fillColor('#000').text('Reçu de paiement', { align: 'center' });
-  doc.moveDown(0.2);
+  doc.moveDown(0.25);
+  const sepY = doc.y;
+  doc.save();
+  doc.lineWidth(2).strokeColor('#2E7D32')
+    .moveTo(marginX + pageW / 2 - 40, sepY)
+    .lineTo(marginX + pageW / 2 + 40, sepY)
+    .stroke();
+  doc.restore();
+  doc.moveDown(0.5);
   doc.fontSize(9).font('Helvetica').fillColor('#666').text(`N° ${receiptNo}`, { align: 'center' });
   doc.moveDown(1).fillColor('#000');
-
-  const line = (label, value) => {
+  const line = (label, value, valueColor) => {
     doc.fontSize(11).font('Helvetica').fillColor('#666').text(label, { continued: true });
-    doc.fillColor('#000').text(`  ${value}`);
+    doc.fillColor(valueColor || '#000').font('Helvetica-Bold').text(`  ${value}`);
+    doc.font('Helvetica');
     doc.moveDown(0.4);
   };
-
   line('Membre :', payment.member.name);
   line('Période :', `${monthName} ${payment.year.year}`);
-  line('Montant payé :', `${payment.amountPaid} ${currency}`);
-  line('La somme de :', enLettres(payment.amountPaid));
-  line('Reste à payer :', `${remaining} ${currency}`);
+  line('Montant payé :', `${fcfa(payment.amountPaid)} ${currency}`, remaining === 0 ? '#2E7D32' : '#B26A00');
+  doc.fontSize(9).font('Helvetica-Oblique').fillColor('#999').text(`La somme de : ${enLettres(payment.amountPaid)}`);
+  doc.moveDown(0.35);
+  line('Reste à payer :', `${fcfa(remaining)} ${currency}`, remaining === 0 ? '#2E7D32' : '#B00020');
   if (payment.history && payment.history.length > 0) {
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#666').text('Versements :');
-    doc.fillColor('#000');
+    doc.moveDown(0.2);
+    const boxY = doc.y;
+    const boxH = 20 + payment.history.length * 16;
+    doc.save();
+    doc.roundedRect(marginX, boxY, pageW, boxH, 4).fill('#F2F7F2');
+    doc.restore();
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#2E7D32').text('Versements', marginX + 10, boxY + 8);
+    let vy = boxY + 24;
     for (const h of payment.history) {
-      doc.fontSize(10).font('Helvetica').text(`  - ${new Date(h.paymentDate).toLocaleDateString('fr-FR')} : ${h.amount} ${currency}`);
+      doc.fontSize(9).font('Helvetica').fillColor('#666')
+        .text(new Date(h.paymentDate).toLocaleDateString('fr-FR'), marginX + 14, vy, { continued: true, width: pageW - 28 });
+      doc.fillColor('#000').font('Helvetica-Bold')
+        .text(`   ${fcfa(h.amount)} ${currency}`, { align: 'right' });
+      vy += 16;
     }
-    doc.moveDown(0.4);
+    doc.y = boxY + boxH + 8;
   } else {
     line('Date de paiement :', new Date(payment.paymentDate).toLocaleDateString('fr-FR'));
   }
-
   doc.moveDown(1);
   doc.fontSize(9).fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
-
   renderSignature(doc, association);
 }
 

@@ -62,7 +62,16 @@ function renderMonthlyReceipt(doc, payment, association, receiptNo) {
   line('Montant payé :', `${payment.amountPaid} ${currency}`);
   line('La somme de :', enLettres(payment.amountPaid));
   line('Reste à payer :', `${remaining} ${currency}`);
-  line('Date de paiement :', new Date(payment.paymentDate).toLocaleDateString('fr-FR'));
+  if (payment.history && payment.history.length > 0) {
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#666').text('Versements :');
+    doc.fillColor('#000');
+    for (const h of payment.history) {
+      doc.fontSize(10).font('Helvetica').text(`  - ${new Date(h.paymentDate).toLocaleDateString('fr-FR')} : ${h.amount} ${currency}`);
+    }
+    doc.moveDown(0.4);
+  } else {
+    line('Date de paiement :', new Date(payment.paymentDate).toLocaleDateString('fr-FR'));
+  }
 
   doc.moveDown(1);
   doc.fontSize(9).fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
@@ -163,7 +172,7 @@ router.get('/my/receipt/monthly/:id', async (req, res) => {
         id,
         member: { userId: req.user.id, associationId: req.associationId }
       },
-      include: { member: true, year: true }
+      include: { member: true, year: true, history: { orderBy: { paymentDate: 'asc' } } }
     });
 
     if (!payment) {
@@ -199,7 +208,7 @@ router.get('/:id/receipt', requireAdmin, async (req, res) => {
         id,
         member: { associationId: req.associationId }
       },
-      include: { member: true, year: true }
+      include: { member: true, year: true, history: { orderBy: { paymentDate: 'asc' } } }
     });
 
     if (!payment) {
@@ -471,6 +480,14 @@ router.post('/', requireAdmin, async (req, res) => {
           paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
           notes: notes || null
         }
+      });
+    }
+
+    const previousAmount = existingPayment ? existingPayment.amountPaid : 0;
+    const delta = parseFloat(amountPaid) - previousAmount;
+    if (delta > 0) {
+      await prisma.paymentHistory.create({
+        data: { monthlyPaymentId: payment.id, amount: delta, paymentDate: payment.paymentDate }
       });
     }
 

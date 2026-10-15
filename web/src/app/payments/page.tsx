@@ -268,7 +268,7 @@ export default function PaymentsPage() {
                                     <CreditCard className="w-4 h-4" />
                                   )}
                                 </button>
-                                {isPaid && monthData?.payments?.[0]?.id && (
+                                {(monthData?.amountPaid ?? 0) > 0 && monthData?.payments?.[0]?.id && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();

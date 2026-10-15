@@ -201,9 +201,20 @@ model MonthlyPayment {
   
   member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   year        Year     @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  history     PaymentHistory[]
   
   @@unique([memberId, yearId, month])
   @@index([memberId, yearId])
+}
+
+model PaymentHistory {
+  id               String   @id @default(uuid())
+  monthlyPaymentId String
+  amount           Float
+  paymentDate      DateTime @default(now())
+  createdAt        DateTime @default(now())
+  monthlyPayment   MonthlyPayment @relation(fields: [monthlyPaymentId], references: [id], onDelete: Cascade)
+  @@index([monthlyPaymentId])
 }
 
 // ============================================

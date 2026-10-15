@@ -1085,7 +1085,8 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
 
     const association = await prisma.association.findUnique({ where: { id: req.associationId } });
     const payments = await prisma.monthlyPayment.findMany({
-      where: { memberId: member.id, yearId: year.id }
+      where: { memberId: member.id, yearId: year.id },
+      include: { history: { orderBy: { paymentDate: 'asc' } } }
     });
 
     const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -1095,9 +1096,11 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
     let totalPaid = 0;
     const rows = [];
     for (let m = 1; m <= currentMonth; m++) {
-      const paid = payments.filter(p => p.month === m).reduce((s, p) => s + p.amountPaid, 0);
+      const monthPayments = payments.filter(p => p.month === m);
+      const paid = monthPayments.reduce((s, p) => s + p.amountPaid, 0);
       totalPaid += paid;
-      rows.push({ month: MONTHS_FR[m - 1], paid });
+      const history = monthPayments.flatMap(p => p.history || []);
+      rows.push({ month: MONTHS_FR[m - 1], paid, history });
     }
     const totalDue = currentMonth * (year.monthlyAmount || 0);
 
@@ -1126,6 +1129,14 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
     for (const r of rows) {
       doc.fontSize(10).font('Helvetica').fillColor('#666').text(`${r.month} :`, { continued: true });
       doc.fillColor('#000').text(`  ${fcfa(r.paid)} FCFA`);
+      if (r.history && r.history.length > 1) {
+        for (const h of r.history) {
+          if (h.amount > 0) {
+            doc.fontSize(8).font('Helvetica').fillColor('#888').text(`   - ${new Date(h.paymentDate).toLocaleDateString('fr-FR')} : ${fcfa(h.amount)} FCFA`);
+          }
+        }
+        doc.fillColor('#000');
+      }
       doc.moveDown(0.2);
     }
 

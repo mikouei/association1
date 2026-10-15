@@ -176,7 +176,11 @@ router.post('/login', loginLimiter, attachPrisma, async (req, res) => {
       association: {
         id: association.id,
         name: association.name,
-        code: association.code
+        code: association.code,
+        type: association.type,
+        receiptHeader: association.receiptHeader,
+        receiptSignature: association.receiptSignature,
+        memberFieldLabel: association.memberFieldLabel
       }
     });
   } catch (error) {
@@ -285,7 +289,11 @@ router.post('/google', loginLimiter, attachPrisma, async (req, res) => {
       association: {
         id: association.id,
         name: association.name,
-        code: association.code
+        code: association.code,
+        type: association.type,
+        receiptHeader: association.receiptHeader,
+        receiptSignature: association.receiptSignature,
+        memberFieldLabel: association.memberFieldLabel
       }
     });
   } catch (error) {

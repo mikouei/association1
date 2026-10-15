@@ -230,6 +230,8 @@ export const AuthProvider = ({ children }) => {
         if (storedAssociation) {
           parsedAssociation = JSON.parse(storedAssociation);
           setAssociation(parsedAssociation);
+          // Resynchroniser l'association en arrière-plan (sans bloquer l'affichage)
+          refreshUser().catch(() => {});
         }
 
         // Compatibilité ascendante : si linkedAccounts n'existe pas, l'initialiser

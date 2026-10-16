@@ -44,6 +44,7 @@ export default function PaymentsPage() {
   }>({ isOpen: false, member: null, month: 1 });
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: years, isLoading: loadingYears } = useQuery({
     queryKey: ['years'],
@@ -123,6 +124,16 @@ export default function PaymentsPage() {
 
   const safe = (s: string) => (s || 'membre').replace(/\s+/g, '_');
 
+  const filteredMembers = (payments?.members || []).filter((member) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      member.name?.toLowerCase().includes(q) ||
+      member.customFieldValue?.toLowerCase().includes(q) ||
+      member.phone?.toLowerCase().includes(q)
+    );
+  });
+
   const handlePayment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!paymentModal.member || !selectedYear) return;
@@ -167,13 +178,22 @@ export default function PaymentsPage() {
         {/* Tableau des cotisations */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
               <CardTitle>
                 {vocab.Contributions} {selectedYear?.year} - {formatCurrency(selectedYear?.monthlyAmount || 0)}/mois
               </CardTitle>
-              <Badge variant="info">
-                {payments?.members?.length || 0} {vocab.Member.toLowerCase()}(s)
-              </Badge>
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Rechercher par nom, villa, téléphone..."
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                />
+                <Badge variant="info">
+                  {filteredMembers.length} {vocab.Member.toLowerCase()}(s)
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -184,6 +204,10 @@ export default function PaymentsPage() {
             ) : payments?.members?.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 Aucun {vocab.Member.toLowerCase()} pour cette année
+              </div>
+            ) : filteredMembers.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                Aucun résultat pour cette recherche
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -204,7 +228,7 @@ export default function PaymentsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {payments?.members?.map((member) => (
+                    {filteredMembers.map((member) => (
                       <tr key={member.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-900">{member.name}</p>

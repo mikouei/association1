@@ -437,7 +437,7 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Mois invalide (1-12)' });
     }
 
-    if (amountPaid <= 0) {
+    if (amountPaid < 0) {
       return res.status(400).json({ error: 'Montant invalide' });
     }
 
@@ -549,7 +549,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { amountPaid, paymentDate, notes } = req.body;
 
-    if (amountPaid !== undefined && amountPaid <= 0) {
+    if (amountPaid !== undefined && amountPaid < 0) {
       return res.status(400).json({ error: 'Montant invalide' });
     }
 

@@ -533,7 +533,7 @@ router.post('/:id/payments', requireAdmin, async (req, res) => {
 
     // Mettre à jour le paiement
     const parsedAmount = amount !== undefined ? parseFloat(amount) : tontine.amount;
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
       return res.status(400).json({ error: 'Montant invalide' });
     }
 

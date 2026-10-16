@@ -719,7 +719,7 @@ router.post('/:id/payments', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Membre et montant requis' });
     }
 
-    if (amount <= 0) {
+    if (amount < 0) {
       return res.status(400).json({ error: 'Montant invalide' });
     }
 
@@ -811,7 +811,7 @@ router.put('/payments/:paymentId', requireAdmin, async (req, res) => {
 
     const updateData = {};
     if (amount !== undefined) {
-      if (amount <= 0) {
+      if (amount < 0) {
         return res.status(400).json({ error: 'Montant invalide' });
       }
       updateData.amount = parseFloat(amount);

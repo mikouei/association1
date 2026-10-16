@@ -99,6 +99,7 @@ export default function SettingsPage() {
   // Paramètres des reçus + type d'organisation
   const [receiptHeader, setReceiptHeader] = useState('');
   const [receiptSignature, setReceiptSignature] = useState('');
+  const [paymentInfo, setPaymentInfo] = useState('');
   const [isSyndic, setIsSyndic] = useState(false);
   const [savingReceipt, setSavingReceipt] = useState(false);
 
@@ -140,6 +141,7 @@ export default function SettingsPage() {
     if (config) {
       setReceiptHeader(config.receiptHeader || '');
       setReceiptSignature(config.receiptSignature || '');
+      setPaymentInfo(config.paymentInfo || '');
       setIsSyndic(config.type === 'SYNDIC');
     }
   }, [config]);
@@ -150,6 +152,7 @@ export default function SettingsPage() {
       await api.put('/admin/association-settings', {
         receiptHeader,
         receiptSignature,
+        paymentInfo,
         type: isSyndic ? 'SYNDIC' : 'ASSOCIATION',
       });
       toast.success('Paramètres enregistrés');
@@ -444,6 +447,16 @@ export default function SettingsPage() {
                   rows={2}
                   data-testid="receipt-signature-input"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-500 block mb-1">Infos de paiement</label>
+                <Input
+                  value={paymentInfo}
+                  onChange={(e) => setPaymentInfo(e.target.value)}
+                  placeholder="Ex: Paiements au numéro 07 57 43957 (Mme Komian)"
+                  data-testid="payment-info-input"
                 />
               </div>
 

@@ -30,7 +30,10 @@ router.get('/', authenticateToken, async (req, res) => {
 
     res.json({
       ...config,
-      memberFieldLabel: association.memberFieldLabel || 'Villa'
+      memberFieldLabel: association.memberFieldLabel || 'Villa',
+      receiptHeader: association.receiptHeader,
+      receiptSignature: association.receiptSignature,
+      paymentInfo: association.paymentInfo
     });
   } catch (error) {
     console.error('Get config error:', error);

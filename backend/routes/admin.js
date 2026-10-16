@@ -493,11 +493,12 @@ router.post('/pending-members/reject', async (req, res) => {
 // Mettre à jour les paramètres de reçu de l'association (en-tête et signature)
 router.put('/association-settings', async (req, res) => {
   try {
-    const { receiptHeader, receiptSignature, type } = req.body;
+    const { receiptHeader, receiptSignature, paymentInfo, type } = req.body;
 
     const data = {};
     if (receiptHeader !== undefined) data.receiptHeader = receiptHeader || null;
     if (receiptSignature !== undefined) data.receiptSignature = receiptSignature || null;
+    if (paymentInfo !== undefined) data.paymentInfo = paymentInfo || null;
     if (type !== undefined && (type === 'ASSOCIATION' || type === 'SYNDIC')) data.type = type;
 
     const association = await prisma.association.update({
@@ -509,7 +510,8 @@ router.put('/association-settings', async (req, res) => {
       message: 'Paramètres enregistrés',
       receiptHeader: association.receiptHeader,
       receiptSignature: association.receiptSignature,
-      type: association.type
+      type: association.type,
+      paymentInfo: association.paymentInfo
     });
   } catch (error) {
     console.error('Update association settings error:', error);

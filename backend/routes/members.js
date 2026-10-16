@@ -1141,11 +1141,12 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
     }
 
     doc.moveDown(0.6);
-    doc.fontSize(11).font('Helvetica-Bold').text(`Total payé : ${fcfa(totalPaid)} FCFA`);
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(totalPaid >= totalDue ? '#2E7D32' : '#B26A00').text(`Total payé : ${fcfa(totalPaid)} FCFA`);
     doc.fontSize(9).font('Helvetica').fillColor('#444').text(`La somme de : ${enLettres(totalPaid)}`);
     doc.fillColor('#000');
     doc.fontSize(11).font('Helvetica-Bold').text(`Total dû : ${fcfa(totalDue)} FCFA`);
-    doc.fontSize(10).font('Helvetica').text(`Reste à payer : ${fcfa(Math.max(0, totalDue - totalPaid))} FCFA`);
+    doc.fontSize(10).font('Helvetica').fillColor(totalDue - totalPaid > 0 ? '#B00020' : '#2E7D32').text(`Reste à payer : ${fcfa(Math.max(0, totalDue - totalPaid))} FCFA`);
+    doc.fillColor('#000');
 
     doc.moveDown(0.6);
     doc.fontSize(9).font('Helvetica').fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
@@ -1219,52 +1220,64 @@ router.get('/:id/charge-notice', requireAdmin, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="appel_charges_${safeName}.pdf"`);
     doc.pipe(res);
 
-    // En-tête + date
+    // En-tête + séparateur + date
     renderReceiptHeader(doc, association, 16);
+    doc.moveDown(0.3);
+    const noticeMarginX = doc.page.margins.left;
+    const noticePageW = doc.page.width - noticeMarginX * 2;
+    const noticeSepY = doc.y;
+    doc.save();
+    doc.lineWidth(2).strokeColor('#2E7D32')
+      .moveTo(noticeMarginX + noticePageW / 2 - 50, noticeSepY)
+      .lineTo(noticeMarginX + noticePageW / 2 + 50, noticeSepY)
+      .stroke();
+    doc.restore();
     doc.moveDown(0.5);
     doc.fontSize(10).font('Helvetica').fillColor('#000')
        .text(`Le ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
     doc.moveDown(0.5);
     doc.fontSize(12).font('Helvetica-Bold').text('LE SYNDIC');
     doc.moveDown(1);
-
-    // Objet
     doc.fontSize(12).font('Helvetica-Bold')
        .text(`Objet : Appel de charges — ${MONTHS_FR[currentMonth - 1]} ${currentYearNum}`);
     doc.moveDown(1);
-
-    // Destinataire
     doc.fontSize(11).font('Helvetica').text(`Monsieur/Madame ${member.name}`);
     if (member.customFieldValue) {
       doc.text(`${association?.memberFieldLabel || 'Villa'} ${member.customFieldValue}`);
     }
     doc.moveDown(1);
-
-    // Corps
     doc.fontSize(11).font('Helvetica')
        .text('Je vous informe de l\'état actuel de votre compte de charges à ce jour :');
-    doc.moveDown(0.8);
-
-    doc.font('Helvetica-Bold').text('Charges mensuelles : ', { continued: true })
-       .font('Helvetica').text(`${fcfa(year.monthlyAmount)} FCFA`);
-    doc.font('Helvetica-Bold').text('Période : ', { continued: true })
-       .font('Helvetica').text(`Janvier à ${MONTHS_FR[currentMonth - 1]} ${currentYearNum} soit ${currentMonth} mois`);
-    doc.font('Helvetica-Bold').text('Montant dû : ', { continued: true })
-       .font('Helvetica').text(`${fcfa(totalDue)} FCFA`);
-    doc.font('Helvetica-Bold').text('Montant payé : ', { continued: true })
-       .font('Helvetica').text(`${fcfa(totalPaid)} FCFA`);
+    doc.moveDown(0.6);
+    const noticeBoxY = doc.y;
+    const noticeBoxH = 100;
+    doc.save();
+    doc.roundedRect(noticeMarginX, noticeBoxY, noticePageW, noticeBoxH, 4).fill('#F2F7F2');
+    doc.restore();
+    let ny = noticeBoxY + 12;
+    const noticeLine = (label, value, valueColor) => {
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#444').text(label, noticeMarginX + 14, ny, { continued: true });
+      doc.font('Helvetica').fillColor(valueColor || '#000').text(` ${value}`);
+      ny += 17;
+    };
+    noticeLine('Charges mensuelles :', `${fcfa(year.monthlyAmount)} FCFA`);
+    noticeLine('Période :', `Janvier à ${MONTHS_FR[currentMonth - 1]} ${currentYearNum} soit ${currentMonth} mois`);
+    noticeLine('Montant dû :', `${fcfa(totalDue)} FCFA`);
+    noticeLine('Montant payé :', `${fcfa(totalPaid)} FCFA`, totalPaid >= totalDue ? '#2E7D32' : '#B26A00');
     if (totalDue > totalPaid) {
-      doc.font('Helvetica-Bold').text('Reste dû : ', { continued: true })
-         .font('Helvetica').text(`${fcfa(diff)} FCFA`);
+      noticeLine('Reste dû :', `${fcfa(diff)} FCFA`, '#B00020');
     } else {
-      doc.font('Helvetica-Bold').text('Avance : ', { continued: true })
-         .font('Helvetica').text(`${fcfa(diff)} FCFA`);
+      noticeLine('Avance :', `${fcfa(diff)} FCFA`, '#2E7D32');
     }
-    doc.moveDown(1);
-
+    doc.y = noticeBoxY + noticeBoxH + 14;
+    doc.fillColor('#000');
     doc.fontSize(11).font('Helvetica')
        .text('Nous vous rappelons que ces charges sont essentielles au bon fonctionnement et à l\'entretien de la copropriété. Merci de bien vouloir régulariser votre situation dans les meilleurs délais.', { align: 'justify' });
-
+    if (association?.paymentInfo) {
+      doc.moveDown(0.8);
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#2E7D32').text(association.paymentInfo);
+      doc.fillColor('#000');
+    }
     renderSignature(doc, association);
 
     doc.end();
@@ -1286,7 +1299,7 @@ router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
     }
     const { member, association, year, currentYearNum, currentMonth, totalPaid, totalDue, diff, MONTHS_FR, fcfa } = data;
 
-    const { Document, Paragraph, TextRun, AlignmentType, Packer } = await import('docx');
+    const { Document, Paragraph, TextRun, AlignmentType, Packer, BorderStyle } = await import('docx');
 
     const safeName = (member.name || 'membre').replace(/[^a-zA-Z0-9]/g, '_');
     const restLabel = totalDue > totalPaid ? 'Reste dû : ' : 'Avance : ';
@@ -1298,6 +1311,14 @@ router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
       children.push(new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [new TextRun({ text: association.receiptHeader, bold: true, size: 32 })]
+      }));
+    }
+
+    if (association?.receiptHeader) {
+      children.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        border: { bottom: { color: '2E7D32', space: 4, style: BorderStyle.SINGLE, size: 12 } },
+        children: [new TextRun({ text: ' ', size: 2 })]
       }));
     }
 
@@ -1337,16 +1358,21 @@ router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
       children: [new TextRun('Je vous informe de l\'état actuel de votre compte de charges à ce jour :')]
     }));
 
-    const lineBold = (label, value, before) => new Paragraph({
+    const lineBold = (label, value, before, valueColor) => new Paragraph({
       spacing: before ? { before } : undefined,
-      children: [new TextRun({ text: label, bold: true }), new TextRun(value)]
+      shading: { fill: 'F2F7F2', type: 'clear', color: 'auto' },
+      children: [
+        new TextRun({ text: label, bold: true, color: '444444' }),
+        new TextRun({ text: value, color: valueColor || '000000' })
+      ]
     });
-
+    const montantPayeColor = totalPaid >= totalDue ? '2E7D32' : 'B26A00';
+    const resteColor = totalDue > totalPaid ? 'B00020' : '2E7D32';
     children.push(lineBold('Charges mensuelles : ', `${fcfa(year.monthlyAmount)} FCFA`, 200));
     children.push(lineBold('Période : ', `Janvier à ${MONTHS_FR[currentMonth - 1]} ${currentYearNum} soit ${currentMonth} mois`));
     children.push(lineBold('Montant dû : ', `${fcfa(totalDue)} FCFA`));
-    children.push(lineBold('Montant payé : ', `${fcfa(totalPaid)} FCFA`));
-    children.push(lineBold(restLabel, `${fcfa(diff)} FCFA`));
+    children.push(lineBold('Montant payé : ', `${fcfa(totalPaid)} FCFA`, undefined, montantPayeColor));
+    children.push(lineBold(restLabel, `${fcfa(diff)} FCFA`, undefined, resteColor));
 
     // Paragraphe de rappel
     children.push(new Paragraph({
@@ -1354,6 +1380,13 @@ router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
       alignment: AlignmentType.JUSTIFIED,
       children: [new TextRun('Nous vous rappelons que ces charges sont essentielles au bon fonctionnement et à l\'entretien de la copropriété. Merci de bien vouloir régulariser votre situation dans les meilleurs délais.')]
     }));
+
+    if (association?.paymentInfo) {
+      children.push(new Paragraph({
+        spacing: { before: 300 },
+        children: [new TextRun({ text: association.paymentInfo, bold: true, color: '2E7D32' })]
+      }));
+    }
 
     // Signature alignée à droite + ligne de soulignement
     children.push(new Paragraph({

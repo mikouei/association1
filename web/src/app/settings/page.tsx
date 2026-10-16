@@ -7,7 +7,7 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal, toast } from '@/components/ui';
 import { api } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Pencil, Trash2, Save, Copy, QrCode, Share2, Download, Users, Check, UserPlus } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, Copy, QrCode, Share2, Download, Users, Check, UserPlus, Upload, FileText } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -95,6 +95,10 @@ export default function SettingsPage() {
   const [labelMessage, setLabelMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [removeAccountConfirm, setRemoveAccountConfirm] = useState<{ id: string; name: string } | null>(null);
   const [selectedPending, setSelectedPending] = useState<string[]>([]);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importContent, setImportContent] = useState('');
+  const [importPreview, setImportPreview] = useState<any>(null);
+  const [importing, setImporting] = useState(false);
 
   // Paramètres des reçus + type d'organisation
   const [receiptHeader, setReceiptHeader] = useState('');
@@ -122,6 +126,106 @@ export default function SettingsPage() {
     if (removeAccountConfirm) {
       removeLinkedAccount(removeAccountConfirm.id);
       setRemoveAccountConfirm(null);
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    setImportContent(text);
+  };
+  const handlePreviewImport = async () => {
+    if (!importContent.trim()) {
+      toast.error('Veuillez coller ou charger le contenu à importer');
+      return;
+    }
+    setImporting(true);
+    try {
+      const response = await api.post('/import/members/preview', { content: importContent });
+      setImportPreview(response.data);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la prévisualisation');
+    } finally {
+      setImporting(false);
+    }
+  };
+  const handleConfirmImport = async () => {
+    if (!importPreview || importPreview.valid === 0) {
+      toast.error('Aucun membre valide à importer');
+      return;
+    }
+    setImporting(true);
+    try {
+      const response = await api.post('/import/members', { members: importPreview.preview });
+      toast.success(`Import terminé : ${response.data.success} réussis, ${response.data.failed} échecs`);
+      setImportModalOpen(false);
+      setImportContent('');
+      setImportPreview(null);
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erreur lors de l\'import');
+    } finally {
+      setImporting(false);
+    }
+  };
+  const handleExportMembers = async () => {
+    try {
+      const response = await api.get('/export/members', { responseType: 'text' });
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'membres.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+      toast.success('Fichier téléchargé');
+    } catch (error) {
+      toast.error('Erreur lors de l\'export');
+    }
+  };
+  const handleExportStats = async () => {
+    try {
+      const activeYear = years?.find((y: Year) => y.active);
+      if (!activeYear) {
+        toast.error('Aucune année active');
+        return;
+      }
+      const response = await api.get('/export/stats/csv', { responseType: 'text' });
+      const blob = new Blob([response.data], { type: 'text/plain;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `statistiques_${activeYear.year}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+      toast.success('Fichier téléchargé');
+    } catch (error) {
+      toast.error('Erreur lors de l\'export');
+    }
+  };
+  const handleExportStatsPDF = async () => {
+    const activeYear = years?.find((y: Year) => y.active);
+    if (!activeYear) {
+      toast.error('Aucune année active');
+      return;
+    }
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Fenêtre bloquée par le navigateur. Autorisez les pop-ups.');
+      return;
+    }
+    printWindow.document.write('<p>Chargement…</p>');
+    try {
+      const response = await api.get('/export/stats/pdf', { responseType: 'text' });
+      printWindow.document.open();
+      printWindow.document.write(response.data);
+      printWindow.document.close();
+      printWindow.print();
+    } catch (error) {
+      printWindow.document.write('<p style="color:red">Erreur lors du chargement.</p>');
     }
   };
 
@@ -800,6 +904,42 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Import / Export</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <button
+              onClick={() => setImportModalOpen(true)}
+              className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+            >
+              <Upload className="w-5 h-5 text-primary" />
+              <span className="text-sm font-medium text-gray-900">Importer des membres (TXT/CSV)</span>
+            </button>
+            <button
+              onClick={handleExportMembers}
+              className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+            >
+              <Download className="w-5 h-5 text-[#2E7D32]" />
+              <span className="text-sm font-medium text-gray-900">Exporter les membres (CSV)</span>
+            </button>
+            <button
+              onClick={handleExportStats}
+              className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+            >
+              <FileText className="w-5 h-5 text-[#B26A00]" />
+              <span className="text-sm font-medium text-gray-900">Exporter les statistiques (CSV)</span>
+            </button>
+            <button
+              onClick={handleExportStatsPDF}
+              className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+            >
+              <FileText className="w-5 h-5 text-[#B00020]" />
+              <span className="text-sm font-medium text-gray-900">Exporter les statistiques (PDF)</span>
+            </button>
+          </CardContent>
+        </Card>
+
         {/* Modal Création/Modification Année */}
         <Modal
           isOpen={isYearModalOpen}
@@ -875,6 +1015,57 @@ export default function SettingsPage() {
                 Retirer
               </Button>
             </div>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={importModalOpen}
+          onClose={() => { setImportModalOpen(false); setImportContent(''); setImportPreview(null); }}
+          title="Importer des membres"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">
+              Format attendu par ligne : nom;champ personnalisé;téléphone (ex: Jean Kouassi;Villa 12;0708091011)
+            </p>
+            <input
+              type="file"
+              accept=".txt,.csv,text/plain,text/csv"
+              onChange={handleImportFile}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+            />
+            <textarea
+              value={importContent}
+              onChange={(e) => setImportContent(e.target.value)}
+              placeholder={"Jean Kouassi;Villa 12;0708091011\nMarie Yao;Villa 13;0506070809"}
+              rows={6}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary resize-none font-mono"
+            />
+            <Button onClick={handlePreviewImport} loading={importing} disabled={!importContent.trim()}>
+              Prévisualiser
+            </Button>
+            {importPreview && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <p className="text-lg font-bold text-[#2E7D32]">{importPreview.valid || 0}</p>
+                    <p className="text-xs text-gray-500">Valides</p>
+                  </div>
+                  <div className="bg-orange-50 rounded-lg p-3">
+                    <p className="text-lg font-bold text-[#B26A00]">{importPreview.duplicatesCount || 0}</p>
+                    <p className="text-xs text-gray-500">Doublons</p>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-3">
+                    <p className="text-lg font-bold text-[#B00020]">{importPreview.errorsCount || 0}</p>
+                    <p className="text-xs text-gray-500">Erreurs</p>
+                  </div>
+                </div>
+                {importPreview.valid > 0 && (
+                  <Button onClick={handleConfirmImport} loading={importing} className="w-full">
+                    Confirmer l&apos;import ({importPreview.valid} membre{importPreview.valid > 1 ? 's' : ''})
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </Modal>
       </div>

@@ -869,6 +869,7 @@ const memberPdfHandler = async (req, res) => {
         associationId: req.associationId,
         ...yearsQuery
       },
+      include: { rateChanges: true },
       orderBy: { year: 'desc' }
     });
 
@@ -958,13 +959,15 @@ const memberPdfHandler = async (req, res) => {
       const yearPayments = monthlyPayments.filter(p => p.yearId === yearData.id);
       const paidMonths = yearPayments.filter(p => p.amountPaid > 0).length;
       const yearPaid = yearPayments.reduce((sum, p) => sum + p.amountPaid, 0);
-      const yearDue = 12 * yearData.monthlyAmount;
+      const yearDue = getTotalDueUpTo(yearData, 12);
       
       totalMonthlyPaid += yearPaid;
       totalMonthlyDue += yearDue;
 
       doc.fontSize(11).font('Helvetica-Bold')
-         .text(`Année ${yearData.year} - ${fcfa(yearData.monthlyAmount)} FCFA/mois`);
+         .text(yearData.rateChanges?.length > 0
+           ? `Année ${yearData.year} - Cotisation variable`
+           : `Année ${yearData.year} - ${fcfa(yearData.monthlyAmount)} FCFA/mois`);
       
       // Détail par mois (montant réellement payé)
       let monthLine = '';
@@ -1077,7 +1080,8 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
     const currentMonth = now.getMonth() + 1; // 1-12 (mois actuel inclus)
 
     const year = await prisma.year.findFirst({
-      where: { associationId: req.associationId, year: currentYearNum }
+      where: { associationId: req.associationId, year: currentYearNum },
+      include: { rateChanges: true }
     });
     if (!year) {
       return res.status(404).json({ error: 'Aucune année de cotisation pour l\'année en cours' });
@@ -1102,7 +1106,7 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
       const history = monthPayments.flatMap(p => p.history || []);
       rows.push({ month: MONTHS_FR[m - 1], paid, history });
     }
-    const totalDue = currentMonth * (year.monthlyAmount || 0);
+    const totalDue = getTotalDueUpTo(year, currentMonth);
 
     const receiptNo = `R-${currentYearNum}-RECAP-${member.id.substring(0, 6).toUpperCase()}`;
 
@@ -1164,6 +1168,17 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
 // GET /api/members/:id/charge-notice
 // Appel de charges (lettre formelle A4) pour un membre - ADMIN (mode SYNDIC)
 // Calcul commun pour l'appel de charges (PDF + Word)
+function getMonthlyRate(year, month) {
+  if (!year.rateChanges || year.rateChanges.length === 0) return year.monthlyAmount;
+  const applicable = year.rateChanges.filter(rc => rc.fromMonth <= month).sort((a, b) => b.fromMonth - a.fromMonth)[0];
+  return applicable ? applicable.amount : year.monthlyAmount;
+}
+function getTotalDueUpTo(year, uptoMonth) {
+  let total = 0;
+  for (let m = 1; m <= uptoMonth; m++) total += getMonthlyRate(year, m);
+  return total;
+}
+
 async function getChargeNoticeData(req, id) {
   const member = await prisma.member.findFirst({
     where: { id, associationId: req.associationId }
@@ -1177,7 +1192,8 @@ async function getChargeNoticeData(req, id) {
   const currentMonth = now.getMonth() + 1; // 1-12 (mois actuel inclus)
 
   const year = await prisma.year.findFirst({
-    where: { associationId: req.associationId, year: currentYearNum }
+    where: { associationId: req.associationId, year: currentYearNum },
+    include: { rateChanges: true }
   });
   if (!year) {
     return { error: 'Aucune année de cotisation pour l\'année en cours', status: 404 };
@@ -1196,7 +1212,7 @@ async function getChargeNoticeData(req, id) {
   for (let m = 1; m <= currentMonth; m++) {
     totalPaid += payments.filter(p => p.month === m).reduce((s, p) => s + p.amountPaid, 0);
   }
-  const totalDue = currentMonth * (year.monthlyAmount || 0);
+  const totalDue = getTotalDueUpTo(year, currentMonth);
   const diff = Math.abs(totalDue - totalPaid);
 
   return { member, association, year, currentYearNum, currentMonth, totalPaid, totalDue, diff, MONTHS_FR, fcfa };
@@ -1260,7 +1276,7 @@ router.get('/:id/charge-notice', requireAdmin, async (req, res) => {
       doc.font('Helvetica').fillColor(valueColor || '#000').text(` ${value}`);
       ny += 17;
     };
-    noticeLine('Charges mensuelles :', `${fcfa(year.monthlyAmount)} FCFA`);
+    noticeLine('Charges mensuelles :', year.rateChanges?.length > 0 ? 'Cotisation variable (voir détail)' : `${fcfa(year.monthlyAmount)} FCFA`);
     noticeLine('Période :', `Janvier à ${MONTHS_FR[currentMonth - 1]} ${currentYearNum} soit ${currentMonth} mois`);
     noticeLine('Montant dû :', `${fcfa(totalDue)} FCFA`);
     noticeLine('Montant payé :', `${fcfa(totalPaid)} FCFA`, totalPaid >= totalDue ? '#2E7D32' : '#B26A00');
@@ -1368,7 +1384,7 @@ router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
     });
     const montantPayeColor = totalPaid >= totalDue ? '2E7D32' : 'B26A00';
     const resteColor = totalDue > totalPaid ? 'B00020' : '2E7D32';
-    children.push(lineBold('Charges mensuelles : ', `${fcfa(year.monthlyAmount)} FCFA`, 200));
+    children.push(lineBold('Charges mensuelles : ', year.rateChanges?.length > 0 ? 'Cotisation variable (voir détail)' : `${fcfa(year.monthlyAmount)} FCFA`, 200));
     children.push(lineBold('Période : ', `Janvier à ${MONTHS_FR[currentMonth - 1]} ${currentYearNum} soit ${currentMonth} mois`));
     children.push(lineBold('Montant dû : ', `${fcfa(totalDue)} FCFA`));
     children.push(lineBold('Montant payé : ', `${fcfa(totalPaid)} FCFA`, undefined, montantPayeColor));

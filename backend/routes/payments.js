@@ -17,6 +17,17 @@ const MONTHS = [
 const enLettres = (n) => `${nombreEnLettres(n)} francs CFA`;
 const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
 
+function getMonthlyRate(year, month) {
+  if (!year.rateChanges || year.rateChanges.length === 0) return year.monthlyAmount;
+  const applicable = year.rateChanges.filter(rc => rc.fromMonth <= month).sort((a, b) => b.fromMonth - a.fromMonth)[0];
+  return applicable ? applicable.amount : year.monthlyAmount;
+}
+function getTotalDueUpTo(year, uptoMonth) {
+  let total = 0;
+  for (let m = 1; m <= uptoMonth; m++) total += getMonthlyRate(year, m);
+  return total;
+}
+
 // En-tête commun des reçus : uniquement receiptHeader (pas le nom de l'association)
 function renderReceiptHeader(doc, association) {
   if (association?.receiptHeader) {
@@ -43,7 +54,7 @@ function renderSignature(doc, association) {
 function renderMonthlyReceipt(doc, payment, association, receiptNo) {
   const currency = (association?.currency && association.currency !== 'XOF') ? association.currency : 'FCFA';
   const monthName = MONTHS[payment.month - 1] || `Mois ${payment.month}`;
-  const remaining = Math.max(0, (payment.year.monthlyAmount || 0) - payment.amountPaid);
+  const remaining = Math.max(0, getMonthlyRate(payment.year, payment.month) - payment.amountPaid);
   const marginX = doc.page.margins.left;
   const pageW = doc.page.width - marginX * 2;
   renderReceiptHeader(doc, association);
@@ -108,7 +119,8 @@ router.get('/my/year/:yearId', async (req, res) => {
       where: { 
         id: yearId,
         associationId: req.associationId
-      }
+      },
+      include: { rateChanges: true }
     });
 
     if (!year) {
@@ -144,14 +156,14 @@ router.get('/my/year/:yearId', async (req, res) => {
         const totalPaid = monthPayments.reduce((sum, p) => sum + p.amountPaid, 0);
         
         paymentsByMonth[month] = {
-          paid: totalPaid >= year.monthlyAmount,
+          paid: totalPaid >= getMonthlyRate(year, month),
           amountPaid: totalPaid,
           payments: monthPayments
         };
       }
 
       const totalPaid = member.payments.reduce((sum, p) => sum + p.amountPaid, 0);
-      const totalDue = year.monthlyAmount * 12;
+      const totalDue = getTotalDueUpTo(year, 12);
       const remaining = totalDue - totalPaid;
       const percentage = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
 
@@ -190,7 +202,7 @@ router.get('/my/receipt/monthly/:id', async (req, res) => {
         id,
         member: { userId: req.user.id, associationId: req.associationId }
       },
-      include: { member: true, year: true, history: { orderBy: { paymentDate: 'asc' } } }
+      include: { member: true, year: { include: { rateChanges: true } }, history: { orderBy: { paymentDate: 'asc' } } }
     });
 
     if (!payment) {
@@ -226,7 +238,7 @@ router.get('/:id/receipt', requireAdmin, async (req, res) => {
         id,
         member: { associationId: req.associationId }
       },
-      include: { member: true, year: true, history: { orderBy: { paymentDate: 'asc' } } }
+      include: { member: true, year: { include: { rateChanges: true } }, history: { orderBy: { paymentDate: 'asc' } } }
     });
 
     if (!payment) {
@@ -263,7 +275,8 @@ router.get('/year/:yearId', requireAdmin, async (req, res) => {
       where: { 
         id: yearId,
         associationId: req.associationId
-      }
+      },
+      include: { rateChanges: true }
     });
 
     if (!year) {
@@ -295,7 +308,7 @@ router.get('/year/:yearId', requireAdmin, async (req, res) => {
         const totalPaid = monthPayments.reduce((sum, p) => sum + p.amountPaid, 0);
         
         paymentsByMonth[month] = {
-          paid: totalPaid >= year.monthlyAmount,
+          paid: totalPaid >= getMonthlyRate(year, month),
           amountPaid: totalPaid,
           payments: monthPayments
         };
@@ -303,7 +316,7 @@ router.get('/year/:yearId', requireAdmin, async (req, res) => {
 
       // Calculs globaux
       const totalPaid = member.payments.reduce((sum, p) => sum + p.amountPaid, 0);
-      const totalDue = year.monthlyAmount * 12;
+      const totalDue = getTotalDueUpTo(year, 12);
       const remaining = totalDue - totalPaid;
       const percentage = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
 
@@ -341,7 +354,8 @@ router.get('/member/:memberId/year/:yearId', requireAdmin, async (req, res) => {
       where: { 
         id: yearId,
         associationId: req.associationId
-      }
+      },
+      include: { rateChanges: true }
     });
 
     if (!year) {
@@ -376,17 +390,17 @@ router.get('/member/:memberId/year/:yearId', requireAdmin, async (req, res) => {
       
       paymentsByMonth[month] = {
         monthName: MONTHS[month - 1],
-        paid: totalPaid >= year.monthlyAmount,
+        paid: totalPaid >= getMonthlyRate(year, month),
         amountPaid: totalPaid,
-        amountDue: year.monthlyAmount,
-        remaining: Math.max(0, year.monthlyAmount - totalPaid),
+        amountDue: getMonthlyRate(year, month),
+        remaining: Math.max(0, getMonthlyRate(year, month) - totalPaid),
         payments: monthPayments
       };
     }
 
     // Calculs globaux
     const totalPaid = payments.reduce((sum, p) => sum + p.amountPaid, 0);
-    const totalDue = year.monthlyAmount * 12;
+    const totalDue = getTotalDueUpTo(year, 12);
     const remaining = totalDue - totalPaid;
     const percentage = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
 
@@ -645,7 +659,8 @@ router.get('/stats/year/:yearId', requireAdmin, async (req, res) => {
       where: { 
         id: yearId,
         associationId: req.associationId
-      }
+      },
+      include: { rateChanges: true }
     });
 
     if (!year) {

@@ -17,6 +17,7 @@ interface Year {
   monthlyAmount: number;
   active: boolean;
   createdAt: string;
+  rateChanges?: { id: string; fromMonth: number; amount: number }[];
 }
 
 interface PendingMember {
@@ -99,6 +100,8 @@ export default function SettingsPage() {
   const [importContent, setImportContent] = useState('');
   const [importPreview, setImportPreview] = useState<any>(null);
   const [importing, setImporting] = useState(false);
+  const [rateChangeModalYear, setRateChangeModalYear] = useState<Year | null>(null);
+  const [rateChangeFormData, setRateChangeFormData] = useState({ fromMonth: '', amount: '' });
 
   // Paramètres des reçus + type d'organisation
   const [receiptHeader, setReceiptHeader] = useState('');
@@ -319,6 +322,29 @@ export default function SettingsPage() {
   const deleteYearMutation = useMutation({
     mutationFn: async (id: string) => {
       await api.delete(`/years/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['years'] });
+    },
+  });
+
+  const addRateChangeMutation = useMutation({
+    mutationFn: async ({ yearId, data }: { yearId: string; data: { fromMonth: number; amount: number } }) => {
+      const response = await api.post(`/years/${yearId}/rate-changes`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['years'] });
+      setRateChangeModalYear(null);
+      setRateChangeFormData({ fromMonth: '', amount: '' });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Erreur lors de l\'ajout du changement de tarif');
+    },
+  });
+  const deleteRateChangeMutation = useMutation({
+    mutationFn: async ({ yearId, changeId }: { yearId: string; changeId: string }) => {
+      await api.delete(`/years/${yearId}/rate-changes/${changeId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['years'] });
@@ -867,6 +893,20 @@ export default function SettingsPage() {
                       <p className="text-sm text-gray-500">
                         {formatCurrency(year.monthlyAmount)} / mois
                       </p>
+                      {year.rateChanges?.map((rc) => (
+                        <div key={rc.id} className="flex items-center gap-2 text-xs text-gray-600 mt-1">
+                          <span>À partir du mois {rc.fromMonth} : {formatCurrency(rc.amount)}/mois</span>
+                          <button onClick={() => deleteRateChangeMutation.mutate({ yearId: year.id, changeId: rc.id })} className="text-red-400 hover:text-red-600">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => { setRateChangeModalYear(year); setRateChangeFormData({ fromMonth: '', amount: '' }); }}
+                        className="text-xs text-primary hover:underline mt-1"
+                      >
+                        + Changement de tarif
+                      </button>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -987,6 +1027,48 @@ export default function SettingsPage() {
               >
                 {editingYear ? 'Modifier' : 'Créer'}
               </Button>
+            </div>
+          </form>
+        </Modal>
+
+        <Modal
+          isOpen={!!rateChangeModalYear}
+          onClose={() => setRateChangeModalYear(null)}
+          title={`Changement de tarif — ${rateChangeModalYear?.year ?? ''}`}
+        >
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (!rateChangeModalYear) return;
+            addRateChangeMutation.mutate({
+              yearId: rateChangeModalYear.id,
+              data: { fromMonth: parseInt(rateChangeFormData.fromMonth), amount: parseFloat(rateChangeFormData.amount) },
+            });
+          }} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">À partir du mois</label>
+              <select
+                value={rateChangeFormData.fromMonth}
+                onChange={(e) => setRateChangeFormData({ ...rateChangeFormData, fromMonth: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                required
+              >
+                <option value="">Choisir un mois</option>
+                {['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'].map((m, i) => (
+                  <option key={i + 1} value={i + 1}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <Input
+              label="Nouvelle cotisation mensuelle (FCFA)"
+              type="number"
+              value={rateChangeFormData.amount}
+              onChange={(e) => setRateChangeFormData({ ...rateChangeFormData, amount: e.target.value })}
+              placeholder="Ex: 10000"
+              required
+            />
+            <div className="flex justify-end gap-3 pt-4">
+              <Button type="button" variant="secondary" onClick={() => setRateChangeModalYear(null)}>Annuler</Button>
+              <Button type="submit" loading={addRateChangeMutation.isPending}>Ajouter</Button>
             </div>
           </form>
         </Modal>

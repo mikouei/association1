@@ -13,6 +13,7 @@ router.get('/', async (req, res) => {
   try {
     const years = await prisma.year.findMany({
       where: { associationId: req.associationId },
+      include: { rateChanges: { orderBy: { fromMonth: 'asc' } } },
       orderBy: { year: 'desc' }
     });
     res.json(years);
@@ -30,7 +31,8 @@ router.get('/active', async (req, res) => {
       where: { 
         associationId: req.associationId,
         active: true 
-      }
+      },
+      include: { rateChanges: { orderBy: { fromMonth: 'asc' } } }
     });
     
     if (!activeYear) {
@@ -246,6 +248,94 @@ router.put('/:id/activate', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Activate year error:', error);
     res.status(500).json({ error: 'Erreur lors de l\'activation de l\'année' });
+  }
+});
+
+// POST /api/years/:id/rate-changes
+// Ajouter un changement de tarif en cours d'année (ADMIN)
+router.post('/:id/rate-changes', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fromMonth, amount } = req.body;
+
+    const month = parseInt(fromMonth);
+    const amt = parseFloat(amount);
+    if (!Number.isInteger(month) || month < 1 || month > 12) {
+      return res.status(400).json({ error: 'Mois invalide (1-12)' });
+    }
+    if (isNaN(amt) || amt <= 0 || amt > 100000000) {
+      return res.status(400).json({ error: 'Montant invalide' });
+    }
+
+    const year = await prisma.year.findFirst({
+      where: { id, associationId: req.associationId }
+    });
+    if (!year) {
+      return res.status(404).json({ error: 'Année introuvable' });
+    }
+
+    let rateChange;
+    try {
+      rateChange = await prisma.yearRateChange.create({
+        data: { yearId: id, fromMonth: month, amount: amt }
+      });
+    } catch (e) {
+      if (e.code === 'P2002') {
+        return res.status(400).json({ error: 'Un changement de tarif existe déjà pour ce mois' });
+      }
+      throw e;
+    }
+
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'year.rate_change.create',
+      targetType: 'YearRateChange',
+      targetId: rateChange.id,
+      details: `Changement de tarif: ${amt} FCFA à partir du mois ${month} (${year.year})`
+    });
+
+    res.status(201).json(rateChange);
+  } catch (error) {
+    console.error('Create rate change error:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du changement de tarif' });
+  }
+});
+
+// DELETE /api/years/:id/rate-changes/:changeId
+// Supprimer un changement de tarif (ADMIN)
+router.delete('/:id/rate-changes/:changeId', requireAdmin, async (req, res) => {
+  try {
+    const { id, changeId } = req.params;
+
+    const rateChange = await prisma.yearRateChange.findFirst({
+      where: {
+        id: changeId,
+        yearId: id,
+        year: { associationId: req.associationId }
+      }
+    });
+    if (!rateChange) {
+      return res.status(404).json({ error: 'Changement de tarif introuvable' });
+    }
+
+    await prisma.yearRateChange.delete({ where: { id: changeId } });
+
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'year.rate_change.delete',
+      targetType: 'YearRateChange',
+      targetId: changeId,
+      details: `Changement de tarif supprimé (mois ${rateChange.fromMonth})`
+    });
+
+    res.json({ message: 'Changement de tarif supprimé' });
+  } catch (error) {
+    console.error('Delete rate change error:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du changement de tarif' });
   }
 });
 

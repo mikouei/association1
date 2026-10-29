@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { authenticateToken, requireAdmin, generateAccessToken, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
+import { validateSignatureDataUrl } from '../utils/receiptLayout.js';
 
 const router = express.Router();
 
@@ -493,11 +494,13 @@ router.post('/pending-members/reject', async (req, res) => {
 // Mettre à jour les paramètres de reçu de l'association (en-tête et signature)
 router.put('/association-settings', async (req, res) => {
   try {
-    const { receiptHeader, receiptSignature, paymentInfo, type } = req.body;
+    const { receiptHeader, receiptSignature, signerName, signerTitle, paymentInfo, type } = req.body;
 
     const data = {};
     if (receiptHeader !== undefined) data.receiptHeader = receiptHeader || null;
     if (receiptSignature !== undefined) data.receiptSignature = receiptSignature || null;
+    if (signerName !== undefined) data.signerName = String(signerName || '').trim().slice(0, 100) || null;
+    if (signerTitle !== undefined) data.signerTitle = String(signerTitle || '').trim().slice(0, 100) || null;
     if (paymentInfo !== undefined) data.paymentInfo = paymentInfo || null;
     if (type !== undefined && (type === 'ASSOCIATION' || type === 'SYNDIC')) data.type = type;
 
@@ -510,12 +513,83 @@ router.put('/association-settings', async (req, res) => {
       message: 'Paramètres enregistrés',
       receiptHeader: association.receiptHeader,
       receiptSignature: association.receiptSignature,
+      signerName: association.signerName,
+      signerTitle: association.signerTitle,
       type: association.type,
       paymentInfo: association.paymentInfo
     });
   } catch (error) {
     console.error('Update association settings error:', error);
     res.status(500).json({ error: 'Erreur lors de la sauvegarde des paramètres' });
+  }
+});
+
+// Images des reçus : signature manuscrite (kind=signature) et cachet (kind=stamp)
+const SIGNATURE_FIELDS = { signature: 'imageData', stamp: 'stampData' };
+
+// GET /api/admin/association-signature → { imageData, stampData } (data URL PNG ou null)
+router.get('/association-signature', async (req, res) => {
+  try {
+    const row = await prisma.associationSignature.findUnique({ where: { associationId: req.associationId } });
+    res.json({ imageData: row?.imageData || null, stampData: row?.stampData || null });
+  } catch (error) {
+    console.error('Get signature error:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération de la signature' });
+  }
+});
+
+// PUT /api/admin/association-signature  { kind: "signature" | "stamp", imageData: "data:image/png;base64,..." }
+router.put('/association-signature', async (req, res) => {
+  try {
+    const field = SIGNATURE_FIELDS[req.body?.kind || 'signature'];
+    if (!field) {
+      return res.status(400).json({ error: 'Type d\'image invalide' });
+    }
+    const check = validateSignatureDataUrl(req.body?.imageData);
+    if (!check.ok) {
+      return res.status(400).json({ error: check.error });
+    }
+    await prisma.associationSignature.upsert({
+      where: { associationId: req.associationId },
+      update: { [field]: check.dataUrl },
+      create: { associationId: req.associationId, [field]: check.dataUrl }
+    });
+    logActivity({
+      associationId: req.associationId,
+      userId: req.user.id,
+      userName: req.user.member?.name || req.user.email || 'Admin',
+      action: 'association.signature',
+      targetType: 'Association',
+      targetId: req.associationId,
+      details: field === 'stampData' ? 'Cachet des reçus mis à jour' : 'Signature des reçus mise à jour'
+    });
+    res.json({ message: field === 'stampData' ? 'Cachet enregistré' : 'Signature enregistrée' });
+  } catch (error) {
+    console.error('Save signature error:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'enregistrement de l\'image' });
+  }
+});
+
+// DELETE /api/admin/association-signature?kind=signature|stamp
+router.delete('/association-signature', async (req, res) => {
+  try {
+    const field = SIGNATURE_FIELDS[req.query?.kind || 'signature'];
+    if (!field) {
+      return res.status(400).json({ error: 'Type d\'image invalide' });
+    }
+    const row = await prisma.associationSignature.findUnique({ where: { associationId: req.associationId } });
+    if (row) {
+      const other = field === 'imageData' ? row.stampData : row.imageData;
+      if (other) {
+        await prisma.associationSignature.update({ where: { associationId: req.associationId }, data: { [field]: null } });
+      } else {
+        await prisma.associationSignature.delete({ where: { associationId: req.associationId } });
+      }
+    }
+    res.json({ message: field === 'stampData' ? 'Cachet supprimé' : 'Signature supprimée' });
+  } catch (error) {
+    console.error('Delete signature error:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression' });
   }
 });
 

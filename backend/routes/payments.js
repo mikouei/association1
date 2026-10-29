@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticateToken, requireAdmin, requireRole, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
 import { nombreEnLettres } from '../utils/nombreEnLettres.js';
+import { renderReceiptHeader, renderSignature, attachSignature, docxHeader, docxSignature } from '../utils/receiptLayout.js';
 
 const router = express.Router();
 
@@ -26,28 +27,6 @@ function getTotalDueUpTo(year, uptoMonth) {
   let total = 0;
   for (let m = 1; m <= uptoMonth; m++) total += getMonthlyRate(year, m);
   return total;
-}
-
-// En-tête commun des reçus : uniquement receiptHeader (pas le nom de l'association)
-function renderReceiptHeader(doc, association) {
-  if (association?.receiptHeader) {
-    doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text(association.receiptHeader, { align: 'center' });
-  } else {
-    doc.moveDown(1.2);
-  }
-}
-
-// Bloc signature en bas à droite : ligne horizontale + signature (ou "Signature") au-dessus
-function renderSignature(doc, association) {
-  doc.moveDown(2.5);
-  const rightX = doc.page.width - doc.page.margins.right;
-  const blockW = 200;
-  const startX = rightX - blockW;
-  const sig = association?.receiptSignature;
-  doc.fontSize(10).font('Helvetica').fillColor('#000')
-     .text(sig || 'Signature', startX, doc.y, { width: blockW, align: 'center' });
-  const y = doc.y + 2;
-  doc.moveTo(startX, y).lineTo(rightX, y).stroke();
 }
 
 // Corps commun d'un reçu mensuel (A5)
@@ -210,6 +189,7 @@ router.get('/my/receipt/monthly/:id', async (req, res) => {
     }
 
     const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+    await attachSignature(prisma, association);
     const receiptNo = `R-${payment.year.year}-${String(payment.month).padStart(2, '0')}-${payment.id.substring(0, 6).toUpperCase()}`;
 
     const PDFDocument = (await import('pdfkit')).default;
@@ -246,6 +226,7 @@ router.get('/:id/receipt', requireAdmin, async (req, res) => {
     }
 
     const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+    await attachSignature(prisma, association);
     const receiptNo = `R-${payment.year.year}-${String(payment.month).padStart(2, '0')}-${payment.id.substring(0, 6).toUpperCase()}`;
 
     const PDFDocument = (await import('pdfkit')).default;

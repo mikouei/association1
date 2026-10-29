@@ -243,24 +243,32 @@ export default function PaymentsPage() {
                               Récap
                             </button>
                             {isSyndic && (
-                              <button
-                                onClick={() => downloadBlob(`/members/${member.id}/charge-notice`, `appel_charges_${safe(member.name)}.pdf`)}
-                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                                data-testid={`charge-notice-btn-${member.id}`}
+                              <div
+                                className="inline-flex items-center rounded-md border border-gray-200 overflow-hidden text-sm"
+                                role="group"
+                                aria-label="Appel de charges"
                               >
-                                <FileText className="w-4 h-4" />
-                                Appel de charges
-                              </button>
-                            )}
-                            {isSyndic && (
-                              <button
-                                onClick={() => downloadBlob(`/members/${member.id}/charge-notice-word`, `appel_charges_${safe(member.name)}.docx`)}
-                                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                                data-testid={`charge-notice-word-btn-${member.id}`}
-                              >
-                                <FileText className="w-4 h-4" />
-                                Word
-                              </button>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 text-gray-600 border-r border-gray-200">
+                                  <FileText className="w-4 h-4" />
+                                  Appel de charges
+                                </span>
+                                <button
+                                  onClick={() => downloadBlob(`/members/${member.id}/charge-notice`, `appel_charges_${safe(member.name)}.pdf`)}
+                                  className="px-2 py-0.5 text-primary font-medium hover:bg-primary/10"
+                                  title="Télécharger l'appel de charges en PDF"
+                                  data-testid={`charge-notice-btn-${member.id}`}
+                                >
+                                  PDF
+                                </button>
+                                <button
+                                  onClick={() => downloadBlob(`/members/${member.id}/charge-notice-word`, `appel_charges_${safe(member.name)}.docx`)}
+                                  className="px-2 py-0.5 text-primary font-medium hover:bg-primary/10 border-l border-gray-200"
+                                  title="Télécharger l'appel de charges en Word (modifiable)"
+                                  data-testid={`charge-notice-word-btn-${member.id}`}
+                                >
+                                  Word
+                                </button>
+                              </div>
                             )}
                           </div>
                         </td>

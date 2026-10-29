@@ -6,33 +6,12 @@ import { authenticateToken, requireAdmin, requireRole, generateAccessToken, pris
 import { logActivity } from '../utils/activityLog.js';
 import { checkMemberLimit } from '../utils/planLimits.js';
 import { nombreEnLettres } from '../utils/nombreEnLettres.js';
+import { renderReceiptHeader, renderSignature, attachSignature, docxHeader, docxSignature, signerHeading } from '../utils/receiptLayout.js';
 
 const router = express.Router();
 
 // Montant en toutes lettres (ex: "vingt et un mille cinq cents francs CFA")
 const enLettres = (n) => `${nombreEnLettres(n)} francs CFA`;
-
-// En-tête commun des reçus : uniquement receiptHeader (pas le nom de l'association)
-function renderReceiptHeader(doc, association, size) {
-  if (association?.receiptHeader) {
-    doc.fontSize(size || 20).font('Helvetica-Bold').fillColor('#000').text(association.receiptHeader, { align: 'center' });
-  } else {
-    doc.moveDown(1.2);
-  }
-}
-
-// Bloc signature en bas à droite : ligne horizontale + signature (ou "Signature") au-dessus
-function renderSignature(doc, association) {
-  doc.moveDown(2.5);
-  const rightX = doc.page.width - doc.page.margins.right;
-  const blockW = 200;
-  const startX = rightX - blockW;
-  const sig = association?.receiptSignature;
-  doc.fontSize(10).font('Helvetica').fillColor('#000')
-     .text(sig || 'Signature', startX, doc.y, { width: blockW, align: 'center' });
-  const y = doc.y + 2;
-  doc.moveTo(startX, y).lineTo(rightX, y).stroke();
-}
 
 // Authentification requise pour toutes les routes
 router.use(authenticateToken);
@@ -858,6 +837,7 @@ const memberPdfHandler = async (req, res) => {
     const association = await prisma.association.findUnique({
       where: { id: req.associationId }
     });
+    await attachSignature(prisma, association);
 
     // Récupérer les années avec paiements
     const yearsQuery = year 
@@ -1088,6 +1068,7 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
     }
 
     const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+    await attachSignature(prisma, association);
     const payments = await prisma.monthlyPayment.findMany({
       where: { memberId: member.id, yearId: year.id },
       include: { history: { orderBy: { paymentDate: 'asc' } } }
@@ -1200,6 +1181,7 @@ async function getChargeNoticeData(req, id) {
   }
 
   const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+  await attachSignature(prisma, association);
   const payments = await prisma.monthlyPayment.findMany({
     where: { memberId: member.id, yearId: year.id }
   });
@@ -1238,21 +1220,12 @@ router.get('/:id/charge-notice', requireAdmin, async (req, res) => {
 
     // En-tête + séparateur + date
     renderReceiptHeader(doc, association, 16);
-    doc.moveDown(0.3);
     const noticeMarginX = doc.page.margins.left;
     const noticePageW = doc.page.width - noticeMarginX * 2;
-    const noticeSepY = doc.y;
-    doc.save();
-    doc.lineWidth(2).strokeColor('#2E7D32')
-      .moveTo(noticeMarginX + noticePageW / 2 - 50, noticeSepY)
-      .lineTo(noticeMarginX + noticePageW / 2 + 50, noticeSepY)
-      .stroke();
-    doc.restore();
-    doc.moveDown(0.5);
     doc.fontSize(10).font('Helvetica').fillColor('#000')
        .text(`Le ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
     doc.moveDown(0.5);
-    doc.fontSize(12).font('Helvetica-Bold').text('LE SYNDIC');
+    doc.fontSize(12).font('Helvetica-Bold').text(signerHeading(association));
     doc.moveDown(1);
     doc.fontSize(12).font('Helvetica-Bold')
        .text(`Objet : Appel de charges — ${MONTHS_FR[currentMonth - 1]} ${currentYearNum}`);
@@ -1315,28 +1288,16 @@ router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
     }
     const { member, association, year, currentYearNum, currentMonth, totalPaid, totalDue, diff, MONTHS_FR, fcfa } = data;
 
-    const { Document, Paragraph, TextRun, AlignmentType, Packer, BorderStyle } = await import('docx');
+    const d = await import('docx');
+    const { Document, Paragraph, TextRun, AlignmentType, Packer } = d;
 
     const safeName = (member.name || 'membre').replace(/[^a-zA-Z0-9]/g, '_');
     const restLabel = totalDue > totalPaid ? 'Reste dû : ' : 'Avance : ';
 
     const children = [];
 
-    // En-tête (receiptHeader en gras centré si renseigné)
-    if (association?.receiptHeader) {
-      children.push(new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: association.receiptHeader, bold: true, size: 32 })]
-      }));
-    }
-
-    if (association?.receiptHeader) {
-      children.push(new Paragraph({
-        alignment: AlignmentType.CENTER,
-        border: { bottom: { color: '2E7D32', space: 4, style: BorderStyle.SINGLE, size: 12 } },
-        children: [new TextRun({ text: ' ', size: 2 })]
-      }));
-    }
+    // Cadre d'en-tête automatique (nom de la cité/association + lignes d'en-tête)
+    children.push(...docxHeader(d, association));
 
     // Date du jour alignée à droite
     children.push(new Paragraph({
@@ -1348,7 +1309,7 @@ router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
     // LE SYNDIC
     children.push(new Paragraph({
       spacing: { before: 200 },
-      children: [new TextRun({ text: 'LE SYNDIC', bold: true })]
+      children: [new TextRun({ text: signerHeading(association), bold: true })]
     }));
 
     // Objet
@@ -1404,16 +1365,8 @@ router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
       }));
     }
 
-    // Signature alignée à droite + ligne de soulignement
-    children.push(new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      spacing: { before: 600 },
-      children: [new TextRun(association?.receiptSignature || 'Signature')]
-    }));
-    children.push(new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      children: [new TextRun('_______________________')]
-    }));
+    // Bloc signature (image manuscrite + ligne + nom/titre)
+    children.push(...docxSignature(d, association));
 
     const docx = new Document({ sections: [{ children }] });
     const buffer = await Packer.toBuffer(docx);

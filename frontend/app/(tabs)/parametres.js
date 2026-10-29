@@ -75,7 +75,8 @@ export default function Parametres() {
     type: '',
     memberFieldLabel: '',
     receiptHeader: '',
-    receiptSignature: '',
+    signerName: '',
+    signerTitle: '',
   });
 
   // Années
@@ -183,7 +184,8 @@ export default function Parametres() {
         type: response.data.type || '',
         memberFieldLabel: response.data.memberFieldLabel || '',
         receiptHeader: response.data.receiptHeader || '',
-        receiptSignature: response.data.receiptSignature || '',
+        signerName: response.data.signerName || '',
+        signerTitle: response.data.signerTitle || '',
       });
     } catch (error) {
       if (error?.isSessionExpired) return;
@@ -250,7 +252,8 @@ export default function Parametres() {
       // Sauvegarder l'en-tête et la signature des reçus
       await api.put('/admin/association-settings', {
         receiptHeader: formData.receiptHeader,
-        receiptSignature: formData.receiptSignature,
+        signerName: formData.signerName,
+        signerTitle: formData.signerTitle,
         type: formData.type === 'SYNDIC' ? 'SYNDIC' : 'ASSOCIATION'
       });
       Alert.alert('Succès', 'Paramètres enregistrés');
@@ -774,10 +777,10 @@ export default function Parametres() {
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>En-tête des reçus</Text>
+                  <Text style={styles.label}>Lignes sous le nom (cadre d'en-tête)</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Ex: Syndic BNI - Reçus officiels"
+                    placeholder="Ex: Tél : 07 49 20 04 97"
                     placeholderTextColor={colors.textMuted}
                     value={formData.receiptHeader}
                     onChangeText={(text) => setFormData({ ...formData, receiptHeader: text })}
@@ -785,16 +788,33 @@ export default function Parametres() {
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Signature des reçus</Text>
+                  <Text style={styles.label}>Nom du signataire</Text>
                   <TextInput
-                    style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
-                    placeholder={"Ex: Étude de Maître Sylla Yaya\nSyndic BNI"}
+                    style={styles.input}
+                    placeholder="Ex: SYLLA OUSMANE"
                     placeholderTextColor={colors.textMuted}
-                    value={formData.receiptSignature}
-                    onChangeText={(text) => setFormData({ ...formData, receiptSignature: text })}
-                    multiline
-                    numberOfLines={2}
+                    value={formData.signerName}
+                    onChangeText={(text) => setFormData({ ...formData, signerName: text })}
+                    maxLength={100}
                   />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Titre / qualité du signataire</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Syndic professionnel agréé, Président…"
+                    placeholderTextColor={colors.textMuted}
+                    value={formData.signerTitle}
+                    onChangeText={(text) => setFormData({ ...formData, signerTitle: text })}
+                    maxLength={100}
+                  />
+                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 6 }}>
+                    {config?.hasSignatureImage ? '✓ Signature (photo) enregistrée' : 'Signature (photo) : à ajouter depuis le site web, dans Paramètres'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                    {config?.hasStampImage ? '✓ Cachet enregistré' : 'Cachet (facultatif) : à ajouter depuis le site web'}
+                  </Text>
                 </View>
 
                 <View style={styles.buttonRow}>
@@ -807,7 +827,8 @@ export default function Parametres() {
                         type: config?.type || '',
                         memberFieldLabel: config?.memberFieldLabel || '',
                         receiptHeader: config?.receiptHeader || '',
-                        receiptSignature: config?.receiptSignature || '',
+                        signerName: config?.signerName || '',
+                        signerTitle: config?.signerTitle || '',
                       });
                     }}
                   >

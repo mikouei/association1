@@ -28,6 +28,19 @@ model SuperAdmin {
   updatedAt           DateTime  @updatedAt
 }
 
+// Signature manuscrite + cachet (images PNG en data URL) affichés sur les reçus et appels de charges.
+// Table séparée pour ne pas charger l'image à chaque requête authentifiée.
+model AssociationSignature {
+  id            String      @id @default(uuid())
+  associationId String      @unique
+  imageData     String?     // Signature manuscrite : data:image/png;base64,...
+  stampData     String?     // Cachet (facultatif) : data:image/png;base64,...
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+}
+
 // Association (tenant)
 model Association {
   id           String   @id @default(uuid())
@@ -43,7 +56,9 @@ model Association {
   // Options de configuration
   memberFieldLabel    String  @default("Villa") // Libellé du champ personnalisé
   receiptHeader       String?  // En-tête personnalisé affiché sur les reçus PDF
-  receiptSignature    String?  // Signature affichée en bas des reçus PDF
+  receiptSignature    String?  // Ancien texte libre de signature (repli si signerName/signerTitle vides)
+  signerName          String?  // Nom du signataire des reçus (ex: SYLLA OUSMANE)
+  signerTitle         String?  // Titre / qualité du signataire (ex: Syndic professionnel agréé)
   paymentInfo         String?  // Infos de paiement (ex: numéro) affichées sur l'appel de charges
   enableVehiclePlates Boolean @default(false)   // Activer les matricules de véhicules
   announcementsEnabled Boolean @default(false)  // Annonces/notifications activées, contrôlé uniquement par Super Admin
@@ -71,6 +86,7 @@ model Association {
   tontines                 Tontine[]
   announcements            Announcement[]
   waveTransactions         WaveTransaction[]
+  signature                AssociationSignature?
   
   @@index([code])
 }

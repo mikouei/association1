@@ -380,30 +380,34 @@ export default function Cotisations() {
               {isAdmin && isSyndic && (
                 <TouchableOpacity
                   style={styles.recapBtn}
-                  onPress={() => downloadPdf(
-                    `/members/${member.id}/charge-notice`,
-                    `appel_charges_${member.name}`,
-                    'Appel de charges'
+                  onPress={() => Alert.alert(
+                    'Appel de charges',
+                    `${member.name} — choisissez le format`,
+                    [
+                      {
+                        text: 'PDF',
+                        onPress: () => downloadPdf(
+                          `/members/${member.id}/charge-notice`,
+                          `appel_charges_${member.name}`,
+                          'Appel de charges'
+                        ),
+                      },
+                      {
+                        text: 'Word (modifiable)',
+                        onPress: () => downloadPdf(
+                          `/members/${member.id}/charge-notice-word`,
+                          `appel_charges_word_${member.name}`,
+                          'Appel de charges (Word)',
+                          { ext: 'docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', uti: 'org.openxmlformats.wordprocessingml.document' }
+                        ),
+                      },
+                      { text: 'Annuler', style: 'cancel' },
+                    ]
                   )}
                   testID={`charge-notice-btn-${member.id}`}
                 >
                   <FileText size={16} color={colors.primary} weight="bold" />
-                  <Text style={styles.recapBtnText}>Charges</Text>
-                </TouchableOpacity>
-              )}
-              {isAdmin && isSyndic && (
-                <TouchableOpacity
-                  style={styles.recapBtn}
-                  onPress={() => downloadPdf(
-                    `/members/${member.id}/charge-notice-word`,
-                    `appel_charges_word_${member.name}`,
-                    'Appel de charges (Word)',
-                    { ext: 'docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', uti: 'org.openxmlformats.wordprocessingml.document' }
-                  )}
-                  testID={`charge-notice-word-btn-${member.id}`}
-                >
-                  <FileText size={16} color={colors.primary} weight="bold" />
-                  <Text style={styles.recapBtnText}>Word</Text>
+                  <Text style={styles.recapBtnText}>Appel</Text>
                 </TouchableOpacity>
               )}
               <View style={{ flex: 1 }}>

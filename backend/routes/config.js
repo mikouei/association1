@@ -28,12 +28,21 @@ router.get('/', authenticateToken, async (req, res) => {
       };
     }
 
+    const sigRow = await prisma.associationSignature.findUnique({
+      where: { associationId: req.associationId },
+      select: { imageData: true, stampData: true }
+    });
+
     res.json({
       ...config,
       memberFieldLabel: association.memberFieldLabel || 'Villa',
       receiptHeader: association.receiptHeader,
       receiptSignature: association.receiptSignature,
-      paymentInfo: association.paymentInfo
+      signerName: association.signerName,
+      signerTitle: association.signerTitle,
+      paymentInfo: association.paymentInfo,
+      hasSignatureImage: !!sigRow?.imageData,
+      hasStampImage: !!sigRow?.stampData
     });
   } catch (error) {
     console.error('Get config error:', error);

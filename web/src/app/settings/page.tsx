@@ -11,6 +11,61 @@ import { Plus, Pencil, Trash2, Save, Copy, QrCode, Share2, Download, Users, Chec
 import { formatCurrency } from '@/lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 
+// Prépare une photo/scan de signature : fond clair rendu transparent, recadrage, PNG léger
+async function prepareSignatureImage(file: File, mode: 'signature' | 'stamp' = 'signature'): Promise<string> {
+  const isStamp = mode === 'stamp';
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('Image illisible'));
+      i.src = url;
+    });
+    const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    if (!ctx) throw new Error('Canvas indisponible');
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h);
+    const px = data.data;
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const k = (y * w + x) * 4;
+        const lum = 0.299 * px[k] + 0.587 * px[k + 1] + 0.114 * px[k + 2];
+        if (px[k + 3] < 20 || lum > (isStamp ? 200 : 160)) {
+          px[k + 3] = 0; // fond → transparent
+        } else {
+          if (!isStamp) {
+            px[k] = Math.min(px[k], 40); px[k + 1] = Math.min(px[k + 1], 50); px[k + 2] = Math.min(px[k + 2], 110); // encre bleu foncé
+          }
+          px[k + 3] = 255;
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) throw new Error(isStamp ? 'Aucun cachet détecté sur l\'image' : 'Aucune signature détectée sur l\'image');
+    ctx.putImageData(data, 0, 0);
+    const pad = 4;
+    const cw = Math.min(w, maxX - minX + 1 + pad * 2);
+    const ch = Math.min(h, maxY - minY + 1 + pad * 2);
+    const sx = Math.max(0, minX - pad), sy = Math.max(0, minY - pad);
+    const out = document.createElement('canvas');
+    const outScale = isStamp ? Math.min(1, 400 / cw, 400 / ch) : Math.min(1, 600 / cw, 300 / ch);
+    out.width = Math.max(10, Math.round(cw * outScale));
+    out.height = Math.max(10, Math.round(ch * outScale));
+    out.getContext('2d')!.drawImage(c, sx, sy, cw, ch, 0, 0, out.width, out.height);
+    return out.toDataURL('image/png');
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 interface Year {
   id: string;
   year: number;
@@ -109,6 +164,13 @@ export default function SettingsPage() {
   const [paymentInfo, setPaymentInfo] = useState('');
   const [isSyndic, setIsSyndic] = useState(false);
   const [savingReceipt, setSavingReceipt] = useState(false);
+  const [signerName, setSignerName] = useState('');
+  const [signerTitle, setSignerTitle] = useState('');
+  const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const [stampImage, setStampImage] = useState<string | null>(null);
+  const [savingImage, setSavingImage] = useState<'signature' | 'stamp' | null>(null);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
+  const stampInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -248,10 +310,58 @@ export default function SettingsPage() {
     if (config) {
       setReceiptHeader(config.receiptHeader || '');
       setReceiptSignature(config.receiptSignature || '');
+      setSignerName(config.signerName || '');
+      setSignerTitle(config.signerTitle || '');
       setPaymentInfo(config.paymentInfo || '');
       setIsSyndic(config.type === 'SYNDIC');
     }
   }, [config]);
+
+  // Signature manuscrite et cachet (images) des reçus et appels de charges
+  useEffect(() => {
+    if (!isAdmin) return;
+    api.get('/admin/association-signature')
+      .then((r) => {
+        setSignatureImage(r.data?.imageData || null);
+        setStampImage(r.data?.stampData || null);
+      })
+      .catch(() => {
+        setSignatureImage(null);
+        setStampImage(null);
+      });
+  }, [isAdmin]);
+
+  const handleImageFile = (kind: 'signature' | 'stamp') => async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setSavingImage(kind);
+    try {
+      const dataUrl = await prepareSignatureImage(file, kind);
+      await api.put('/admin/association-signature', { kind, imageData: dataUrl });
+      if (kind === 'stamp') setStampImage(dataUrl); else setSignatureImage(dataUrl);
+      queryClient.invalidateQueries({ queryKey: ['config'] });
+      toast.success(kind === 'stamp' ? 'Cachet enregistré' : 'Signature enregistrée');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || error.message || 'Erreur lors de l\'envoi de l\'image');
+    } finally {
+      setSavingImage(null);
+    }
+  };
+
+  const handleDeleteImage = async (kind: 'signature' | 'stamp') => {
+    setSavingImage(kind);
+    try {
+      await api.delete(`/admin/association-signature?kind=${kind}`);
+      if (kind === 'stamp') setStampImage(null); else setSignatureImage(null);
+      queryClient.invalidateQueries({ queryKey: ['config'] });
+      toast.success(kind === 'stamp' ? 'Cachet retiré' : 'Signature retirée');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erreur lors de la suppression');
+    } finally {
+      setSavingImage(null);
+    }
+  };
 
   const handleSaveReceiptSettings = async () => {
     setSavingReceipt(true);
@@ -259,6 +369,8 @@ export default function SettingsPage() {
       await api.put('/admin/association-settings', {
         receiptHeader,
         receiptSignature,
+        signerName,
+        signerTitle,
         paymentInfo,
         type: isSyndic ? 'SYNDIC' : 'ASSOCIATION',
       });
@@ -559,25 +671,94 @@ export default function SettingsPage() {
               </label>
 
               <div>
-                <label className="text-sm text-gray-500 block mb-1">En-tête des reçus</label>
-                <Input
+                <label className="text-sm text-gray-500 block mb-1">Cadre d&apos;en-tête des reçus</label>
+                <p className="text-xs text-gray-400 mb-2">
+                  Le nom <span className="font-semibold text-gray-600">{(config?.name || '').toUpperCase()}</span> s&apos;affiche
+                  automatiquement dans le cadre{isSyndic ? ', précédé de « SYNDIC »' : ''}. Ajoutez en dessous les lignes utiles (téléphone, adresse…).
+                </p>
+                <textarea
                   value={receiptHeader}
                   onChange={(e) => setReceiptHeader(e.target.value)}
-                  placeholder="Ex: Syndic BNI - Reçus officiels"
+                  placeholder={"Ex: Tél : 07 49 20 04 97\nSongon Brimbresso, route de Dabou"}
+                  rows={2}
                   data-testid="receipt-header-input"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary resize-none"
                 />
               </div>
 
-              <div>
-                <label className="text-sm text-gray-500 block mb-1">Signature des reçus</label>
-                <textarea
-                  value={receiptSignature}
-                  onChange={(e) => setReceiptSignature(e.target.value)}
-                  placeholder={"Ex: Étude de Maître Sylla Yaya\nSyndic BNI"}
-                  rows={2}
-                  data-testid="receipt-signature-input"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary resize-none"
-                />
+              <div className="rounded-lg border border-gray-200 p-3 space-y-3">
+                <p className="text-sm font-medium text-gray-700">Signataire des reçus et appels de charges</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Nom du signataire</label>
+                    <Input
+                      value={signerName}
+                      onChange={(e) => setSignerName(e.target.value)}
+                      placeholder="Ex: SYLLA OUSMANE"
+                      maxLength={100}
+                      data-testid="signer-name-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Titre / qualité</label>
+                    <Input
+                      value={signerTitle}
+                      onChange={(e) => setSignerTitle(e.target.value)}
+                      placeholder={isSyndic ? 'Ex: Syndic professionnel agréé' : 'Ex: Président, Trésorière…'}
+                      maxLength={100}
+                      data-testid="signer-title-input"
+                    />
+                  </div>
+                </div>
+                {!signerName && !signerTitle && receiptSignature && (
+                  <p className="text-xs text-amber-600">
+                    Ancien texte de signature utilisé en attendant : « {receiptSignature.replace(/\n/g, ' / ')} »
+                  </p>
+                )}
+
+                {([
+                  { kind: 'signature' as const, label: 'Signature (photo)', img: signatureImage, ref: signatureInputRef,
+                    help: 'Signez sur une feuille blanche et prenez-la en photo : le fond est retiré automatiquement.' },
+                  { kind: 'stamp' as const, label: 'Cachet (facultatif)', img: stampImage, ref: stampInputRef,
+                    help: 'Tamponnez sur une feuille blanche et prenez-le en photo. Il s\'affiche à côté de la signature.' },
+                ]).map((it) => (
+                  <div key={it.kind}>
+                    <label className="text-xs text-gray-500 block mb-1">{it.label}</label>
+                    <p className="text-xs text-gray-400 mb-2">{it.help}</p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className={`${it.kind === 'stamp' ? 'h-20 w-20' : 'h-20 w-48'} rounded-lg border border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden`}>
+                        {it.img ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={it.img} alt={it.label} className="max-h-16 max-w-full object-contain" />
+                        ) : (
+                          <span className="text-xs text-gray-400 text-center px-1">Aucun{it.kind === 'signature' ? 'e' : ''}</span>
+                        )}
+                      </div>
+                      <input
+                        ref={it.ref}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageFile(it.kind)}
+                        data-testid={`${it.kind}-image-input`}
+                      />
+                      <Button size="sm" variant="outline" onClick={() => it.ref.current?.click()} disabled={savingImage !== null}>
+                        <Upload className="w-4 h-4 mr-1" />
+                        {savingImage === it.kind ? '...' : it.img ? 'Remplacer' : 'Ajouter'}
+                      </Button>
+                      {it.img && (
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteImage(it.kind)} disabled={savingImage !== null}>
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Retirer
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <p className="text-xs text-gray-400">
+                  Le nom et le titre s&apos;enregistrent avec le bouton « Enregistrer » ci-dessous ; les images s&apos;enregistrent dès l&apos;envoi.
+                </p>
               </div>
 
               <div>

@@ -3,6 +3,7 @@ import { authenticateToken, requireAdmin, prisma } from '../middleware/auth.js';
 import { logActivity } from '../utils/activityLog.js';
 import { sendToAssociationMembers } from '../utils/pushNotifications.js';
 import { nombreEnLettres } from '../utils/nombreEnLettres.js';
+import { renderReceiptHeader, renderSignature, attachSignature, docxHeader, docxSignature } from '../utils/receiptLayout.js';
 
 const router = express.Router();
 
@@ -13,28 +14,6 @@ const CONTRIBUTION_TYPES = ['décès', 'mariage', 'anniversaire', 'solidarité',
 
 // Montant en toutes lettres (ex: "vingt et un mille cinq cents francs CFA")
 const enLettres = (n) => `${nombreEnLettres(n)} francs CFA`;
-
-// En-tête commun des reçus : uniquement receiptHeader (pas le nom de l'association)
-function renderReceiptHeader(doc, association) {
-  if (association?.receiptHeader) {
-    doc.fontSize(14).font('Helvetica-Bold').fillColor('#000').text(association.receiptHeader, { align: 'center' });
-  } else {
-    doc.moveDown(1.2);
-  }
-}
-
-// Bloc signature en bas à droite : ligne horizontale + signature (ou "Signature") au-dessus
-function renderSignature(doc, association) {
-  doc.moveDown(2.5);
-  const rightX = doc.page.width - doc.page.margins.right;
-  const blockW = 200;
-  const startX = rightX - blockW;
-  const sig = association?.receiptSignature;
-  doc.fontSize(10).font('Helvetica').fillColor('#000')
-     .text(sig || 'Signature', startX, doc.y, { width: blockW, align: 'center' });
-  const y = doc.y + 2;
-  doc.moveTo(startX, y).lineTo(rightX, y).stroke();
-}
 
 // Helper pour échapper le HTML (sécurité XSS)
 const escapeHtml = (str) =>
@@ -408,6 +387,7 @@ router.get('/mine/receipt/:id', async (req, res) => {
     }
 
     const association = await prisma.association.findUnique({ where: { id: req.associationId } });
+    await attachSignature(prisma, association);
     const currency = (association?.currency && association.currency !== 'XOF') ? association.currency : 'FCFA';
     const payDate = new Date(payment.paymentDate);
     const receiptNo = `R-${payDate.getFullYear()}-${String(payDate.getMonth() + 1).padStart(2, '0')}-${payment.id.substring(0, 6).toUpperCase()}`;

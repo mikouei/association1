@@ -102,14 +102,24 @@ let lastUnauthorizedAt = 0;
 
 // Déclenche le traitement « session expirée » (déconnexion + message + redirection).
 // Exposé pour les flux hors axios (ex: téléchargements via FileSystem.downloadAsync).
+// Empêche plusieurs déconnexions/redirections concurrentes quand plusieurs
+// requêtes échouent en 401 en même temps (ex: retour au premier plan après
+// expiration du token, plusieurs écrans rechargent leurs données en parallèle).
+let isHandlingUnauthorized = false;
 export const triggerUnauthorized = (scope = 'user') => {
+  if (isHandlingUnauthorized) return;
   const now = Date.now();
   const showMessage = now - lastUnauthorizedAt > 1500;
   lastUnauthorizedAt = now;
   const handler = unauthorizedHandlers[scope] || unauthorizedHandlers.user;
-  if (handler) {
-    Promise.resolve(handler({ showMessage })).catch(() => {});
-  }
+  if (!handler) return;
+  isHandlingUnauthorized = true;
+  Promise.resolve(handler({ showMessage }))
+    .catch(() => {})
+    .finally(() => {
+      // Petite fenêtre avant de pouvoir retraiter une future expiration de session
+      setTimeout(() => { isHandlingUnauthorized = false; }, 2000);
+    });
 };
 
 api.interceptors.response.use(

@@ -26,6 +26,7 @@ function LoginPageContent() {
   const [loadingAssociations, setLoadingAssociations] = useState(false);
   const [error, setError] = useState('');
   const [preselectedCode, setPreselectedCode] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadAssociations = async () => {
     setLoadingAssociations(true);
@@ -116,6 +117,13 @@ function LoginPageContent() {
     }
   };
 
+  const filteredAssociations = associations.filter((assoc) => {
+    if (assoc.active === false) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return assoc.name.toLowerCase().includes(q) || assoc.code.toLowerCase().includes(q);
+  });
+
   return (
     <div className="min-h-screen bg-[var(--color-secondary)] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -142,11 +150,22 @@ function LoginPageContent() {
           {step === 'association' ? (
             <div className="space-y-4">
               <p className="text-sm text-[var(--color-text-muted)] mb-4">Sélectionnez votre association :</p>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Code ou nom de votre association"
+                className="w-full px-4 py-2 border border-[var(--color-border)] rounded-[var(--radius-input)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                autoCapitalize="none"
+                autoCorrect="off"
+              />
               {loadingAssociations ? (
                 <div className="text-center py-8 text-[var(--color-text-muted)]">Chargement...</div>
+              ) : filteredAssociations.length === 0 ? (
+                <div className="text-center py-8 text-[var(--color-text-muted)]">Aucune association trouvée</div>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {associations.filter(a => a.active !== false).map((assoc) => (
+                  {filteredAssociations.map((assoc) => (
                     <button
                       key={assoc.id}
                       onClick={() => handleSelectAssociation(assoc)}

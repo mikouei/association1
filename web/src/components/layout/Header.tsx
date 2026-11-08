@@ -1,15 +1,25 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, List } from 'lucide-react';
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+export function Header({ onMenuClick }: HeaderProps) {
   const { user, selectedAssociation, isPlatformAuth } = useAuth();
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 gap-3">
       <div className="flex items-center gap-4">
-        <div className="relative">
+        <button
+          onClick={onMenuClick}
+          className="md:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          aria-label="Ouvrir le menu"
+        >
+          <List className="w-6 h-6" />
+        </button>
+        <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"

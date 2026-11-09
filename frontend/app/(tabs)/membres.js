@@ -235,10 +235,9 @@ export default function Membres() {
           Alert.alert('Erreur', 'Veuillez sélectionner un administrateur');
           return;
         }
-      } else if (!formData.email && !formData.phone) {
-        Alert.alert('Erreur', 'Email ou téléphone requis');
-        return;
       }
+      // Email et téléphone optionnels : sans eux, le membre est une simple
+      // fiche de gestion, sans accès à l'application.
     }
 
     setSaving(true);
@@ -264,11 +263,19 @@ export default function Membres() {
       } else {
         // Création nouveau compte
         const response = await api.post('/members', formData);
-        Alert.alert(
-          'Membre créé!',
-          `Nom: ${response.data.name}\nEmail: ${response.data.email}\nMot de passe: ${response.data.password}\nToken: ${response.data.token}`,
-          [{ text: 'OK' }]
-        );
+        if (!formData.email && !formData.phone) {
+          Alert.alert(
+            'Membre créé!',
+            `${response.data.name} a été ajouté avec succès.`,
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert(
+            'Membre créé!',
+            `Nom: ${response.data.name}\nEmail: ${response.data.email}\nMot de passe: ${response.data.password}\nToken: ${response.data.token}`,
+            [{ text: 'OK' }]
+          );
+        }
       }
       setModalVisible(false);
       setCreateMode('new');

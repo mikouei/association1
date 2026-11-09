@@ -90,9 +90,10 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Nom et champ personnalisé requis' });
     }
 
-    if (!email && !phone) {
-      return res.status(400).json({ error: 'Email ou téléphone requis' });
-    }
+    // Email et téléphone sont optionnels : un admin peut créer une simple fiche
+    // membre (gestion uniquement), sans accès à l'application pour le membre.
+    // Dans ce cas, un email technique interne et un mot de passe aléatoire
+    // (jamais communiqué) sont générés plus bas.
 
     // Valider le format de l'email
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -160,7 +161,7 @@ router.post('/', requireAdmin, async (req, res) => {
       const user = await tx.user.create({
         data: {
           associationId: req.associationId,
-          email: email || `member_${Date.now()}@temp.local`,
+          email: email || `member_${Date.now()}_${crypto.randomBytes(3).toString('hex')}@temp.local`,
           phone: phone || null,
           passwordHash,
           passwordChangedAt: new Date(),

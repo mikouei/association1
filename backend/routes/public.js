@@ -8,6 +8,7 @@ import { prisma, generateJWT } from '../middleware/auth.js';
 import { verifyGoogleIdToken, isGoogleAuthConfigured } from '../middleware/googleAuth.js';
 import { getSupportedCurrencies } from '../utils/currency.js';
 import { checkMemberLimit } from '../utils/planLimits.js';
+import { SHARE_GENERATORS, sendDocument } from '../utils/documents.js';
 
 const router = express.Router();
 
@@ -53,6 +54,33 @@ const infoLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },
+});
+
+// Rate limiter pour les documents partagés (30 requêtes / minute / IP)
+const sharedDocLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Trop de requêtes, réessayez plus tard' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+});
+
+// GET /api/public/d/:token
+// Document partagé via lien public (régénéré à la volée, valable 30 jours)
+router.get('/d/:token', sharedDocLimiter, async (req, res) => {
+  res.setHeader('X-Robots-Tag', 'noindex');
+  try {
+    const link = await prisma.shareLink.findUnique({ where: { token: req.params.token } });
+    if (!link || link.expiresAt <= new Date() || !SHARE_GENERATORS[link.kind]) {
+      return res.status(404).json({ error: 'Lien introuvable ou expiré' });
+    }
+    const result = await SHARE_GENERATORS[link.kind]({ associationId: link.associationId, targetId: link.targetId });
+    sendDocument(res, result, 'inline');
+  } catch (error) {
+    console.error('Shared document error:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du document' });
+  }
 });
 
 // ============================================

@@ -87,8 +87,25 @@ model Association {
   announcements            Announcement[]
   waveTransactions         WaveTransaction[]
   signature                AssociationSignature?
+  shareLinks               ShareLink[]
   
   @@index([code])
+}
+
+// Lien public de partage d'un document (régénéré à chaque ouverture, expire après 30 jours)
+model ShareLink {
+  id            String   @id @default(uuid())
+  token         String   @unique // 32 octets aléatoires, base64url
+  associationId String
+  kind          String   // RECEIPT | RECEIPT_RECAP | CHARGE_NOTICE_PDF | CHARGE_NOTICE_WORD
+  targetId      String   // MonthlyPayment.id (RECEIPT) ou Member.id (autres)
+  createdById   String   // User.id de l'admin créateur
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+
+  @@index([associationId])
 }
 
 // Configuration de l'association

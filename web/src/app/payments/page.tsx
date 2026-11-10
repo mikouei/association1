@@ -6,7 +6,7 @@ import { DashboardLayout } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge, Modal, LoadingSpinner } from '@/components/ui';
 import { api } from '@/services/api';
 import { formatCurrency, MONTHS } from '@/lib/utils';
-import { CreditCard, Check, Receipt, FileText } from 'lucide-react';
+import { CreditCard, Check, Receipt, FileText, Download, Share2, MessageCircle, Mail, MessageSquare } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { getVocab } from '@/utils/vocabulary';
@@ -17,12 +17,34 @@ interface MemberPayment {
   name: string;
   customFieldValue?: string;
   phone?: string;
+  email?: string | null;
   paymentsByMonth: Record<number, { paid: boolean; amountPaid: number; payments: Array<{ id: string; notes?: string | null }> }>;
   totalPaid: number;
   totalDue: number;
   remaining: number;
   percentage: number;
 }
+
+type ShareKind = 'RECEIPT' | 'RECEIPT_RECAP' | 'CHARGE_NOTICE_PDF' | 'CHARGE_NOTICE_WORD';
+
+interface ReadyDoc {
+  blob: Blob;
+  filename: string;
+  type: string;
+  kind: ShareKind;
+  targetId: string;
+  label: string;
+  member: MemberPayment;
+}
+
+// Numéro ivoirien au format 225XXXXXXXXXX (10 chiffres après 225), sinon null
+const normalizeCiPhone = (phone?: string | null) => {
+  let digits = (phone || '').replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (digits.length === 13 && digits.startsWith('225')) return digits;
+  if (digits.length === 10) return `225${digits}`;
+  return null;
+};
 
 interface Year {
   id: string;
@@ -45,6 +67,8 @@ export default function PaymentsPage() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [readyDoc, setReadyDoc] = useState<ReadyDoc | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   const { data: years, isLoading: loadingYears } = useQuery({
     queryKey: ['years'],
@@ -102,23 +126,71 @@ export default function PaymentsPage() {
     setPaymentModal({ isOpen: true, member, month });
   };
 
-  // Téléchargement générique d'un PDF (blob)
-  const downloadBlob = async (url: string, filename: string) => {
+  // Récupère le document (blob) puis ouvre la modale « Document prêt »
+  const downloadBlob = async (url: string, filename: string, doc: Omit<ReadyDoc, 'blob' | 'filename' | 'type'>) => {
     try {
-      toast.info('Génération du PDF en cours...');
+      toast.info('Génération du document en cours...');
       const response = await api.get(url, { responseType: 'blob' });
-      const objUrl = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = objUrl;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(objUrl);
-      toast.success('PDF téléchargé avec succès');
+      const type = (response.headers['content-type'] as string) || (response.data as Blob).type || 'application/pdf';
+      setReadyDoc({ ...doc, blob: response.data as Blob, filename, type });
     } catch (error) {
-      console.error('Download PDF error:', error);
-      toast.error('Erreur lors de la génération du PDF');
+      console.error('Download document error:', error);
+      toast.error('Erreur lors de la génération du document');
+    }
+  };
+
+  // Téléchargement local (comportement historique)
+  const saveReadyDoc = () => {
+    if (!readyDoc) return;
+    const objUrl = window.URL.createObjectURL(new Blob([readyDoc.blob]));
+    const link = document.createElement('a');
+    link.href = objUrl;
+    link.setAttribute('download', readyDoc.filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(objUrl);
+    toast.success('Document téléchargé avec succès');
+  };
+
+  const readyFile = readyDoc ? new File([readyDoc.blob], readyDoc.filename, { type: readyDoc.type }) : null;
+  const canNativeShare = !!readyFile && typeof navigator !== 'undefined' && !!navigator.canShare?.({ files: [readyFile] });
+
+  const nativeShare = async () => {
+    if (!readyDoc || !readyFile) return;
+    try {
+      await navigator.share({ files: [readyFile], title: readyDoc.label });
+    } catch (error) {
+      if ((error as Error)?.name !== 'AbortError') toast.error('Partage impossible');
+    }
+  };
+
+  const shareVia = async (channel: 'whatsapp' | 'email' | 'sms') => {
+    if (!readyDoc) return;
+    // Onglet ouvert immédiatement (geste utilisateur) pour éviter le bloqueur de pop-up
+    const waWindow = channel === 'whatsapp' ? window.open('', '_blank') : null;
+    setSharing(true);
+    try {
+      const { data } = await api.post('/share-links', { kind: readyDoc.kind, targetId: readyDoc.targetId });
+      const { member, label } = readyDoc;
+      const message = `Bonjour ${member.name}, voici votre ${label} – ${association?.name || ''} : ${data.url} (lien valable 30 jours)`;
+      const phone = normalizeCiPhone(member.phone);
+      const text = encodeURIComponent(message);
+      if (channel === 'whatsapp') {
+        const waUrl = `https://wa.me/${phone || ''}?text=${text}`;
+        if (waWindow) waWindow.location.href = waUrl; else window.open(waUrl, '_blank');
+      } else if (channel === 'email') {
+        const subject = encodeURIComponent(`${label.charAt(0).toUpperCase()}${label.slice(1)} – ${association?.name || ''}`);
+        window.location.href = `mailto:${member.email || ''}?subject=${subject}&body=${text}`;
+      } else {
+        window.location.href = `sms:${phone || ''}?&body=${text}`;
+      }
+    } catch (error) {
+      waWindow?.close();
+      console.error('Share link error:', error);
+      toast.error('Erreur lors de la création du lien de partage');
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -152,8 +224,8 @@ export default function PaymentsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Cotisations</h1>
-            <p className="text-gray-500">Gestion des cotisations mensuelles</p>
+            <h1 className="text-2xl font-bold text-gray-900">{vocab.Contributions}</h1>
+            <p className="text-gray-500">Gestion des {vocab.Contributions.toLowerCase()} mensuelles</p>
           </div>
 
           {/* Sélecteur d'année */}
@@ -235,7 +307,7 @@ export default function PaymentsPage() {
                           <p className="text-xs text-gray-500">{member.customFieldValue}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <button
-                              onClick={() => downloadBlob(`/members/${member.id}/receipt-recap`, `recu_recap_${safe(member.name)}.pdf`)}
+                              onClick={() => downloadBlob(`/members/${member.id}/receipt-recap`, `recu_recap_${safe(member.name)}.pdf`, { kind: 'RECEIPT_RECAP', targetId: member.id, label: 'reçu récapitulatif', member })}
                               className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                               data-testid={`recap-btn-${member.id}`}
                             >
@@ -253,7 +325,7 @@ export default function PaymentsPage() {
                                   Appel de charges
                                 </span>
                                 <button
-                                  onClick={() => downloadBlob(`/members/${member.id}/charge-notice`, `appel_charges_${safe(member.name)}.pdf`)}
+                                  onClick={() => downloadBlob(`/members/${member.id}/charge-notice`, `appel_charges_${safe(member.name)}.pdf`, { kind: 'CHARGE_NOTICE_PDF', targetId: member.id, label: 'appel de charges', member })}
                                   className="px-2 py-0.5 text-primary font-medium hover:bg-primary/10"
                                   title="Télécharger l'appel de charges en PDF"
                                   data-testid={`charge-notice-btn-${member.id}`}
@@ -261,7 +333,7 @@ export default function PaymentsPage() {
                                   PDF
                                 </button>
                                 <button
-                                  onClick={() => downloadBlob(`/members/${member.id}/charge-notice-word`, `appel_charges_${safe(member.name)}.docx`)}
+                                  onClick={() => downloadBlob(`/members/${member.id}/charge-notice-word`, `appel_charges_${safe(member.name)}.docx`, { kind: 'CHARGE_NOTICE_WORD', targetId: member.id, label: 'appel de charges', member })}
                                   className="px-2 py-0.5 text-primary font-medium hover:bg-primary/10 border-l border-gray-200"
                                   title="Télécharger l'appel de charges en Word (modifiable)"
                                   data-testid={`charge-notice-word-btn-${member.id}`}
@@ -306,7 +378,13 @@ export default function PaymentsPage() {
                                       e.stopPropagation();
                                       downloadBlob(
                                         `/payments/${monthData.payments[0].id}/receipt`,
-                                        `recu_${MONTHS[idx]}_${safe(member.name)}.pdf`
+                                        `recu_${MONTHS[idx]}_${safe(member.name)}.pdf`,
+                                        {
+                                          kind: 'RECEIPT',
+                                          targetId: monthData.payments[0].id,
+                                          label: `reçu de paiement de ${MONTHS[idx]} ${selectedYear?.year ?? ''}`.trim(),
+                                          member,
+                                        }
                                       );
                                     }}
                                     className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-green-600 hover:bg-green-50"
@@ -387,6 +465,41 @@ export default function PaymentsPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* Modal Document prêt */}
+        <Modal isOpen={!!readyDoc} onClose={() => setReadyDoc(null)} title="Document prêt" size="sm">
+          <div className="space-y-4">
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="font-medium text-gray-900 break-all">{readyDoc?.filename}</p>
+              <p className="text-sm text-gray-500">{readyDoc?.member.name}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <Button onClick={saveReadyDoc} data-testid="doc-download-btn">
+                <Download className="w-4 h-4 mr-2" />
+                Télécharger
+              </Button>
+              {canNativeShare && (
+                <Button variant="outline" onClick={nativeShare} data-testid="doc-share-btn">
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Partager
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => shareVia('whatsapp')} disabled={sharing} data-testid="doc-whatsapp-btn">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                WhatsApp
+              </Button>
+              <Button variant="outline" onClick={() => shareVia('email')} disabled={sharing} data-testid="doc-email-btn">
+                <Mail className="w-4 h-4 mr-2" />
+                E-mail
+              </Button>
+              <Button variant="outline" onClick={() => shareVia('sms')} disabled={sharing} data-testid="doc-sms-btn">
+                <MessageSquare className="w-4 h-4 mr-2" />
+                SMS
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500">Les liens WhatsApp, e-mail et SMS sont valables 30 jours.</p>
+          </div>
         </Modal>
       </div>
     </DashboardLayout>

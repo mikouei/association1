@@ -6,7 +6,8 @@ import { authenticateToken, requireAdmin, requireRole, generateAccessToken, pris
 import { logActivity } from '../utils/activityLog.js';
 import { checkMemberLimit } from '../utils/planLimits.js';
 import { nombreEnLettres } from '../utils/nombreEnLettres.js';
-import { renderReceiptHeader, renderSignature, attachSignature, docxHeader, docxSignature, signerHeading } from '../utils/receiptLayout.js';
+import { renderReceiptHeader, attachSignature } from '../utils/receiptLayout.js';
+import { getTotalDueUpTo, generateReceiptRecap, generateChargeNoticePdf, generateChargeNoticeWord, sendDocument } from '../utils/documents.js';
 
 const router = express.Router();
 
@@ -1047,100 +1048,8 @@ router.get('/:id/export-pdf', requireAdmin, memberPdfHandler);
 // Reçu récapitulatif d'un membre : de janvier au mois calendaire actuel (année en cours) - ADMIN
 router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const member = await prisma.member.findFirst({
-      where: { id, associationId: req.associationId }
-    });
-    if (!member) {
-      return res.status(404).json({ error: 'Membre introuvable' });
-    }
-
-    const now = new Date();
-    const currentYearNum = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-12 (mois actuel inclus)
-
-    const year = await prisma.year.findFirst({
-      where: { associationId: req.associationId, year: currentYearNum },
-      include: { rateChanges: true }
-    });
-    if (!year) {
-      return res.status(404).json({ error: 'Aucune année de cotisation pour l\'année en cours' });
-    }
-
-    const association = await prisma.association.findUnique({ where: { id: req.associationId } });
-    await attachSignature(prisma, association);
-    const payments = await prisma.monthlyPayment.findMany({
-      where: { memberId: member.id, yearId: year.id },
-      include: { history: { orderBy: { paymentDate: 'asc' } } }
-    });
-
-    const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
-
-    let totalPaid = 0;
-    const rows = [];
-    for (let m = 1; m <= currentMonth; m++) {
-      const monthPayments = payments.filter(p => p.month === m);
-      const paid = monthPayments.reduce((s, p) => s + p.amountPaid, 0);
-      totalPaid += paid;
-      const history = monthPayments.flatMap(p => p.history || []);
-      rows.push({ month: MONTHS_FR[m - 1], paid, history });
-    }
-    const totalDue = getTotalDueUpTo(year, currentMonth);
-
-    const receiptNo = `R-${currentYearNum}-RECAP-${member.id.substring(0, 6).toUpperCase()}`;
-
-    const PDFDocument = (await import('pdfkit')).default;
-    const doc = new PDFDocument({ margin: 40, size: 'A5' });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="recu_recap_${receiptNo}.pdf"`);
-    doc.pipe(res);
-
-    renderReceiptHeader(doc, association, 14);
-    doc.moveDown(0.3);
-    doc.fontSize(13).font('Helvetica-Bold').fillColor('#000').text('Reçu récapitulatif', { align: 'center' });
-    doc.moveDown(0.2);
-    doc.fontSize(9).font('Helvetica').fillColor('#666').text(`N° ${receiptNo}`, { align: 'center' });
-    doc.moveDown(0.8).fillColor('#000');
-
-    doc.fontSize(11).font('Helvetica-Bold').text('Membre : ', { continued: true })
-       .font('Helvetica').text(member.name);
-    doc.fontSize(11).font('Helvetica-Bold').text('Année : ', { continued: true })
-       .font('Helvetica').text(`${currentYearNum} (Janvier à ${MONTHS_FR[currentMonth - 1]})`);
-    doc.moveDown(0.6);
-
-    // Détail par mois (de janvier au mois actuel)
-    for (const r of rows) {
-      doc.fontSize(10).font('Helvetica').fillColor('#666').text(`${r.month} :`, { continued: true });
-      doc.fillColor('#000').text(`  ${fcfa(r.paid)} FCFA`);
-      if (r.history && r.history.length > 1) {
-        for (const h of r.history) {
-          if (h.amount > 0) {
-            doc.fontSize(8).font('Helvetica').fillColor('#888').text(`   - ${new Date(h.paymentDate).toLocaleDateString('fr-FR')} : ${fcfa(h.amount)} FCFA`);
-          }
-        }
-        doc.fillColor('#000');
-      }
-      doc.moveDown(0.2);
-    }
-
-    doc.moveDown(0.6);
-    doc.fontSize(11).font('Helvetica-Bold').fillColor(totalPaid >= totalDue ? '#2E7D32' : '#B26A00').text(`Total payé : ${fcfa(totalPaid)} FCFA`);
-    doc.fontSize(9).font('Helvetica').fillColor('#444').text(`La somme de : ${enLettres(totalPaid)}`);
-    doc.fillColor('#000');
-    doc.fontSize(11).font('Helvetica-Bold').text(`Total dû : ${fcfa(totalDue)} FCFA`);
-    doc.fontSize(10).font('Helvetica').fillColor(totalDue - totalPaid > 0 ? '#B00020' : '#2E7D32').text(`Reste à payer : ${fcfa(Math.max(0, totalDue - totalPaid))} FCFA`);
-    doc.fillColor('#000');
-
-    doc.moveDown(0.6);
-    doc.fontSize(9).font('Helvetica').fillColor('#666').text(`État au ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
-    doc.fillColor('#000');
-
-    renderSignature(doc, association);
-
-    doc.end();
+    const result = await generateReceiptRecap({ associationId: req.associationId, memberId: req.params.id });
+    sendDocument(res, result);
   } catch (error) {
     console.error('Receipt recap PDF error:', error);
     res.status(500).json({ error: 'Erreur lors de la génération du reçu récapitulatif' });
@@ -1149,128 +1058,10 @@ router.get('/:id/receipt-recap', requireAdmin, async (req, res) => {
 
 // GET /api/members/:id/charge-notice
 // Appel de charges (lettre formelle A4) pour un membre - ADMIN (mode SYNDIC)
-// Calcul commun pour l'appel de charges (PDF + Word)
-function getMonthlyRate(year, month) {
-  if (!year.rateChanges || year.rateChanges.length === 0) return year.monthlyAmount;
-  const applicable = year.rateChanges.filter(rc => rc.fromMonth <= month).sort((a, b) => b.fromMonth - a.fromMonth)[0];
-  return applicable ? applicable.amount : year.monthlyAmount;
-}
-function getTotalDueUpTo(year, uptoMonth) {
-  let total = 0;
-  for (let m = 1; m <= uptoMonth; m++) total += getMonthlyRate(year, m);
-  return total;
-}
-
-async function getChargeNoticeData(req, id) {
-  const member = await prisma.member.findFirst({
-    where: { id, associationId: req.associationId }
-  });
-  if (!member) {
-    return { error: 'Membre introuvable', status: 404 };
-  }
-
-  const now = new Date();
-  const currentYearNum = now.getFullYear();
-  const currentMonth = now.getMonth() + 1; // 1-12 (mois actuel inclus)
-
-  const year = await prisma.year.findFirst({
-    where: { associationId: req.associationId, year: currentYearNum },
-    include: { rateChanges: true }
-  });
-  if (!year) {
-    return { error: 'Aucune année de cotisation pour l\'année en cours', status: 404 };
-  }
-
-  const association = await prisma.association.findUnique({ where: { id: req.associationId } });
-  await attachSignature(prisma, association);
-  const payments = await prisma.monthlyPayment.findMany({
-    where: { memberId: member.id, yearId: year.id }
-  });
-
-  const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-  const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
-
-  let totalPaid = 0;
-  for (let m = 1; m <= currentMonth; m++) {
-    totalPaid += payments.filter(p => p.month === m).reduce((s, p) => s + p.amountPaid, 0);
-  }
-  const totalDue = getTotalDueUpTo(year, currentMonth);
-  const diff = Math.abs(totalDue - totalPaid);
-
-  return { member, association, year, currentYearNum, currentMonth, totalPaid, totalDue, diff, MONTHS_FR, fcfa };
-}
-
 router.get('/:id/charge-notice', requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const data = await getChargeNoticeData(req, id);
-    if (data.error) {
-      return res.status(data.status).json({ error: data.error });
-    }
-    const { member, association, year, currentYearNum, currentMonth, totalPaid, totalDue, diff, MONTHS_FR, fcfa } = data;
-
-    const safeName = (member.name || 'membre').replace(/[^a-zA-Z0-9]/g, '_');
-
-    const PDFDocument = (await import('pdfkit')).default;
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="appel_charges_${safeName}.pdf"`);
-    doc.pipe(res);
-
-    // En-tête + séparateur + date
-    renderReceiptHeader(doc, association, 16);
-    const noticeMarginX = doc.page.margins.left;
-    const noticePageW = doc.page.width - noticeMarginX * 2;
-    doc.fontSize(10).font('Helvetica').fillColor('#000')
-       .text(`Le ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
-    doc.moveDown(0.5);
-    doc.fontSize(12).font('Helvetica-Bold').text(signerHeading(association));
-    doc.moveDown(1);
-    doc.fontSize(12).font('Helvetica-Bold')
-       .text(`Objet : Appel de charges — ${MONTHS_FR[currentMonth - 1]} ${currentYearNum}`);
-    doc.moveDown(1);
-    doc.fontSize(11).font('Helvetica').text(`Monsieur/Madame ${member.name}`);
-    if (member.customFieldValue) {
-      doc.text(`${association?.memberFieldLabel || 'Villa'} ${member.customFieldValue}`);
-    }
-    doc.moveDown(1);
-    doc.fontSize(11).font('Helvetica')
-       .text('Je vous informe de l\'état actuel de votre compte de charges à ce jour :');
-    doc.moveDown(0.6);
-    const noticeBoxY = doc.y;
-    const noticeBoxH = 100;
-    doc.save();
-    doc.roundedRect(noticeMarginX, noticeBoxY, noticePageW, noticeBoxH, 4).fill('#F2F7F2');
-    doc.restore();
-    let ny = noticeBoxY + 12;
-    const noticeLine = (label, value, valueColor) => {
-      doc.fontSize(11).font('Helvetica-Bold').fillColor('#444').text(label, noticeMarginX + 14, ny, { continued: true });
-      doc.font('Helvetica').fillColor(valueColor || '#000').text(` ${value}`);
-      ny += 17;
-    };
-    noticeLine('Charges mensuelles :', year.rateChanges?.length > 0 ? 'Cotisation variable (voir détail)' : `${fcfa(year.monthlyAmount)} FCFA`);
-    noticeLine('Période :', `Janvier à ${MONTHS_FR[currentMonth - 1]} ${currentYearNum} soit ${currentMonth} mois`);
-    noticeLine('Montant dû :', `${fcfa(totalDue)} FCFA`);
-    noticeLine('Montant payé :', `${fcfa(totalPaid)} FCFA`, totalPaid >= totalDue ? '#2E7D32' : '#B26A00');
-    if (totalDue > totalPaid) {
-      noticeLine('Reste dû :', `${fcfa(diff)} FCFA`, '#B00020');
-    } else {
-      noticeLine('Avance :', `${fcfa(diff)} FCFA`, '#2E7D32');
-    }
-    doc.y = noticeBoxY + noticeBoxH + 14;
-    doc.fillColor('#000');
-    doc.fontSize(11).font('Helvetica')
-       .text('Nous vous rappelons que ces charges sont essentielles au bon fonctionnement et à l\'entretien de la copropriété. Merci de bien vouloir régulariser votre situation dans les meilleurs délais.', { align: 'justify' });
-    if (association?.paymentInfo) {
-      doc.moveDown(0.8);
-      doc.fontSize(10).font('Helvetica-Bold').fillColor('#2E7D32').text(association.paymentInfo);
-      doc.fillColor('#000');
-    }
-    renderSignature(doc, association);
-
-    doc.end();
+    const result = await generateChargeNoticePdf({ associationId: req.associationId, memberId: req.params.id });
+    sendDocument(res, result);
   } catch (error) {
     console.error('Charge notice PDF error:', error);
     res.status(500).json({ error: 'Erreur lors de la génération de l\'appel de charges' });
@@ -1281,100 +1072,8 @@ router.get('/:id/charge-notice', requireAdmin, async (req, res) => {
 // Même appel de charges au format Word (.docx) - ADMIN (mode SYNDIC)
 router.get('/:id/charge-notice-word', requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const data = await getChargeNoticeData(req, id);
-    if (data.error) {
-      return res.status(data.status).json({ error: data.error });
-    }
-    const { member, association, year, currentYearNum, currentMonth, totalPaid, totalDue, diff, MONTHS_FR, fcfa } = data;
-
-    const d = await import('docx');
-    const { Document, Paragraph, TextRun, AlignmentType, Packer } = d;
-
-    const safeName = (member.name || 'membre').replace(/[^a-zA-Z0-9]/g, '_');
-    const restLabel = totalDue > totalPaid ? 'Reste dû : ' : 'Avance : ';
-
-    const children = [];
-
-    // Cadre d'en-tête automatique (nom de la cité/association + lignes d'en-tête)
-    children.push(...docxHeader(d, association));
-
-    // Date du jour alignée à droite
-    children.push(new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      spacing: { before: 200 },
-      children: [new TextRun(`Le ${new Date().toLocaleDateString('fr-FR')}`)]
-    }));
-
-    // LE SYNDIC
-    children.push(new Paragraph({
-      spacing: { before: 200 },
-      children: [new TextRun({ text: signerHeading(association), bold: true })]
-    }));
-
-    // Objet
-    children.push(new Paragraph({
-      spacing: { before: 300 },
-      children: [new TextRun({ text: `Objet : Appel de charges — ${MONTHS_FR[currentMonth - 1]} ${currentYearNum}`, bold: true })]
-    }));
-
-    // Destinataire
-    children.push(new Paragraph({
-      spacing: { before: 300 },
-      children: [new TextRun(`Monsieur/Madame ${member.name}`)]
-    }));
-    if (member.customFieldValue) {
-      children.push(new Paragraph({
-        children: [new TextRun(`${association?.memberFieldLabel || 'Villa'} ${member.customFieldValue}`)]
-      }));
-    }
-
-    // Corps
-    children.push(new Paragraph({
-      spacing: { before: 300 },
-      children: [new TextRun('Je vous informe de l\'état actuel de votre compte de charges à ce jour :')]
-    }));
-
-    const lineBold = (label, value, before, valueColor) => new Paragraph({
-      spacing: before ? { before } : undefined,
-      shading: { fill: 'F2F7F2', type: 'clear', color: 'auto' },
-      children: [
-        new TextRun({ text: label, bold: true, color: '444444' }),
-        new TextRun({ text: value, color: valueColor || '000000' })
-      ]
-    });
-    const montantPayeColor = totalPaid >= totalDue ? '2E7D32' : 'B26A00';
-    const resteColor = totalDue > totalPaid ? 'B00020' : '2E7D32';
-    children.push(lineBold('Charges mensuelles : ', year.rateChanges?.length > 0 ? 'Cotisation variable (voir détail)' : `${fcfa(year.monthlyAmount)} FCFA`, 200));
-    children.push(lineBold('Période : ', `Janvier à ${MONTHS_FR[currentMonth - 1]} ${currentYearNum} soit ${currentMonth} mois`));
-    children.push(lineBold('Montant dû : ', `${fcfa(totalDue)} FCFA`));
-    children.push(lineBold('Montant payé : ', `${fcfa(totalPaid)} FCFA`, undefined, montantPayeColor));
-    children.push(lineBold(restLabel, `${fcfa(diff)} FCFA`, undefined, resteColor));
-
-    // Paragraphe de rappel
-    children.push(new Paragraph({
-      spacing: { before: 300 },
-      alignment: AlignmentType.JUSTIFIED,
-      children: [new TextRun('Nous vous rappelons que ces charges sont essentielles au bon fonctionnement et à l\'entretien de la copropriété. Merci de bien vouloir régulariser votre situation dans les meilleurs délais.')]
-    }));
-
-    if (association?.paymentInfo) {
-      children.push(new Paragraph({
-        spacing: { before: 300 },
-        children: [new TextRun({ text: association.paymentInfo, bold: true, color: '2E7D32' })]
-      }));
-    }
-
-    // Bloc signature (image manuscrite + ligne + nom/titre)
-    children.push(...docxSignature(d, association));
-
-    const docx = new Document({ sections: [{ children }] });
-    const buffer = await Packer.toBuffer(docx);
-
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="appel_charges_${safeName}.docx"`);
-    res.send(buffer);
+    const result = await generateChargeNoticeWord({ associationId: req.associationId, memberId: req.params.id });
+    sendDocument(res, result);
   } catch (error) {
     console.error('Charge notice Word error:', error);
     res.status(500).json({ error: 'Erreur lors de la génération de l\'appel de charges (Word)' });

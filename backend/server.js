@@ -20,6 +20,7 @@ import exportRoutes from "./routes/export.js";
 import platformRoutes from "./routes/platform.js";
 import vehicleRoutes from "./routes/vehicles.js";
 import publicRoutes from "./routes/public.js";
+import shareLinkRoutes from "./routes/shareLinks.js";
 import activityLogRoutes from "./routes/activityLog.js";
 
 dotenv.config();
@@ -107,6 +108,7 @@ app.use("/api/import", importRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/activity-log", activityLogRoutes);
+app.use("/api/share-links", shareLinkRoutes);
 
 //
 // ROUTES V2 (Platform)

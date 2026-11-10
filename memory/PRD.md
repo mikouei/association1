@@ -53,3 +53,9 @@ Voir `/app/memory/test_credentials.md`. Admin ASCB: tél `+2250708510832` / `adm
 - P2: testIDs sur l'écran `login.js` (robustesse tests).
 - P2: rendre `joinLimiter` (5/h/IP) configurable via env (NAT partagé).
 - P2: notifier l'admin (in-app) quand une nouvelle demande arrive.
+
+## Partage des documents web (juin 2026)
+- Modèle ShareLink + migration 20261110100000_add_share_links
+- POST /api/share-links (admin), GET /api/public/d/:token (public, 30 req/min, noindex, inline)
+- Génération des 4 documents centralisée dans backend/utils/documents.js (Buffer)
+- Web payments: modale « Document prêt » (Télécharger, Partager, WhatsApp, E-mail, SMS), titre via vocab.Contributions
